@@ -248,39 +248,72 @@ function ResultadoPage() {
     }
   };
 
+  const ringColor =
+    cls.tone === "success" ? "var(--success)" : cls.tone === "warning" ? "var(--warning)" : "var(--destructive)";
+  const pct = Math.max(0, Math.min(100, score.percentual));
+  const circumference = 2 * Math.PI * 68;
+  const dashOffset = circumference - (pct / 100) * circumference;
+
   return (
     <AppShell>
       <Toaster richColors position="top-center" />
-      <div className="mb-4">
-        <div className="text-xs uppercase tracking-wider text-muted-foreground">Resultado da Inspeção</div>
-        <h1 className="text-2xl font-semibold">{insp.estabelecimento}</h1>
+      <div className="mb-6 border-b border-border pb-4">
+        <span className="label-eyebrow text-primary">Resultado da Inspeção</span>
+        <h1 className="font-display text-3xl font-semibold mt-1">{insp.estabelecimento}</h1>
         <p className="text-sm text-muted-foreground">{insp.dados.estabelecimento.razaoSocial}</p>
       </div>
 
-      <Card className={cn("border-2", cls.tone === "success" && "border-success/40", cls.tone === "warning" && "border-warning/50", cls.tone === "destructive" && "border-destructive/40")}>
-        <CardContent className="p-6">
-          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-            <div>
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">Pontuação geral</div>
-              <div className="mt-1 text-5xl font-bold tracking-tight">{score.percentual.toFixed(2)}%</div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                {score.sim} conformes · {score.nao} não conformes · {score.na} não se aplica
-              </div>
-            </div>
-            <div
-              className={cn(
-                "rounded-xl px-6 py-4 text-center",
-                cls.tone === "success" && "bg-success text-success-foreground",
-                cls.tone === "warning" && "bg-warning text-warning-foreground",
-                cls.tone === "destructive" && "bg-destructive text-destructive-foreground",
-              )}
-            >
-              <div className="text-3xl">{cls.emoji}</div>
-              <div className="mt-1 text-lg font-bold">{cls.label}</div>
+      <div className="bg-paper relative rounded-lg border border-border p-8 overflow-hidden">
+        {/* Elevare seal top-right */}
+        <div className="absolute top-4 right-4 hidden sm:flex flex-col items-end">
+          <span className="label-eyebrow text-primary/70">Elevare</span>
+          <span className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Conformidade Sanitária</span>
+        </div>
+
+        <div className="flex flex-col items-center gap-8 sm:flex-row sm:items-center sm:justify-center">
+          {/* Circular score ring */}
+          <div className="relative h-44 w-44 shrink-0">
+            <svg viewBox="0 0 160 160" className="h-full w-full -rotate-90">
+              <circle cx="80" cy="80" r="68" fill="none" stroke="var(--border)" strokeWidth="10" />
+              <circle
+                cx="80"
+                cy="80"
+                r="68"
+                fill="none"
+                stroke={ringColor}
+                strokeWidth="10"
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={dashOffset}
+                style={{ transition: "stroke-dashoffset 1s ease-out" }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="font-display text-4xl font-semibold tabular-nums leading-none">
+                {score.percentual.toFixed(1)}
+                <span className="text-xl">%</span>
+              </span>
+              <span className="mt-2 label-eyebrow text-muted-foreground">Conformidade</span>
             </div>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Verdict */}
+          <div className="text-center sm:text-left">
+            <span className="label-eyebrow text-muted-foreground">Classificação</span>
+            <div
+              className="font-display text-5xl font-semibold mt-1"
+              style={{ color: ringColor }}
+            >
+              {cls.label}
+            </div>
+            <div className="mt-3 flex flex-wrap justify-center sm:justify-start gap-x-4 gap-y-1 text-sm text-muted-foreground">
+              <span><span className="font-semibold text-foreground">{score.sim}</span> conformes</span>
+              <span><span className="font-semibold text-foreground">{score.nao}</span> não conformes</span>
+              <span><span className="font-semibold text-foreground">{score.na}</span> não se aplica</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {!search.readonly && (
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
