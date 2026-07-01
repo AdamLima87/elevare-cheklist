@@ -9,13 +9,37 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PerfilRouteImport } from './routes/perfil'
+import { Route as MeuResultadoRouteImport } from './routes/meu-resultado'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as HistoricoRouteImport } from './routes/historico'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AcessoNegadoRouteImport } from './routes/acesso-negado'
 import { Route as IndexRouteImport } from './routes/index'
 
+const PerfilRoute = PerfilRouteImport.update({
+  id: '/perfil',
+  path: '/perfil',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MeuResultadoRoute = MeuResultadoRouteImport.update({
+  id: '/meu-resultado',
+  path: '/meu-resultado',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HistoricoRoute = HistoricoRouteImport.update({
+  id: '/historico',
+  path: '/historico',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AcessoNegadoRoute = AcessoNegadoRouteImport.update({
@@ -32,40 +56,106 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/acesso-negado': typeof AcessoNegadoRoute
+  '/dashboard': typeof DashboardRoute
+  '/historico': typeof HistoricoRoute
   '/login': typeof LoginRoute
+  '/meu-resultado': typeof MeuResultadoRoute
+  '/perfil': typeof PerfilRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/acesso-negado': typeof AcessoNegadoRoute
+  '/dashboard': typeof DashboardRoute
+  '/historico': typeof HistoricoRoute
   '/login': typeof LoginRoute
+  '/meu-resultado': typeof MeuResultadoRoute
+  '/perfil': typeof PerfilRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/acesso-negado': typeof AcessoNegadoRoute
+  '/dashboard': typeof DashboardRoute
+  '/historico': typeof HistoricoRoute
   '/login': typeof LoginRoute
+  '/meu-resultado': typeof MeuResultadoRoute
+  '/perfil': typeof PerfilRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/acesso-negado' | '/login'
+  fullPaths:
+    | '/'
+    | '/acesso-negado'
+    | '/dashboard'
+    | '/historico'
+    | '/login'
+    | '/meu-resultado'
+    | '/perfil'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/acesso-negado' | '/login'
-  id: '__root__' | '/' | '/acesso-negado' | '/login'
+  to:
+    | '/'
+    | '/acesso-negado'
+    | '/dashboard'
+    | '/historico'
+    | '/login'
+    | '/meu-resultado'
+    | '/perfil'
+  id:
+    | '__root__'
+    | '/'
+    | '/acesso-negado'
+    | '/dashboard'
+    | '/historico'
+    | '/login'
+    | '/meu-resultado'
+    | '/perfil'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AcessoNegadoRoute: typeof AcessoNegadoRoute
+  DashboardRoute: typeof DashboardRoute
+  HistoricoRoute: typeof HistoricoRoute
   LoginRoute: typeof LoginRoute
+  MeuResultadoRoute: typeof MeuResultadoRoute
+  PerfilRoute: typeof PerfilRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/perfil': {
+      id: '/perfil'
+      path: '/perfil'
+      fullPath: '/perfil'
+      preLoaderRoute: typeof PerfilRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/meu-resultado': {
+      id: '/meu-resultado'
+      path: '/meu-resultado'
+      fullPath: '/meu-resultado'
+      preLoaderRoute: typeof MeuResultadoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/historico': {
+      id: '/historico'
+      path: '/historico'
+      fullPath: '/historico'
+      preLoaderRoute: typeof HistoricoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/acesso-negado': {
@@ -88,7 +178,11 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AcessoNegadoRoute: AcessoNegadoRoute,
+  DashboardRoute: DashboardRoute,
+  HistoricoRoute: HistoricoRoute,
   LoginRoute: LoginRoute,
+  MeuResultadoRoute: MeuResultadoRoute,
+  PerfilRoute: PerfilRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
