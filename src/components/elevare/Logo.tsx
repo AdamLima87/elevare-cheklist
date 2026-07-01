@@ -2,18 +2,18 @@ import logoAsset from "@/assets/elevare-shield.png.asset.json";
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex items-center gap-2.5">
+    <div className="flex items-center gap-3">
       <img
         src={logoAsset.url}
         alt="Elevare Consultoria"
-        className={`${compact ? "h-9" : "h-11"} w-auto object-contain shrink-0 drop-shadow-sm`}
+        className={`${compact ? "h-10" : "h-12"} w-auto object-contain shrink-0`}
       />
       {!compact && (
         <div className="flex flex-col justify-center leading-none">
-          <span className="text-[18px] font-bold text-white tracking-[-0.02em] lowercase">
+          <span className="text-[20px] font-bold text-white tracking-tight lowercase">
             elevare
           </span>
-          <span className="text-[8px] uppercase tracking-[0.32em] text-white/70 font-semibold mt-1">
+          <span className="text-[9px] uppercase tracking-[0.28em] text-white/90 font-semibold mt-1">
             consultoria
           </span>
         </div>
