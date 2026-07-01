@@ -53,18 +53,52 @@ function LoginPage() {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      const { data: profile } = await supabase.from("profiles").select("perfil, ativo, force_password_change").eq("id", data.user.id).single();
-      if (!profile?.ativo) { await supabase.auth.signOut(); throw new Error("Sua conta está desativada."); }
-      if (userType === "cliente" && profile.perfil !== "cliente") { await supabase.auth.signOut(); throw new Error("Acesso restrito para Clientes."); }
-      if (userType === "consultor" && profile.perfil === "cliente") { await supabase.auth.signOut(); throw new Error("Acesso restrito para Consultores e Administradores."); }
-      if (profile.force_password_change) { navigate({ to: "/perfil" }); toast.info("Por favor, altere sua senha."); return; }
+      if (!data.user) throw new Error("Não foi possível autenticar. Tente novamente.");
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("perfil, ativo, force_password_change")
+        .eq("id", data.user.id)
+        .single();
+
+      if (profileError) {
+        await supabase.auth.signOut();
+        throw new Error(`Perfil não encontrado: ${profileError.message}`);
+      }
+      if (!profile) {
+        await supabase.auth.signOut();
+        throw new Error("Perfil não encontrado para este usuário.");
+      }
+      if (!profile.ativo) {
+        await supabase.auth.signOut();
+        throw new Error("Sua conta está desativada. Contate o administrador.");
+      }
+      if (userType === "cliente" && profile.perfil !== "cliente") {
+        await supabase.auth.signOut();
+        throw new Error("Acesso restrito para Clientes.");
+      }
+      if (userType === "consultor" && profile.perfil === "cliente") {
+        await supabase.auth.signOut();
+        throw new Error("Acesso restrito para Consultores e Administradores.");
+      }
+      if (profile.force_password_change) {
+        toast.info("Por favor, altere sua senha antes de continuar.");
+        navigate({ to: "/perfil" });
+        return;
+      }
       await supabase.from("profiles").update({ ultimo_acesso: new Date().toISOString() }).eq("id", data.user.id);
-      toast.success("Login realizado com sucesso!");
+      toast.success(`Bem-vindo! Login realizado com sucesso.`);
       if (profile.perfil === "admin") navigate({ to: "/dashboard" });
       else if (profile.perfil === "consultor") navigate({ to: "/historico" });
       else navigate({ to: "/meu-resultado" });
     } catch (error: any) {
-      const msg = error.message?.includes("Invalid login credentials") ? "E-mail ou senha incorretos." : error.message || "Erro ao fazer login.";
+      console.error("[login] error:", error);
+      const raw = error?.message || "";
+      const msg = raw.includes("Invalid login credentials")
+        ? "E-mail ou senha incorretos."
+        : raw.includes("Email not confirmed")
+        ? "E-mail ainda não confirmado. Verifique sua caixa de entrada."
+        : raw || "Erro ao fazer login. Tente novamente.";
       toast.error(msg);
     } finally { setLoading(false); }
   };
