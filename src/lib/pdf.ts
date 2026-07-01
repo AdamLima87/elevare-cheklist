@@ -9,151 +9,312 @@ export async function gerarPDF(insp: Inspecao) {
   const cls = classificacao(score.percentual);
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const colorElevare = [26, 77, 46] as [number, number, number];
 
-  const addLayout = (pageIndex: number, totalPages: number) => {
-    doc.setPage(pageIndex);
-    doc.setFillColor(...colorElevare);
-    doc.rect(0, 0, pageWidth, 8, "F");
-    doc.setDrawColor(...colorElevare);
-    doc.setLineWidth(0.5);
-    doc.line(20, pageHeight - 40, pageWidth - 20, pageHeight - 40);
-    doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
-    doc.text("Elevare Consultoria · elevareconsultoria.com · (11) 99484-0948", 20, pageHeight - 25);
-    doc.text(`Página ${pageIndex} de ${totalPages}`, pageWidth - 20, pageHeight - 25, { align: "right" });
+  // Cores
+  const colorElevare = [26, 77, 46]; // #1a4d2e
+
+  // Função para adicionar rodapé e faixa de topo (presente em todas as páginas)
+  const addLayoutElements = (pageDoc: jsPDF, pageIndex: number, totalPages: number) => {
+    pageDoc.setPage(pageIndex);
+    
+    // 1.1 Faixa colorida no topo (8px) - #1a4d2e
+    pageDoc.setFillColor(26, 77, 46);
+    pageDoc.rect(0, 0, pageWidth, 8, "F");
+
+    // Rodapé
+    pageDoc.setDrawColor(26, 77, 46);
+    pageDoc.setLineWidth(0.5);
+    pageDoc.line(20, pageHeight - 40, pageWidth - 20, pageHeight - 40);
+
+    pageDoc.setFontSize(8);
+    pageDoc.setTextColor(100, 100, 100);
+    pageDoc.setFont("helvetica", "normal");
+    pageDoc.text("Elevare Consultoria · elevareconsultoria.com · (11) 99484-0948", 20, pageHeight - 25);
+    pageDoc.text(`Página ${pageIndex} de ${totalPages}`, pageWidth - 20, pageHeight - 25, { align: "right" });
   };
 
-  // Cabeçalho
-  doc.setFontSize(18);
-  doc.setTextColor(...colorElevare);
-  doc.setFont("helvetica", "bold");
-  doc.text("ELEVARE CONSULTORIA", 20, 35);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(100, 100, 100);
-  doc.text("Segurança dos Alimentos · Diagnóstico Sanitário", 20, 48);
-  doc.text("Baseado nas RDC nº 275/2002 e RDC nº 216/2004 — ANVISA", 20, 58);
-  doc.setFontSize(14);
-  doc.setTextColor(30, 30, 30);
-  doc.setFont("helvetica", "bold");
-  doc.text("Relatório de Inspeção", pageWidth - 20, 40, { align: "right" });
+  // Carregar Logo (URL direta solicitada)
+  const logoUrl = "https://elevate-check-pro.lovable.app/__l5e/assets-v1/1f90790f-e01b-48e0-8e59-4578c2d4a2f1/elevare-logo.png";
+  let logoData = "";
+  try {
+    const response = await fetch(logoUrl);
+    const blob = await response.blob();
+    logoData = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.warn("Não foi possível carregar o logo para o PDF", error);
+  }
 
-  // Dados do estabelecimento
-  const estab = insp.dados.estabelecimento;
-  autoTable(doc, {
-    startY: 75,
-    head: [["DADOS DO ESTABELECIMENTO", ""]],
-    body: [
-      ["Razão Social", estab.razaoSocial],
-      ["Nome Fantasia", estab.nomeFantasia],
-      ["CNPJ", estab.cnpj],
-      ["Atividade", estab.atividade],
-      ["Endereço", `${estab.endereco}${estab.bairro ? " - Bairro: " + estab.bairro : ""}`],
-      ["Responsável Legal", `${estab.respLegalNome}${estab.respLegalCpf ? " (CPF " + estab.respLegalCpf + ")" : ""}`],
-      ["Data da Inspeção", new Date(estab.dataHora || insp.dataInicio).toLocaleString("pt-BR")],
-    ],
-    headStyles: { fillColor: colorElevare, textColor: 255, fontSize: 9, fontStyle: "bold" },
-    bodyStyles: { fontSize: 8 },
-    columnStyles: { 0: { fontStyle: "bold", cellWidth: 140 } },
-    margin: { left: 20, right: 20 },
-  });
+  // 1. Cabeçalho
+  let y = 60;
+  if (logoData) {
+    // Logo com 50px de altura (approx 37.5pt)
+    doc.addImage(logoData, "PNG", 20, 20, 125, 37.5, undefined, 'FAST');
+  } else {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(26, 77, 46);
+    doc.text("ELEVARE", 20, 45);
+  }
 
-  // Resumo de desempenho
-  const yAfterTable = (doc as any).lastAutoTable.finalY + 15;
-  doc.setFillColor(245, 245, 245);
-  doc.rect(20, yAfterTable, pageWidth - 40, 60, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(50, 50, 50);
+  doc.text("Relatório de Inspeção", pageWidth - 20, 45, { align: "right" });
+  
+  y = 90;
+
+  // 1.3 Dados do Estabelecimento em 2 colunas
+  const e = insp.dados.estabelecimento;
+  doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.setTextColor(30, 30, 30);
-  doc.setFont("helvetica", "bold");
-  doc.text("RESUMO DO DESEMPENHO", 30, yAfterTable + 15);
-  doc.setFontSize(22);
-  const pctColor = cls.tone === "success" ? [59, 109, 17] : cls.tone === "warning" ? [133, 79, 11] : [163, 45, 45];
-  doc.setTextColor(...(pctColor as [number, number, number]));
-  doc.text(`${score.percentual.toFixed(1)}%`, 30, yAfterTable + 48);
-  doc.setFontSize(12);
-  doc.text(cls.label, 100, yAfterTable + 48);
-  doc.setFontSize(9);
-  doc.setTextColor(80, 80, 80);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Conformes: ${score.conformes}`, pageWidth - 180, yAfterTable + 28);
-  doc.text(`Não conformes: ${score.naoConformes}`, pageWidth - 180, yAfterTable + 42);
-  doc.text(`N/A: ${score.naoAplicaveis}`, pageWidth - 180, yAfterTable + 56);
+  doc.setTextColor(26, 77, 46);
+  doc.text("DADOS DO ESTABELECIMENTO", 20, y);
+  y += 5;
+  doc.setDrawColor(200);
+  doc.line(20, y, pageWidth - 20, y);
+  y += 15;
 
-  // Tabela por seção
-  const secaoData = checklistSections.map(s => {
-    const resps = s.items.map(i => insp.respostas[i.id]);
-    const S = resps.filter(r => r === "S").length;
-    const N = resps.filter(r => r === "N").length;
-    const NA = resps.filter(r => r === "NA").length;
-    const aplicaveis = S + N;
-    const pct = aplicaveis > 0 ? ((S / aplicaveis) * 100).toFixed(0) + "%" : "-";
-    return [s.title, S, N, NA, pct];
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(40, 40, 40);
+
+  const leftCol = [
+    `Razão Social: ${e.razaoSocial || "-"}`,
+    `Nome Fantasia: ${e.nomeFantasia || "-"}`,
+    `CNPJ: ${e.cnpj || "-"}`,
+    `Atividade: ${e.atividade || "-"}`,
+  ];
+  const rightCol = [
+    `Endereço: ${e.endereco || "-"}`,
+    `Bairro: ${e.bairro || "-"}`,
+    `Responsável Legal: ${e.respLegalNome || "-"}`,
+    `Data da Inspeção: ${e.dataHora ? new Date(e.dataHora).toLocaleDateString("pt-BR") : "-"}`,
+  ];
+
+  let tempY = y;
+  leftCol.forEach(line => {
+    doc.text(line, 20, tempY);
+    tempY += 13;
+  });
+  tempY = y;
+  rightCol.forEach(line => {
+    doc.text(line, pageWidth / 2, tempY);
+    tempY += 13;
+  });
+  y = Math.max(y + (leftCol.length * 13), tempY) + 20;
+
+  // 2. Bloco de Resumo
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(26, 77, 46);
+  doc.text("RESUMO DO DESEMPENHO", 20, y);
+  y += 15;
+
+  // Cards coloridos lado a lado
+  const cardW = (pageWidth - 60) / 3;
+  
+  // Conformes
+  doc.setFillColor(234, 243, 222);
+  doc.roundedRect(20, y, cardW, 45, 3, 3, "F");
+  doc.setFontSize(8);
+  doc.setTextColor(80, 80, 80);
+  doc.text("CONFORMES", 20 + cardW/2, y + 15, { align: "center" });
+  doc.setFontSize(16);
+  doc.setTextColor(26, 77, 46);
+  doc.text(String(score.sim), 20 + cardW/2, y + 35, { align: "center" });
+
+  // Não conformes
+  doc.setFillColor(252, 235, 235);
+  doc.roundedRect(20 + cardW + 10, y, cardW, 45, 3, 3, "F");
+  doc.setFontSize(8);
+  doc.setTextColor(80, 80, 80);
+  doc.text("NÃO CONFORMES", 20 + cardW + 10 + cardW/2, y + 15, { align: "center" });
+  doc.setFontSize(16);
+  doc.setTextColor(185, 28, 28);
+  doc.text(String(score.nao), 20 + cardW + 10 + cardW/2, y + 35, { align: "center" });
+
+  // NA
+  doc.setFillColor(245, 245, 245);
+  doc.roundedRect(20 + (cardW + 10) * 2, y, cardW, 45, 3, 3, "F");
+  doc.setFontSize(8);
+  doc.setTextColor(80, 80, 80);
+  doc.text("N/A", 20 + (cardW + 10) * 2 + cardW/2, y + 15, { align: "center" });
+  doc.setFontSize(16);
+  doc.setTextColor(120, 120, 120);
+  doc.text(String(score.na), 20 + (cardW + 10) * 2 + cardW/2, y + 35, { align: "center" });
+
+  y += 60;
+
+  // Percentual e Badge
+  doc.setFontSize(32);
+  doc.setTextColor(26, 77, 46);
+  doc.text(`${score.percentual.toFixed(2)}%`, 20, y + 15);
+  
+  const badgeColor = cls.tone === "success" ? [26, 77, 46] : cls.tone === "warning" ? [234, 179, 8] : [185, 28, 28];
+  doc.setFillColor(badgeColor[0], badgeColor[1], badgeColor[2]);
+  doc.roundedRect(125, y - 5, 80, 22, 3, 3, "F");
+  doc.setFontSize(10);
+  doc.setTextColor(255, 255, 255);
+  doc.text(cls.label, 165, y + 9, { align: "center" });
+
+  // Barra de progresso horizontal
+  y += 35;
+  const fullBarW = pageWidth - 40;
+  doc.setFillColor(230, 230, 230);
+  doc.rect(20, y, fullBarW, 6, "F");
+  doc.setFillColor(badgeColor[0], badgeColor[1], badgeColor[2]);
+  doc.rect(20, y, (fullBarW * score.percentual) / 100, 6, "F");
+
+  y += 30;
+
+  // 3. Tabela de seções
+  const sectionRows = checklistSections.map((sec) => {
+    const itens = sec.items.map((i) => insp.respostas[i.id]);
+    const s = itens.filter((r) => r === "S").length;
+    const n = itens.filter((r) => r === "N").length;
+    const na = itens.filter((r) => r === "NA").length;
+    const totalDaSecao = sec.items.length;
+    const val = totalDaSecao === 0 ? 0 : (s / totalDaSecao) * 100;
+    const pct = `${val.toFixed(0)}%`;
+    return [sec.title, String(s), String(n), String(na), pct, ""];
   });
 
   autoTable(doc, {
-    startY: yAfterTable + 75,
-    head: [["Seção", "S", "N", "NA", "%"]],
-    body: secaoData,
-    headStyles: { fillColor: colorElevare, textColor: 255, fontSize: 8, fontStyle: "bold" },
-    bodyStyles: { fontSize: 7 },
-    columnStyles: { 0: { cellWidth: 260 }, 1: { halign: "center" }, 2: { halign: "center" }, 3: { halign: "center" }, 4: { halign: "center" } },
-    alternateRowStyles: { fillColor: [248, 248, 248] },
+    startY: y,
+    head: [["Seção", "S", "N", "NA", "%", "Progresso"]],
+    body: sectionRows,
+    headStyles: { fillColor: [26, 77, 46], textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [245, 245, 245] },
+    styles: { fontSize: 8, cellPadding: 6, valign: 'middle', font: 'helvetica' },
+    columnStyles: {
+      4: { fontStyle: 'bold', halign: 'center' },
+      5: { cellWidth: 80 }
+    },
+    didDrawCell: (data) => {
+      if (data.section === 'body' && data.column.index === 4) {
+        const valStr = data.cell.raw as string;
+        if (valStr !== "-") {
+          const val = parseInt(valStr);
+          if (val >= 76) doc.setTextColor(26, 77, 46);
+          else if (val >= 51) doc.setTextColor(180, 140, 0);
+          else doc.setTextColor(185, 28, 28);
+        } else {
+          doc.setTextColor(150, 150, 150);
+        }
+      }
+      if (data.section === 'body' && data.column.index === 5) {
+        const valStr = data.row.cells[4].raw as string;
+        if (valStr !== "-") {
+          const val = parseInt(valStr);
+          const barX = data.cell.x + 5;
+          const barY = data.cell.y + (data.cell.height / 2) - 2;
+          const fullW = data.cell.width - 10;
+          doc.setFillColor(230, 230, 230);
+          doc.rect(barX, barY, fullW, 4, "F");
+          let bColor = [185, 28, 28];
+          if (val >= 76) bColor = [26, 77, 46];
+          else if (val >= 51) bColor = [234, 179, 8];
+          doc.setFillColor(bColor[0], bColor[1], bColor[2]);
+          doc.rect(barX, barY, (fullW * val) / 100, 4, "F");
+        }
+      }
+    },
     margin: { left: 20, right: 20 },
   });
 
-  // Não conformidades
-  const naoConformes: { item: string; secao: string; descricao: string }[] = [];
-  checklistSections.forEach(s => {
-    s.items.forEach(item => {
-      if (insp.respostas[item.id] === "N") {
-        naoConformes.push({ item: item.id, secao: s.title, descricao: item.text });
-      }
+  // 4. Tabela de não conformidades
+  const ncRows: string[][] = [];
+  checklistSections.forEach((sec) => {
+    sec.items.forEach((it) => {
+      if (insp.respostas[it.id] === "N") ncRows.push([it.id, sec.title, it.text]);
     });
   });
 
-  if (naoConformes.length > 0) {
+  if (ncRows.length) {
+    const lastY = (doc as any).lastAutoTable?.finalY ?? y;
+    let tableY = lastY + 25;
+    if (tableY > pageHeight - 100) {
+      doc.addPage();
+      tableY = 40;
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(26, 77, 46);
+    doc.text("NÃO CONFORMIDADES IDENTIFICADAS", 20, tableY);
     autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 20,
+      startY: tableY + 10,
       head: [["Item", "Seção", "Descrição da Não Conformidade"]],
-      body: naoConformes.map(n => [n.item, n.secao, n.descricao]),
-      headStyles: { fillColor: colorElevare, textColor: 255, fontSize: 8, fontStyle: "bold" },
-      bodyStyles: { fontSize: 7 },
-      columnStyles: { 0: { cellWidth: 35, halign: "center" }, 1: { cellWidth: 120 }, 2: { cellWidth: "auto" } },
-      alternateRowStyles: { fillColor: [248, 248, 248] },
-      margin: { left: 20, right: 20 },
+      body: ncRows,
+      headStyles: { fillColor: [26, 77, 46], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+      styles: { fontSize: 8, cellPadding: 8, overflow: 'linebreak', font: 'helvetica' },
+      columnStyles: { 
+        0: { fillColor: [252, 235, 235], textColor: [163, 45, 45], fontStyle: 'bold', cellWidth: 35, halign: 'center' }, 
+        1: { cellWidth: 100 },
+        2: { cellWidth: 'auto' }
+      },
+      margin: { left: 20, right: 20 }
     });
   }
 
-  // Observações e assinatura
-  const yFinal = (doc as any).lastAutoTable.finalY + 20;
-  if (yFinal + 100 > pageHeight - 60) doc.addPage();
-  const yObs = (doc as any).lastAutoTable.finalY + 20;
-
-  doc.setFontSize(9);
-  doc.setTextColor(...colorElevare);
+  // 5. Bloco de observações
+  let finalY = (doc as any).lastAutoTable?.finalY + 30;
+  if (finalY > pageHeight - 200) {
+    doc.addPage();
+    finalY = 40;
+  }
   doc.setFont("helvetica", "bold");
-  doc.text("OBSERVAÇÕES DO CONSULTOR", 20, yObs + 15);
-  doc.setDrawColor(200, 200, 200);
-  doc.rect(20, yObs + 20, pageWidth - 40, 50, "S");
-
-  doc.setFontSize(9);
-  doc.setTextColor(30, 30, 30);
-  doc.setFont("helvetica", "bold");
-  doc.text("Responsável Técnico", 20, yObs + 90);
+  doc.setFontSize(10);
+  doc.setTextColor(26, 77, 46);
+  doc.text("OBSERVAÇÕES DO CONSULTOR", 20, finalY);
+  finalY += 10;
+  const obs = (insp as any).observacoes || "";
+  doc.setFillColor(249, 249, 249);
+  doc.rect(20, finalY, pageWidth - 40, 80, "F");
+  doc.setDrawColor(200);
+  doc.setLineDashPattern([3, 3], 0);
+  doc.rect(20, finalY, pageWidth - 40, 80, "D");
+  doc.setLineDashPattern([], 0);
   doc.setFont("helvetica", "normal");
-  doc.text(estab.respTecNome || "", 20, yObs + 103);
-  doc.text(estab.respTecConselho ? `${estab.respTecConselho} ${estab.respTecRegistro}` : "", 20, yObs + 115);
-  doc.setDrawColor(100, 100, 100);
-  doc.line(20, yObs + 138, 200, yObs + 138);
-  doc.setFontSize(8);
-  doc.setTextColor(100, 100, 100);
-  doc.text("Assinatura", 20, yObs + 148);
-  doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, pageWidth - 20, yObs + 138, { align: "right" });
+  doc.setFontSize(9);
+  doc.setTextColor(60, 60, 60);
+  if (obs) {
+    const splitObs = doc.splitTextToSize(obs, pageWidth - 60);
+    doc.text(splitObs, 30, finalY + 20);
+  }
+  finalY += 100;
 
-  // Aplicar layout em todas as páginas
-  const totalPages = (doc.internal as any).getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) addLayout(i, totalPages);
+  // 6. Bloco de assinatura
+  if (finalY > pageHeight - 120) {
+    doc.addPage();
+    finalY = 80;
+  }
+  doc.setDrawColor(0);
+  doc.setLineWidth(0.5);
+  doc.line(20, finalY + 40, 220, finalY + 40);
+  doc.line(260, finalY + 40, 400, finalY + 40);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  const techName = e.respTecNome || "Responsável Técnico";
+  const techReg = e.respTecConselho && e.respTecRegistro ? `${e.respTecConselho} ${e.respTecRegistro}` : "CRN / Registro";
+  doc.text(techName, 20, finalY + 55);
+  doc.setFont("helvetica", "normal");
+  doc.text(techReg, 20, finalY + 67);
+  doc.text("Assinatura", 20, finalY + 79);
+  doc.text("Carimbo", 260, finalY + 55);
+  const dateStr = e.dataHora ? new Date(e.dataHora).toLocaleDateString("pt-BR") : new Date().toLocaleDateString("pt-BR");
+  doc.text(`Data: ${dateStr}`, pageWidth - 20, finalY + 55, { align: "right" });
 
-  doc.save(`Relatorio_Elevare_${insp.estabelecimento.replace(/\s+/g, "_")}.pdf`);
+  // Finalização: Adiciona layout em todas as páginas
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    addLayoutElements(doc, i, totalPages);
+  }
+
+  const filename = `Relatorio_Elevare_${(insp.estabelecimento || "inspecao").replace(/\s+/g, "_")}.pdf`;
+  doc.save(filename);
 }

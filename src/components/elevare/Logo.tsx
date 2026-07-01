@@ -1,14 +1,21 @@
-export function Logo({ size = "md", compact = false }: { size?: "sm" | "md" | "lg"; compact?: boolean }) {
-  const sizes = { sm: "h-6", md: "h-8", lg: "h-12" };
+import logoAsset from "@/assets/elevare-logo.png.asset.json";
+
+export function Logo({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex items-center gap-2">
-      <div className={`${sizes[size]} aspect-square rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0`}>
-        <span className="text-white font-bold text-xs">E</span>
-      </div>
+    <div className="flex items-center gap-2.5">
+      <img
+        src={logoAsset.url}
+        alt="Elevare Consultoria"
+        className="h-9 w-9 object-contain shrink-0 drop-shadow-sm"
+      />
       {!compact && (
-        <div>
-          <div className="font-bold text-white leading-none">Elevare</div>
-          <div className="text-[10px] text-white/70 uppercase tracking-wider">Segurança dos Alimentos</div>
+        <div className="flex flex-col justify-center leading-none">
+          <span className="text-[18px] font-bold text-white tracking-[-0.02em] lowercase">
+            elevare
+          </span>
+          <span className="text-[8px] uppercase tracking-[0.32em] text-white/70 font-semibold mt-1">
+            consultoria
+          </span>
         </div>
       )}
     </div>

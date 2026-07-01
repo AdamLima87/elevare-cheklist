@@ -1,23 +1,70 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-type Profile = "admin" | "consultor" | "cliente";
-export function ProtectedRoute({ children, allowedProfiles }: { children: React.ReactNode; allowedProfiles?: Profile[] }) {
+import { Loader2 } from "lucide-react";
+
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  allowedProfiles?: string[];
+}
+
+export function ProtectedRoute({ children, allowedProfiles }: ProtectedRouteProps) {
   const navigate = useNavigate();
-  const [checking, setChecking] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
+
   useEffect(() => {
-    async function check() {
+    async function checkAuth() {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { navigate({ to: "/login" }); return; }
-      if (allowedProfiles) {
-        const { data: profile } = await supabase.from("profiles").select("perfil, ativo").eq("id", session.user.id).single();
-        if (!profile || !profile.ativo) { navigate({ to: "/login" }); return; }
-        if (!allowedProfiles.includes(profile.perfil as Profile)) { navigate({ to: "/acesso-negado" }); return; }
+      
+      if (!session) {
+        navigate({ to: "/login" });
+        return;
       }
-      setChecking(false);
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("perfil, ativo")
+        .eq("id", session.user.id)
+        .single();
+
+      if (profileError || !profile) {
+        await supabase.auth.signOut();
+        navigate({ 
+          to: "/login",
+          search: { error: "profile_not_found" }
+        });
+        return;
+      }
+
+      if (!profile.ativo) {
+        await supabase.auth.signOut();
+        navigate({ 
+          to: "/login",
+          search: { error: "account_disabled" }
+        });
+        return;
+      }
+
+      if (allowedProfiles && !allowedProfiles.includes(profile.perfil)) {
+        navigate({ to: "/acesso-negado" });
+        return;
+      }
+
+      setAuthorized(true);
+      setLoading(false);
     }
-    check();
+
+    checkAuth();
   }, [navigate, allowedProfiles]);
-  if (checking) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1a4d2e]" /></div>;
-  return <>{children}</>;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return authorized ? <>{children}</> : null;
 }
