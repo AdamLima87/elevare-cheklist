@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/elevare/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import {
   Bar,
@@ -256,7 +255,6 @@ function ResultadoPage() {
 
   return (
     <AppShell>
-      <Toaster richColors position="top-center" />
       <div className="mb-6 border-b border-border pb-4">
         <span className="label-eyebrow text-primary">Resultado da Inspeção</span>
         <h1 className="font-display text-3xl font-semibold mt-1">{insp.estabelecimento}</h1>
