@@ -181,36 +181,37 @@ function DashboardPage() {
     <ProtectedRoute allowedProfiles={["admin"]}>
       <AppShell>
         <div className="space-y-8">
-          <div>
-            <h1 className="text-2xl font-bold">Dashboard</h1>
-            <p className="text-muted-foreground">Visão geral das inspeções e performance sanitária.</p>
+          <div className="border-b border-border pb-6">
+            <span className="label-eyebrow text-primary">Elevare · Painel</span>
+            <h1 className="font-display text-4xl font-semibold mt-2">Diagnóstico Sanitário</h1>
+            <p className="text-sm text-muted-foreground mt-1">Visão geral das inspeções e performance de conformidade.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard 
-              title="Total de Inspeções" 
-              value={stats.totalInspections} 
-              icon={ClipboardCheck} 
-              color="bg-blue-50 text-blue-600"
+            <StatCard
+              title="Total de Inspeções"
+              value={stats.totalInspections}
+              icon={ClipboardCheck}
+              accent="var(--forest)"
             />
-            <StatCard 
-              title="Média de Conformidade" 
-              value={`${(stats.avgCompliance || 0).toFixed(1)}%`} 
-              icon={TrendingDown} 
-              color="bg-green-50 text-green-600"
+            <StatCard
+              title="Conformidade Média"
+              value={`${(stats.avgCompliance || 0).toFixed(1)}%`}
+              icon={TrendingDown}
+              accent="var(--olive)"
               sub="Dos concluídos"
             />
-            <StatCard 
-              title="Estabelecimentos" 
-              value={stats.activeEstabs} 
-              icon={Building2} 
-              color="bg-purple-50 text-purple-600"
+            <StatCard
+              title="Estabelecimentos"
+              value={stats.activeEstabs}
+              icon={Building2}
+              accent="var(--amber-seal)"
             />
-            <StatCard 
-              title="Classificação RUIM" 
-              value={`${(stats.pctRuim || 0).toFixed(1)}%`} 
-              icon={AlertTriangle} 
-              color="bg-red-50 text-red-600"
+            <StatCard
+              title="Classificação Ruim"
+              value={`${(stats.pctRuim || 0).toFixed(1)}%`}
+              icon={AlertTriangle}
+              accent="var(--destructive)"
               sub="Abaixo de 50%"
             />
           </div>
@@ -365,17 +366,23 @@ function DashboardPage() {
   );
 }
 
-function StatCard({ title, value, icon: Icon, color, sub }: any) {
+function StatCard({ title, value, icon: Icon, accent, sub }: any) {
   return (
-    <Card className="p-5 flex items-center gap-4">
-      <div className={cn("p-3 rounded-xl", color)}>
-        <Icon className="h-6 w-6" />
+    <div
+      className="relative bg-card rounded-md p-5 flex items-center gap-4 border border-border shadow-sm overflow-hidden"
+      style={{ borderLeft: `3px solid ${accent}` }}
+    >
+      <div
+        className="p-2.5 rounded-md"
+        style={{ background: `color-mix(in oklab, ${accent} 12%, transparent)`, color: accent }}
+      >
+        <Icon className="h-5 w-5" strokeWidth={1.8} />
       </div>
       <div>
-        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{title}</p>
-        <h3 className="text-2xl font-bold mt-0.5">{value}</h3>
-        {sub && <p className="text-[10px] text-muted-foreground mt-0.5">{sub}</p>}
+        <p className="label-eyebrow text-muted-foreground">{title}</p>
+        <h3 className="font-display text-3xl font-semibold mt-1 leading-none">{value}</h3>
+        {sub && <p className="text-[11px] text-muted-foreground mt-1.5">{sub}</p>}
       </div>
-    </Card>
+    </div>
   );
 }
