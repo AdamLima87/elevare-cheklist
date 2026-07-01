@@ -2,7 +2,8 @@ import logoAsset from "@/assets/elevare-shield.png.asset.json";
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="inline-flex items-center gap-3 rounded-xl bg-[#0f3d24] px-3 py-2 shadow-sm">
+    <div className={`inline-flex items-center gap-3 ${compact ? "" : "rounded-xl bg-[#0f3d24] px-3 py-2 shadow-sm"}`}>
+
       <img
         src={logoAsset.url}
         alt="Elevare Consultoria"
