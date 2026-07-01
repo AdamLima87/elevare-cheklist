@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import logoAsset from "@/assets/elevare-logo.png.asset.json";
+import logoAsset from "@/assets/elevare-shield.png.asset.json";
 
 export function SplashScreen({ onComplete }: { onComplete: () => void }) {
   const [isVisible, setIsVisible] = useState(true);
