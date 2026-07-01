@@ -227,7 +227,8 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-paper flex items-center justify-center p-4 relative">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,oklch(0.32_0.07_155_/_0.08),transparent_60%)]" />
       <Card className="w-full max-w-lg shadow-lg border-slate-200 overflow-hidden">
         <CardHeader className="space-y-4 flex flex-col items-center pb-6">
           <div className="mb-2">
