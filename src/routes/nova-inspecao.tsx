@@ -248,7 +248,7 @@ function IndexPage() {
 
     if (!data) {
       console.error("CNPJ lookup falhou em todos os provedores", lastErr);
-      toast.error("CNPJ não encontrado nos serviços públicos. Preencha os dados manualmente.");
+      toast.error("CNPJ não encontrado nos serviços públicos. Preencha os dados manualmente.", { id: "cnpj-lookup" });
       setLoadingCnpj(false);
       return;
     }
@@ -269,7 +269,7 @@ function IndexPage() {
       uf: data!.uf || "",
     }));
 
-    toast.success("Dados do estabelecimento carregados!");
+    toast.success("Dados do estabelecimento carregados!", { id: "cnpj-lookup" });
     setLoadingCnpj(false);
   };
 
