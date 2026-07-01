@@ -269,7 +269,7 @@ function IndexPage() {
       uf: data!.uf || "",
     }));
 
-    toast.success("Dados do estabelecimento carregados!");
+    toast.success("Dados do estabelecimento carregados!", { id: "cnpj-lookup" });
     setLoadingCnpj(false);
   };
 
