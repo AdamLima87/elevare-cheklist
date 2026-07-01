@@ -1,94 +1,130 @@
 import { useState, useEffect } from "react";
-import { Link, useRouter } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, ClipboardCheck, History, BarChart2, Users, Settings, User, LogOut, FileCheck } from "lucide-react";
+import { Link, useLocation } from "@tanstack/react-router";
+import { LayoutDashboard, ClipboardCheck, History, BarChart3, Users, Settings, UserCircle, LogOut, FileCheck, Menu } from "lucide-react";
+import { Logo } from "./Logo";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
-const adminMenu = [
-  { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/nova-inspecao", icon: ClipboardCheck, label: "Nova Inspeção" },
-  { to: "/historico", icon: History, label: "Histórico" },
-  { to: "/relatorios", icon: BarChart2, label: "Relatórios" },
-  { to: "/admin", icon: Users, label: "Usuários" },
-  { to: "/configuracoes", icon: Settings, label: "Configurações" },
-];
+interface SidebarProps {
+  profile: any;
+  onLogout: () => Promise<void>;
+  isExpanded: boolean;
+  setIsExpanded: (v: boolean) => void;
+}
 
-const consultorMenu = [
-  { to: "/nova-inspecao", icon: ClipboardCheck, label: "Nova Inspeção" },
-  { to: "/historico", icon: History, label: "Histórico" },
-  { to: "/relatorios", icon: BarChart2, label: "Meus Relatórios" },
-];
-
-const clienteMenu = [
-  { to: "/meu-resultado", icon: FileCheck, label: "Meus Resultados" },
-];
-
-export function Sidebar() {
-  const [expanded, setExpanded] = useState(false);
-  const [profile, setProfile] = useState<any>(null);
-  const router = useRouter();
-  const currentPath = router.state.location.pathname;
+export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: SidebarProps) {
+  const location = useLocation();
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        supabase.from("profiles").select("*").eq("id", session.user.id).single()
-          .then(({ data }) => setProfile(data));
-      }
-    });
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const menu = profile?.perfil === "admin" ? adminMenu : profile?.perfil === "consultor" ? consultorMenu : clienteMenu;
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.href = "/login";
+  const menuItems = {
+    admin: [
+      { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
+      { icon: ClipboardCheck, label: "Nova Inspeção", to: "/nova-inspecao" },
+      { icon: History, label: "Histórico", to: "/historico" },
+      { icon: BarChart3, label: "Relatórios", to: "/relatorios" },
+      { icon: Users, label: "Usuários", to: "/admin" },
+      { icon: Settings, label: "Configurações", to: "/configuracoes" },
+    ],
+    consultor: [
+      { icon: ClipboardCheck, label: "Nova Inspeção", to: "/nova-inspecao" },
+      { icon: History, label: "Histórico", to: "/historico" },
+      { icon: BarChart3, label: "Meus Relatórios", to: "/relatorios" },
+    ],
+    cliente: [
+      { icon: FileCheck, label: "Meus Resultados", to: "/meu-resultado" },
+    ],
   };
+
+  const currentItems = menuItems[profile?.perfil as keyof typeof menuItems] || [];
+
+  const SidebarContent = ({ forceExpanded = false }: { forceExpanded?: boolean }) => {
+    const expanded = forceExpanded || isExpanded;
+    return (
+      <div className="flex flex-col h-full bg-[#1a4d2e] text-white">
+        <div className={cn("p-4 flex items-center mb-6", expanded ? "justify-start" : "justify-center")}>
+          <Logo compact={!expanded} />
+        </div>
+        <nav className="flex-1 px-2 space-y-1">
+          {currentItems.map((item) => {
+            const isActive = location.pathname === item.to;
+            return (
+              <Link key={item.to} to={item.to}
+                className={cn("flex items-center gap-3 px-3 py-2 rounded-md transition-all overflow-hidden",
+                  isActive ? "bg-[#2d6a4f] text-white border-l-[3px] border-white" : "text-white/80 hover:bg-white/10 hover:text-white"
+                )}>
+                <item.icon className="h-5 w-5 shrink-0" />
+                {expanded && <span className="font-medium whitespace-nowrap text-sm">{item.label}</span>}
+              </Link>
+            );
+          })}
+          <div className="py-2"><div className="h-px bg-white/10 mx-2" /></div>
+          <Link to="/perfil" className={cn("flex items-center gap-3 px-3 py-2 rounded-md transition-all overflow-hidden",
+            location.pathname === "/perfil" ? "bg-[#2d6a4f] text-white border-l-[3px] border-white" : "text-white/80 hover:bg-white/10 hover:text-white"
+          )}>
+            <UserCircle className="h-5 w-5 shrink-0" />
+            {expanded && <span className="font-medium whitespace-nowrap text-sm">Perfil</span>}
+          </Link>
+          <button onClick={onLogout} className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-white/80 hover:bg-white/10 hover:text-white transition-all overflow-hidden">
+            <LogOut className="h-5 w-5 shrink-0" />
+            {expanded && <span className="font-medium whitespace-nowrap text-sm">Sair</span>}
+          </button>
+        </nav>
+        {expanded && profile && (
+          <div className="p-4 border-t border-white/10 mt-auto">
+            <div className="flex items-center gap-3 overflow-hidden">
+              <Avatar className="h-8 w-8 bg-white/20 shrink-0 border border-white/30">
+                <AvatarFallback className="text-[10px] text-white bg-transparent">
+                  {profile.nome?.substring(0, 2).toUpperCase() || "??"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-semibold truncate leading-none text-white">{profile.nome}</span>
+                <span className="text-[10px] text-white/60 uppercase tracking-wider truncate mt-1">{profile.perfil}</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  if (isMobile) {
+    return (
+      <header className="fixed top-0 left-0 right-0 h-16 bg-[#1a4d2e] flex items-center px-4 z-50">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
+              <Menu className="h-6 w-6" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0 border-none w-64 bg-[#1a4d2e]">
+            <SheetHeader className="sr-only"><SheetTitle>Menu de Navegação</SheetTitle></SheetHeader>
+            <SidebarContent forceExpanded={true} />
+          </SheetContent>
+        </Sheet>
+        <div className="ml-4"><Logo /></div>
+      </header>
+    );
+  }
 
   return (
     <aside
-      onMouseEnter={() => setExpanded(true)}
-      onMouseLeave={() => setExpanded(false)}
-      className={`fixed left-0 top-0 h-full z-40 flex flex-col bg-[#1a4d2e] transition-all duration-200 ${expanded ? "w-56" : "w-16"}`}
+      className={cn("fixed left-0 top-0 bottom-0 bg-[#1a4d2e] transition-[width] duration-200 ease-in-out z-50 overflow-hidden border-r border-white/5 shadow-xl",
+        isExpanded ? "w-[220px]" : "w-[64px]"
+      )}
+      onMouseEnter={() => setIsExpanded(true)}
+      onMouseLeave={() => setIsExpanded(false)}
     >
-      <div className="flex items-center gap-3 p-4 border-b border-white/10 h-16">
-        <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
-          <span className="text-white font-bold text-sm">E</span>
-        </div>
-        {expanded && <span className="text-white font-bold text-sm whitespace-nowrap">Elevare</span>}
-      </div>
-
-      <nav className="flex-1 py-4 flex flex-col gap-1 px-2">
-        {menu.map(({ to, icon: Icon, label }) => (
-          <Link
-            key={to}
-            to={to}
-            className={`flex items-center gap-3 px-2 py-2.5 rounded-lg transition-colors ${
-              currentPath === to
-                ? "bg-white/20 text-white border-l-2 border-white"
-                : "text-white/70 hover:bg-white/10 hover:text-white"
-            }`}
-          >
-            <Icon className="w-5 h-5 flex-shrink-0" />
-            {expanded && <span className="text-sm whitespace-nowrap">{label}</span>}
-          </Link>
-        ))}
-      </nav>
-
-      <div className="border-t border-white/10 p-2 flex flex-col gap-1">
-        <Link to="/perfil" className="flex items-center gap-3 px-2 py-2.5 rounded-lg text-white/70 hover:bg-white/10 hover:text-white transition-colors">
-          <User className="w-5 h-5 flex-shrink-0" />
-          {expanded && (
-            <div className="min-w-0">
-              <p className="text-sm text-white truncate">{profile?.nome || "Perfil"}</p>
-              <p className="text-[10px] text-white/50 capitalize">{profile?.perfil}</p>
-            </div>
-          )}
-        </Link>
-        <button onClick={handleLogout} className="flex items-center gap-3 px-2 py-2.5 rounded-lg text-red-300 hover:bg-red-500/10 hover:text-red-200 transition-colors w-full">
-          <LogOut className="w-5 h-5 flex-shrink-0" />
-          {expanded && <span className="text-sm whitespace-nowrap">Sair</span>}
-        </button>
-      </div>
+      <SidebarContent />
     </aside>
   );
 }
