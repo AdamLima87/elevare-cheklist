@@ -158,36 +158,119 @@ function IndexPage() {
     if (digits.length !== 14) return;
 
     setLoadingCnpj(true);
-    try {
-      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`);
-      if (!res.ok) throw new Error("CNPJ não encontrado");
-      
-      const data = await res.json();
-      
-      const enderecoStr = [
-        data.logradouro,
-        data.numero,
-        data.complemento
-      ].filter(Boolean).join(", ");
 
-      setEstab((s: Estabelecimento) => ({
-        ...s,
-        razaoSocial: data.razao_social || s.razaoSocial,
-        nomeFantasia: data.nome_fantasia || data.razao_social || s.nomeFantasia,
-        atividade: data.cnae_fiscal_descricao || s.atividade,
-        endereco: enderecoStr || s.endereco,
-        bairro: data.bairro || s.bairro,
-        cep: data.cep || "",
-        municipio: data.municipio || "",
-        uf: data.uf || "",
-      }));
+    // Normaliza resposta de diferentes provedores para um shape único
+    type Norm = {
+      razao_social?: string;
+      nome_fantasia?: string;
+      cnae_desc?: string;
+      logradouro?: string;
+      numero?: string;
+      complemento?: string;
+      bairro?: string;
+      cep?: string;
+      municipio?: string;
+      uf?: string;
+    };
 
-      toast.success("Dados do estabelecimento carregados!");
-    } catch (err) {
-      toast.error("CNPJ não encontrado. Preencha os dados manualmente.");
-    } finally {
-      setLoadingCnpj(false);
+    const fromBrasilAPI = async (): Promise<Norm | null> => {
+      const r = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`);
+      if (!r.ok) return null;
+      const d = await r.json();
+      return {
+        razao_social: d.razao_social,
+        nome_fantasia: d.nome_fantasia,
+        cnae_desc: d.cnae_fiscal_descricao,
+        logradouro: d.logradouro,
+        numero: d.numero,
+        complemento: d.complemento,
+        bairro: d.bairro,
+        cep: d.cep,
+        municipio: d.municipio,
+        uf: d.uf,
+      };
+    };
+
+    const fromCnpjWs = async (): Promise<Norm | null> => {
+      const r = await fetch(`https://publica.cnpj.ws/cnpj/${digits}`);
+      if (!r.ok) return null;
+      const d = await r.json();
+      const est = d.estabelecimento || {};
+      const cnae = est.atividade_principal || {};
+      return {
+        razao_social: d.razao_social,
+        nome_fantasia: est.nome_fantasia,
+        cnae_desc: cnae.descricao,
+        logradouro: [est.tipo_logradouro, est.logradouro].filter(Boolean).join(" "),
+        numero: est.numero,
+        complemento: est.complemento,
+        bairro: est.bairro,
+        cep: est.cep,
+        municipio: est.cidade?.nome,
+        uf: est.estado?.sigla,
+      };
+    };
+
+    const fromOpenCnpja = async (): Promise<Norm | null> => {
+      const r = await fetch(`https://open.cnpja.com/office/${digits}`);
+      if (!r.ok) return null;
+      const d = await r.json();
+      const addr = d.address || {};
+      return {
+        razao_social: d.company?.name,
+        nome_fantasia: d.alias || d.company?.name,
+        cnae_desc: d.mainActivity?.text,
+        logradouro: addr.street,
+        numero: addr.number,
+        complemento: addr.details,
+        bairro: addr.district,
+        cep: addr.zip,
+        municipio: addr.city,
+        uf: addr.state,
+      };
+    };
+
+    const providers = [fromBrasilAPI, fromCnpjWs, fromOpenCnpja];
+    let data: Norm | null = null;
+    let lastErr: unknown = null;
+
+    for (const p of providers) {
+      try {
+        const d = await p();
+        if (d && (d.razao_social || d.nome_fantasia)) {
+          data = d;
+          break;
+        }
+      } catch (e) {
+        lastErr = e;
+      }
     }
+
+    if (!data) {
+      console.error("CNPJ lookup falhou em todos os provedores", lastErr);
+      toast.error("CNPJ não encontrado nos serviços públicos. Preencha os dados manualmente.");
+      setLoadingCnpj(false);
+      return;
+    }
+
+    const enderecoStr = [data.logradouro, data.numero, data.complemento]
+      .filter(Boolean)
+      .join(", ");
+
+    setEstab((s: Estabelecimento) => ({
+      ...s,
+      razaoSocial: data!.razao_social || s.razaoSocial,
+      nomeFantasia: data!.nome_fantasia || data!.razao_social || s.nomeFantasia,
+      atividade: data!.cnae_desc || s.atividade,
+      endereco: enderecoStr || s.endereco,
+      bairro: data!.bairro || s.bairro,
+      cep: data!.cep || "",
+      municipio: data!.municipio || "",
+      uf: data!.uf || "",
+    }));
+
+    toast.success("Dados do estabelecimento carregados!");
+    setLoadingCnpj(false);
   };
 
   const iniciar = async () => {
