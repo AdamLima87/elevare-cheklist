@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { checklistSections, totalChecklistItems } from "@/lib/checklist-data";
@@ -126,7 +125,6 @@ function ChecklistContent() {
   try {
     return (
       <AppShell>
-        <Toaster richColors position="top-center" />
         <div className="mb-4 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div className="flex-1">
             <div className="flex items-center justify-between sm:justify-start sm:gap-4 mb-1">
