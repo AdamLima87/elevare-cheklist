@@ -3,7 +3,9 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppShell } from "@/components/elevare/AppShell";
 import { UserManagement } from "@/components/admin/UserManagement";
 
-export const Route = createFileRoute("/admin")({ component: AdminPage });
+export const Route = createFileRoute("/admin")({
+  component: AdminPage,
+});
 
 function AdminPage() {
   return (
@@ -13,7 +15,10 @@ function AdminPage() {
           <h1 className="text-3xl font-bold tracking-tight">Painel Administrativo</h1>
           <p className="text-muted-foreground">Gerencie usuários e permissões do sistema.</p>
         </div>
-        <UserManagement />
+
+        <div className="space-y-6">
+          <UserManagement />
+        </div>
       </AppShell>
     </ProtectedRoute>
   );

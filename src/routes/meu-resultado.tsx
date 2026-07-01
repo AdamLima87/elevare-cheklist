@@ -1,54 +1,128 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/elevare/AppShell";
-import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { toast } from "sonner";
+import { Loader2, Search, FileText, Download } from "lucide-react";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { classificacao, type Inspecao } from "@/lib/storage";
+import { cn } from "@/lib/utils";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/meu-resultado")({ component: MeuResultadoPage });
+export const Route = createFileRoute("/meu-resultado")({
+  component: ClientePage,
+});
 
-function MeuResultadoPage() {
-  const [inspecoes, setInspecoes] = useState<any[]>([]);
+function ClientePage() {
   const [loading, setLoading] = useState(true);
+  const [inspections, setInspections] = useState<any[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
-    async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { navigate({ to: "/login" }); return; }
-      const { data: profile } = await supabase.from("profiles").select("cnpj").eq("id", user.id).single();
-      if (!profile?.cnpj) { setLoading(false); return; }
-      const { data } = await supabase.from("inspecoes").select("*").eq("cnpj", profile.cnpj).eq("status", "concluida").order("data_conclusao", { ascending: false });
-      setInspecoes(data || []);
-      setLoading(false);
+    async function loadClientData() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          navigate({ to: "/login" });
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("cnpj")
+          .eq("id", user.id)
+          .single();
+
+        if (!profile?.cnpj) {
+          setLoading(false);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("inspecoes")
+          .select("*")
+          .eq("cnpj", profile.cnpj)
+          .eq("status", "concluida")
+          .order("data_conclusao", { ascending: false });
+
+        if (error) throw error;
+        setInspections(data || []);
+      } catch (error: any) {
+        console.error("Erro ao buscar inspeções:", error);
+        toast.error("Erro ao carregar seus resultados.");
+      } finally {
+        setLoading(false);
+      }
     }
-    load();
+
+    loadClientData();
   }, [navigate]);
 
-  const badge = (v: number) => v >= 76 ? "✅ BOM" : v >= 51 ? "⚠️ REGULAR" : "❌ RUIM";
-  const badgeClass = (v: number) => v >= 76 ? "bg-green-100 text-green-700" : v >= 51 ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700";
+  const verRelatorio = (insp: any) => {
+    // Redirect to result page with read-only view logic
+    // We'll need to mock the storage if necessary or just pass the ID
+    navigate({ to: "/resultado", search: { id: insp.id, readonly: true } });
+  };
 
   return (
-    <AppShell>
-      <h1 className="text-2xl font-semibold mb-6">Meus Resultados</h1>
-      {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-[#1a4d2e]" /></div>
-      ) : inspecoes.length === 0 ? (
-        <p className="text-center text-slate-400 py-12">Nenhuma inspeção disponível para o seu estabelecimento.</p>
-      ) : (
-        <div className="bg-white rounded-xl border border-slate-200 divide-y">
-          {inspecoes.map(i => (
-            <div key={i.id} className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50" onClick={() => navigate({ to: "/resultado", search: { id: i.id, readonly: true } })}>
-              <div>
-                <p className="font-medium text-sm">{i.estabelecimento_nome}</p>
-                <p className="text-xs text-slate-500">{new Date(i.data_conclusao || i.data_inicio).toLocaleDateString("pt-BR")}</p>
-              </div>
-              <span className={`text-xs font-bold px-3 py-1 rounded-full ${badgeClass(Number(i.conformidade))}`}>
-                {badge(Number(i.conformidade))} · {Number(i.conformidade).toFixed(1)}%
-              </span>
-            </div>
-          ))}
+    <ProtectedRoute allowedProfiles={["cliente", "admin"]}>
+      <AppShell>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold tracking-tight">Meus Resultados</h1>
+          <p className="text-muted-foreground">Consulte os relatórios de inspeção do seu estabelecimento.</p>
         </div>
-      )}
-    </AppShell>
+
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-[#1a4d2e]" />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {inspections.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <p className="text-muted-foreground italic text-lg">Nenhuma inspeção disponível para o seu estabelecimento.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4">
+                {inspections.map((insp) => {
+                  const conf = Number(insp.conformidade);
+                  const cls = classificacao(conf);
+                  return (
+                    <Card key={insp.id}>
+                      <CardContent className="p-4 flex items-center justify-between">
+                        <div className="space-y-1">
+                          <h3 className="font-medium text-lg">{insp.estabelecimento_nome}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Concluída em: {new Date(insp.data_conclusao).toLocaleDateString("pt-BR")}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className={cn(
+                            "px-3 py-1 rounded-full text-xs font-bold uppercase",
+                            cls.tone === "success" && "bg-success/15 text-success",
+                            cls.tone === "warning" && "bg-warning/15 text-warning",
+                            cls.tone === "destructive" && "bg-destructive/15 text-destructive"
+                          )}>
+                            {cls.emoji} {conf.toFixed(0)}% {cls.label}
+                          </div>
+                          <Button variant="outline" size="sm" onClick={() => verRelatorio(insp)} className="gap-2">
+                            <FileText className="h-4 w-4" /> Relatório
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </AppShell>
+    </ProtectedRoute>
   );
 }

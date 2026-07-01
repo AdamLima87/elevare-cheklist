@@ -1,49 +1,60 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { AppShell } from "@/components/elevare/AppShell";
-import { useState, useEffect } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
+import { AppShell } from "@/components/elevare/AppShell";
+import { UserAccountForm } from "@/components/auth/UserAccountForm";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export const Route = createFileRoute("/perfil")({ component: PerfilPage });
+export const Route = createFileRoute("/perfil")({
+  component: PerfilPage,
+});
 
 function PerfilPage() {
-  const [nome, setNome] = useState("");
-  const [senha, setSenha] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [mustChange, setMustChange] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) supabase.from("profiles").select("nome").eq("id", user.id).single().then(({ data }) => { if (data) setNome(data.nome || ""); });
-    });
+    async function checkStatus() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("force_password_change")
+          .eq("id", user.id)
+          .single();
+        setMustChange(!!data?.force_password_change);
+      }
+    }
+    checkStatus();
   }, []);
 
-  const handleSave = async () => {
-    setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      await supabase.from("profiles").update({ nome, force_password_change: false }).eq("id", user.id);
-      if (senha) await supabase.auth.updateUser({ password: senha });
-      toast.success("Perfil atualizado com sucesso!");
-    } catch (e: any) {
-      toast.error(e.message || "Erro ao salvar.");
-    } finally { setLoading(false); }
-  };
-
   return (
-    <ProtectedRoute>
-      <AppShell>
-        <h1 className="text-2xl font-semibold mb-6">Meu Perfil</h1>
-        <div className="bg-white rounded-xl border border-slate-200 p-6 max-w-md space-y-4">
-          <div className="space-y-2"><Label>Nome</Label><Input value={nome} onChange={e => setNome(e.target.value)} /></div>
-          <div className="space-y-2"><Label>Nova senha (opcional)</Label><Input type="password" value={senha} onChange={e => setSenha(e.target.value)} placeholder="Deixe em branco para manter" /></div>
-          <Button onClick={handleSave} disabled={loading} className="bg-[#1a4d2e] hover:bg-[#1a4d2e]/90 text-white w-full">Salvar alterações</Button>
+    <AppShell>
+      <div className="max-w-md mx-auto space-y-6">
+        {mustChange && (
+          <div className="bg-primary/10 border border-primary/20 p-4 rounded-lg mb-6 animate-pulse">
+            <h2 className="text-primary font-bold text-lg mb-1">Ação Necessária</h2>
+            <p className="text-primary/80 text-sm font-medium">
+              Sua conta está usando uma senha temporária. Por segurança, você deve alterá-la antes de continuar usando o sistema.
+            </p>
+          </div>
+        )}
+        <div>
+          <h1 className="text-2xl font-bold">Meu Perfil</h1>
+          <p className="text-muted-foreground">Gerencie seus dados de acesso ao sistema.</p>
         </div>
-      </AppShell>
-    </ProtectedRoute>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Dados da Conta</CardTitle>
+            <CardDescription>
+              Atualize seu e-mail ou altere sua senha de acesso.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <UserAccountForm />
+          </CardContent>
+        </Card>
+      </div>
+    </AppShell>
   );
 }
