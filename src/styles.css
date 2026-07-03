@@ -47,8 +47,8 @@
   --color-olive: var(--olive);
   --color-sand: var(--sand);
   --color-amber-seal: var(--amber-seal);
-  --font-sans: "Inter Tight", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
