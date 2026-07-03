@@ -62,11 +62,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           isMobile ? "pt-16 px-4" : "ml-[64px]"
         )}
       >
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 flex-1">
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 flex-1 w-full">
           {children}
         </div>
-        
-        <footer className="fixed bottom-0 left-0 right-0 py-8 text-center text-[10px] text-muted-foreground uppercase tracking-widest border-t bg-background">
+
+        <footer className="py-6 text-center text-[10px] text-muted-foreground uppercase tracking-widest border-t bg-background">
           Elevare Consultoria · Segurança dos Alimentos · RDC 216 & 275 ANVISA
         </footer>
       </main>
