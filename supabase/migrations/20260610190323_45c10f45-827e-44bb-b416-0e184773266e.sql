@@ -1,0 +1,1 @@
+ALTER TABLE public.inspecoes RENAME COLUMN numero TO numero_sequencial;

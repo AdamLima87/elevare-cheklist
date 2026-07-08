@@ -1,0 +1,1 @@
+ALTER TABLE public.inspecoes ALTER COLUMN id TYPE TEXT;
