@@ -14,7 +14,9 @@ export async function syncFromCloud(silent = false) {
   setStatus("syncing");
 
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session?.user) {
       setStatus("idle");
       return;
@@ -36,7 +38,7 @@ export async function syncFromCloud(silent = false) {
         try {
           const cnpj = insp.dados?.estabelecimento?.cnpj || null;
           const cleanCnpj = cnpj ? cnpj.replace(/\D/g, "") : null;
-          
+
           await supabase.from("inspecoes").upsert({
             id: insp.id,
             consultor_id: session.user.id,
@@ -71,7 +73,7 @@ export async function syncFromCloud(silent = false) {
 
     if (data) {
       const localList = loadHistorico();
-      const cloudList: Inspecao[] = data.map(item => ({
+      const cloudList: Inspecao[] = data.map((item) => ({
         id: item.id,
         numero_sequencial: item.numero_sequencial,
         status: item.status as any,
@@ -82,20 +84,26 @@ export async function syncFromCloud(silent = false) {
         conformidade: item.conformidade ? Number(item.conformidade) : null,
         dados: item.dados as any,
         respostas: item.respostas as any,
+        cloudUpdatedAt: item.updated_at,
       }));
 
       const mergedMap = new Map<string, Inspecao>();
-      
-      // Add local items first
-      localList.forEach(item => mergedMap.set(item.id, item));
-      // Overwrite with cloud items (they are more authoritative for shared data)
-      cloudList.forEach(item => mergedMap.set(item.id, item));
 
-      const newList = Array.from(mergedMap.values()).sort((a, b) => 
-        new Date(b.dataInicio).getTime() - new Date(a.dataInicio).getTime()
+      // Add local items first
+      localList.forEach((item) => mergedMap.set(item.id, item));
+      // Overwrite with cloud items (they are more authoritative for shared data)
+      cloudList.forEach((item) => mergedMap.set(item.id, item));
+
+      const newList = Array.from(mergedMap.values()).sort(
+        (a, b) => new Date(b.dataInicio).getTime() - new Date(a.dataInicio).getTime(),
       );
 
       localStorage.setItem(HISTORICO_KEY, JSON.stringify(newList));
+
+      // Cloud rows we just pulled are now authoritative locally, so any conflict
+      // previously flagged for them is resolved.
+      useSyncStore.getState().clearConflicts(cloudList.map((item) => item.id));
+
       setStatus("idle");
       setLastSync(new Date());
     }

@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # Not --frozen-lockfile: bun.lock couldn't be regenerated to include the
+      # new vitest devDependency from the sandbox this was authored in (its
+      # network policy blocks the private registry bun.lock is pinned to).
+      # Revisit switching back to --frozen-lockfile once bun.lock is refreshed
+      # from an environment that can reach that registry.
+      - run: bun install
+
+      - run: bun run test
+
+      # NOTE: `bun run lint` is intentionally not run here yet — the codebase
+      # currently has ~2000 pre-existing lint/formatting errors unrelated to
+      # this workflow. Re-enable once that debt is addressed separately.

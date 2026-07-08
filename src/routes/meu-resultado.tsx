@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { Loader2, Search, FileText, Download } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { classificacao, type Inspecao } from "@/lib/storage";
+import { toTrendPoints } from "@/lib/compliance-trend";
+import { ComplianceTrendChart } from "@/components/elevare/ComplianceTrendChart";
 import { cn } from "@/lib/utils";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
@@ -24,7 +26,9 @@ function ClientePage() {
   useEffect(() => {
     async function loadClientData() {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (!user) {
           navigate({ to: "/login" });
           return;
@@ -72,7 +76,9 @@ function ClientePage() {
       <AppShell>
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight">Meus Resultados</h1>
-          <p className="text-muted-foreground">Consulte os relatórios de inspeção do seu estabelecimento.</p>
+          <p className="text-muted-foreground">
+            Consulte os relatórios de inspeção do seu estabelecimento.
+          </p>
         </div>
 
         {loading ? (
@@ -81,10 +87,25 @@ function ClientePage() {
           </div>
         ) : (
           <div className="space-y-4">
+            {inspections.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Evolução da conformidade</CardTitle>
+                  <CardDescription>
+                    Pontuação de conformidade ao longo das inspeções concluídas.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ComplianceTrendChart data={toTrendPoints(inspections)} />
+                </CardContent>
+              </Card>
+            )}
             {inspections.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
-                  <p className="text-muted-foreground italic text-lg">Nenhuma inspeção disponível para o seu estabelecimento.</p>
+                  <p className="text-muted-foreground italic text-lg">
+                    Nenhuma inspeção disponível para o seu estabelecimento.
+                  </p>
                 </CardContent>
               </Card>
             ) : (
@@ -98,19 +119,27 @@ function ClientePage() {
                         <div className="space-y-1">
                           <h3 className="font-medium text-lg">{insp.estabelecimento_nome}</h3>
                           <p className="text-sm text-muted-foreground">
-                            Concluída em: {new Date(insp.data_conclusao).toLocaleDateString("pt-BR")}
+                            Concluída em:{" "}
+                            {new Date(insp.data_conclusao).toLocaleDateString("pt-BR")}
                           </p>
                         </div>
                         <div className="flex items-center gap-4">
-                          <div className={cn(
-                            "px-3 py-1 rounded-full text-xs font-bold uppercase",
-                            cls.tone === "success" && "bg-success/15 text-success",
-                            cls.tone === "warning" && "bg-warning/15 text-warning",
-                            cls.tone === "destructive" && "bg-destructive/15 text-destructive"
-                          )}>
+                          <div
+                            className={cn(
+                              "px-3 py-1 rounded-full text-xs font-bold uppercase",
+                              cls.tone === "success" && "bg-success/15 text-success",
+                              cls.tone === "warning" && "bg-warning/15 text-warning",
+                              cls.tone === "destructive" && "bg-destructive/15 text-destructive",
+                            )}
+                          >
                             {cls.emoji} {conf.toFixed(0)}% {cls.label}
                           </div>
-                          <Button variant="outline" size="sm" onClick={() => verRelatorio(insp)} className="gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => verRelatorio(insp)}
+                            className="gap-2"
+                          >
                             <FileText className="h-4 w-4" /> Relatório
                           </Button>
                         </div>

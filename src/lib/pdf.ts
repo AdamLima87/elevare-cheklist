@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { checklistSections } from "./checklist-data";
 import { calcularPercentual, classificacao, type Inspecao } from "./storage";
+import { ensurePlanoAcao } from "./plano-acao";
 
 export async function gerarPDF(insp: Inspecao) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
@@ -16,7 +17,7 @@ export async function gerarPDF(insp: Inspecao) {
   // Função para adicionar rodapé e faixa de topo (presente em todas as páginas)
   const addLayoutElements = (pageDoc: jsPDF, pageIndex: number, totalPages: number) => {
     pageDoc.setPage(pageIndex);
-    
+
     // 1.1 Faixa colorida no topo (8px) - #1a4d2e
     pageDoc.setFillColor(26, 77, 46);
     pageDoc.rect(0, 0, pageWidth, 8, "F");
@@ -29,12 +30,19 @@ export async function gerarPDF(insp: Inspecao) {
     pageDoc.setFontSize(8);
     pageDoc.setTextColor(100, 100, 100);
     pageDoc.setFont("helvetica", "normal");
-    pageDoc.text("Elevare Consultoria · elevareconsultoria.com · (11) 99484-0948", 20, pageHeight - 25);
-    pageDoc.text(`Página ${pageIndex} de ${totalPages}`, pageWidth - 20, pageHeight - 25, { align: "right" });
+    pageDoc.text(
+      "Elevare Consultoria · elevareconsultoria.com · (11) 99484-0948",
+      20,
+      pageHeight - 25,
+    );
+    pageDoc.text(`Página ${pageIndex} de ${totalPages}`, pageWidth - 20, pageHeight - 25, {
+      align: "right",
+    });
   };
 
   // Carregar Logo (URL direta solicitada)
-  const logoUrl = "https://elevate-check-pro.lovable.app/__l5e/assets-v1/1f90790f-e01b-48e0-8e59-4578c2d4a2f1/elevare-logo.png";
+  const logoUrl =
+    "https://elevate-check-pro.lovable.app/__l5e/assets-v1/1f90790f-e01b-48e0-8e59-4578c2d4a2f1/elevare-logo.png";
   let logoData = "";
   try {
     const response = await fetch(logoUrl);
@@ -52,7 +60,7 @@ export async function gerarPDF(insp: Inspecao) {
   let y = 60;
   if (logoData) {
     // Logo com 50px de altura (approx 37.5pt)
-    doc.addImage(logoData, "PNG", 20, 20, 125, 37.5, undefined, 'FAST');
+    doc.addImage(logoData, "PNG", 20, 20, 125, 37.5, undefined, "FAST");
   } else {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
@@ -64,7 +72,7 @@ export async function gerarPDF(insp: Inspecao) {
   doc.setFontSize(16);
   doc.setTextColor(50, 50, 50);
   doc.text("Relatório de Inspeção", pageWidth - 20, 45, { align: "right" });
-  
+
   y = 90;
 
   // 1.3 Dados do Estabelecimento em 2 colunas
@@ -96,16 +104,16 @@ export async function gerarPDF(insp: Inspecao) {
   ];
 
   let tempY = y;
-  leftCol.forEach(line => {
+  leftCol.forEach((line) => {
     doc.text(line, 20, tempY);
     tempY += 13;
   });
   tempY = y;
-  rightCol.forEach(line => {
+  rightCol.forEach((line) => {
     doc.text(line, pageWidth / 2, tempY);
     tempY += 13;
   });
-  y = Math.max(y + (leftCol.length * 13), tempY) + 20;
+  y = Math.max(y + leftCol.length * 13, tempY) + 20;
 
   // 2. Bloco de Resumo
   doc.setFont("helvetica", "bold");
@@ -116,36 +124,36 @@ export async function gerarPDF(insp: Inspecao) {
 
   // Cards coloridos lado a lado
   const cardW = (pageWidth - 60) / 3;
-  
+
   // Conformes
   doc.setFillColor(234, 243, 222);
   doc.roundedRect(20, y, cardW, 45, 3, 3, "F");
   doc.setFontSize(8);
   doc.setTextColor(80, 80, 80);
-  doc.text("CONFORMES", 20 + cardW/2, y + 15, { align: "center" });
+  doc.text("CONFORMES", 20 + cardW / 2, y + 15, { align: "center" });
   doc.setFontSize(16);
   doc.setTextColor(26, 77, 46);
-  doc.text(String(score.sim), 20 + cardW/2, y + 35, { align: "center" });
+  doc.text(String(score.sim), 20 + cardW / 2, y + 35, { align: "center" });
 
   // Não conformes
   doc.setFillColor(252, 235, 235);
   doc.roundedRect(20 + cardW + 10, y, cardW, 45, 3, 3, "F");
   doc.setFontSize(8);
   doc.setTextColor(80, 80, 80);
-  doc.text("NÃO CONFORMES", 20 + cardW + 10 + cardW/2, y + 15, { align: "center" });
+  doc.text("NÃO CONFORMES", 20 + cardW + 10 + cardW / 2, y + 15, { align: "center" });
   doc.setFontSize(16);
   doc.setTextColor(185, 28, 28);
-  doc.text(String(score.nao), 20 + cardW + 10 + cardW/2, y + 35, { align: "center" });
+  doc.text(String(score.nao), 20 + cardW + 10 + cardW / 2, y + 35, { align: "center" });
 
   // NA
   doc.setFillColor(245, 245, 245);
   doc.roundedRect(20 + (cardW + 10) * 2, y, cardW, 45, 3, 3, "F");
   doc.setFontSize(8);
   doc.setTextColor(80, 80, 80);
-  doc.text("N/A", 20 + (cardW + 10) * 2 + cardW/2, y + 15, { align: "center" });
+  doc.text("N/A", 20 + (cardW + 10) * 2 + cardW / 2, y + 15, { align: "center" });
   doc.setFontSize(16);
   doc.setTextColor(120, 120, 120);
-  doc.text(String(score.na), 20 + (cardW + 10) * 2 + cardW/2, y + 35, { align: "center" });
+  doc.text(String(score.na), 20 + (cardW + 10) * 2 + cardW / 2, y + 35, { align: "center" });
 
   y += 60;
 
@@ -153,8 +161,9 @@ export async function gerarPDF(insp: Inspecao) {
   doc.setFontSize(32);
   doc.setTextColor(26, 77, 46);
   doc.text(`${score.percentual.toFixed(2)}%`, 20, y + 15);
-  
-  const badgeColor = cls.tone === "success" ? [26, 77, 46] : cls.tone === "warning" ? [234, 179, 8] : [185, 28, 28];
+
+  const badgeColor =
+    cls.tone === "success" ? [26, 77, 46] : cls.tone === "warning" ? [234, 179, 8] : [185, 28, 28];
   doc.setFillColor(badgeColor[0], badgeColor[1], badgeColor[2]);
   doc.roundedRect(125, y - 5, 80, 22, 3, 3, "F");
   doc.setFontSize(10);
@@ -187,15 +196,15 @@ export async function gerarPDF(insp: Inspecao) {
     startY: y,
     head: [["Seção", "S", "N", "NA", "%", "Progresso"]],
     body: sectionRows,
-    headStyles: { fillColor: [26, 77, 46], textColor: 255, fontStyle: 'bold' },
+    headStyles: { fillColor: [26, 77, 46], textColor: 255, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [245, 245, 245] },
-    styles: { fontSize: 8, cellPadding: 6, valign: 'middle', font: 'helvetica' },
+    styles: { fontSize: 8, cellPadding: 6, valign: "middle", font: "helvetica" },
     columnStyles: {
-      4: { fontStyle: 'bold', halign: 'center' },
-      5: { cellWidth: 80 }
+      4: { fontStyle: "bold", halign: "center" },
+      5: { cellWidth: 80 },
     },
     didDrawCell: (data) => {
-      if (data.section === 'body' && data.column.index === 4) {
+      if (data.section === "body" && data.column.index === 4) {
         const valStr = data.cell.raw as string;
         if (valStr !== "-") {
           const val = parseInt(valStr);
@@ -206,12 +215,12 @@ export async function gerarPDF(insp: Inspecao) {
           doc.setTextColor(150, 150, 150);
         }
       }
-      if (data.section === 'body' && data.column.index === 5) {
+      if (data.section === "body" && data.column.index === 5) {
         const valStr = data.row.cells[4].raw as string;
         if (valStr !== "-") {
           const val = parseInt(valStr);
           const barX = data.cell.x + 5;
-          const barY = data.cell.y + (data.cell.height / 2) - 2;
+          const barY = data.cell.y + data.cell.height / 2 - 2;
           const fullW = data.cell.width - 10;
           doc.setFillColor(230, 230, 230);
           doc.rect(barX, barY, fullW, 4, "F");
@@ -226,11 +235,18 @@ export async function gerarPDF(insp: Inspecao) {
     margin: { left: 20, right: 20 },
   });
 
-  // 4. Tabela de não conformidades
+  // 4. Tabela de não conformidades + plano de ação corretivo
+  const planoAcao = ensurePlanoAcao(insp.respostas, insp.dados?.planoAcao, insp.dataConclusao);
   const ncRows: string[][] = [];
   checklistSections.forEach((sec) => {
     sec.items.forEach((it) => {
-      if (insp.respostas[it.id] === "N") ncRows.push([it.id, sec.title, it.text]);
+      if (insp.respostas[it.id] === "N") {
+        const acao = planoAcao[it.id];
+        const prazoFormatado = acao?.prazo
+          ? new Date(acao.prazo + "T00:00:00").toLocaleDateString("pt-BR")
+          : "";
+        ncRows.push([it.id, sec.title, it.text, acao?.texto || "", prazoFormatado]);
+      }
     });
   });
 
@@ -244,20 +260,28 @@ export async function gerarPDF(insp: Inspecao) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(26, 77, 46);
-    doc.text("NÃO CONFORMIDADES IDENTIFICADAS", 20, tableY);
+    doc.text("NÃO CONFORMIDADES IDENTIFICADAS E PLANO DE AÇÃO", 20, tableY);
     autoTable(doc, {
       startY: tableY + 10,
-      head: [["Item", "Seção", "Descrição da Não Conformidade"]],
+      head: [["Item", "Seção", "Descrição da Não Conformidade", "Plano de Ação", "Prazo"]],
       body: ncRows,
       headStyles: { fillColor: [26, 77, 46], textColor: 255 },
       alternateRowStyles: { fillColor: [245, 245, 245] },
-      styles: { fontSize: 8, cellPadding: 8, overflow: 'linebreak', font: 'helvetica' },
-      columnStyles: { 
-        0: { fillColor: [252, 235, 235], textColor: [163, 45, 45], fontStyle: 'bold', cellWidth: 35, halign: 'center' }, 
-        1: { cellWidth: 100 },
-        2: { cellWidth: 'auto' }
+      styles: { fontSize: 8, cellPadding: 8, overflow: "linebreak", font: "helvetica" },
+      columnStyles: {
+        0: {
+          fillColor: [252, 235, 235],
+          textColor: [163, 45, 45],
+          fontStyle: "bold",
+          cellWidth: 30,
+          halign: "center",
+        },
+        1: { cellWidth: 75 },
+        2: { cellWidth: "auto" },
+        3: { cellWidth: "auto" },
+        4: { cellWidth: 55, halign: "center" },
       },
-      margin: { left: 20, right: 20 }
+      margin: { left: 20, right: 20 },
     });
   }
 
@@ -300,13 +324,18 @@ export async function gerarPDF(insp: Inspecao) {
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
   const techName = e.respTecNome || "Responsável Técnico";
-  const techReg = e.respTecConselho && e.respTecRegistro ? `${e.respTecConselho} ${e.respTecRegistro}` : "CRN / Registro";
+  const techReg =
+    e.respTecConselho && e.respTecRegistro
+      ? `${e.respTecConselho} ${e.respTecRegistro}`
+      : "CRN / Registro";
   doc.text(techName, 20, finalY + 55);
   doc.setFont("helvetica", "normal");
   doc.text(techReg, 20, finalY + 67);
   doc.text("Assinatura", 20, finalY + 79);
   doc.text("Carimbo", 260, finalY + 55);
-  const dateStr = e.dataHora ? new Date(e.dataHora).toLocaleDateString("pt-BR") : new Date().toLocaleDateString("pt-BR");
+  const dateStr = e.dataHora
+    ? new Date(e.dataHora).toLocaleDateString("pt-BR")
+    : new Date().toLocaleDateString("pt-BR");
   doc.text(`Data: ${dateStr}`, pageWidth - 20, finalY + 55, { align: "right" });
 
   // Finalização: Adiciona layout em todas as páginas

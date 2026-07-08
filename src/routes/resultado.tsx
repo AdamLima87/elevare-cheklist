@@ -3,6 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/elevare/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
   Bar,
@@ -19,8 +22,10 @@ import {
   clearRascunho,
   loadRascunho,
   saveToHistorico,
+  type AcaoCorretiva,
   type Inspecao,
 } from "@/lib/storage";
+import { ensurePlanoAcao } from "@/lib/plano-acao";
 import { checklistSections } from "@/lib/checklist-data";
 import { FileDown, MessageCircle, Mail, Save, RotateCcw, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,7 +44,7 @@ function ResultadoPage() {
   const search = useSearch({ from: "/resultado" }) as { id?: string; readonly?: boolean };
   const [insp, setInsp] = useState<Inspecao | null>(null);
   const [loading, setLoading] = useState(false);
-
+  const [planoAcao, setPlanoAcao] = useState<Record<string, AcaoCorretiva>>({});
 
   useEffect(() => {
     async function loadData() {
@@ -68,6 +73,9 @@ function ResultadoPage() {
               respostas: data.respostas as any,
             };
             setInsp(mapped);
+            setPlanoAcao(
+              ensurePlanoAcao(mapped.respostas, mapped.dados?.planoAcao, mapped.dataConclusao),
+            );
           }
         } catch (err) {
           toast.error("Erro ao carregar inspeção");
@@ -93,8 +101,11 @@ function ResultadoPage() {
       };
       
       setInsp(finalInsp);
+      setPlanoAcao(
+        ensurePlanoAcao(finalInsp.respostas, finalInsp.dados?.planoAcao, finalInsp.dataConclusao),
+      );
     }
-    
+
     loadData();
   }, [navigate, search.id, search.readonly]);
 
@@ -145,7 +156,8 @@ function ResultadoPage() {
     try {
       const updatedInsp: Inspecao = {
         ...finalInsp,
-        status: "concluida"
+        status: "concluida",
+        dados: { ...finalInsp.dados, planoAcao },
       };
       
       await saveToHistorico(updatedInsp);
@@ -240,7 +252,7 @@ function ResultadoPage() {
 
   const baixarPDF = () => {
     try {
-      gerarPDF(finalInsp);
+      gerarPDF({ ...finalInsp, dados: { ...finalInsp.dados, planoAcao } });
     } catch (e) {
       console.error(e);
       toast.error("Não foi possível gerar o PDF.");
@@ -356,13 +368,68 @@ function ResultadoPage() {
           {naoConformidades.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma não conformidade identificada.</p>
           ) : (
-            <ul className="space-y-2">
-              {naoConformidades.map((nc) => (
-                <li key={nc.id} className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-destructive">{nc.secao}</div>
-                  <div className="mt-1"><span className="font-mono text-xs">{nc.id}.</span> {nc.text}</div>
-                </li>
-              ))}
+            <ul className="space-y-3">
+              {naoConformidades.map((nc) => {
+                const acao = planoAcao[nc.id];
+                return (
+                  <li
+                    key={nc.id}
+                    className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm"
+                  >
+                    <div className="text-xs font-semibold uppercase tracking-wide text-destructive">{nc.secao}</div>
+                    <div className="mt-1"><span className="font-mono text-xs">{nc.id}.</span> {nc.text}</div>
+
+                    {!search.readonly ? (
+                      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+                        <div className="space-y-1">
+                          <Label htmlFor={`acao-texto-${nc.id}`} className="text-[11px]">
+                            Plano de ação
+                          </Label>
+                          <Textarea
+                            id={`acao-texto-${nc.id}`}
+                            value={acao?.texto ?? ""}
+                            onChange={(e) =>
+                              setPlanoAcao((prev) => ({
+                                ...prev,
+                                [nc.id]: { texto: e.target.value, prazo: prev[nc.id]?.prazo ?? "" },
+                              }))
+                            }
+                            className="min-h-16 bg-background text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor={`acao-prazo-${nc.id}`} className="text-[11px]">
+                            Prazo
+                          </Label>
+                          <Input
+                            id={`acao-prazo-${nc.id}`}
+                            type="date"
+                            value={acao?.prazo ?? ""}
+                            onChange={(e) =>
+                              setPlanoAcao((prev) => ({
+                                ...prev,
+                                [nc.id]: { texto: prev[nc.id]?.texto ?? "", prazo: e.target.value },
+                              }))
+                            }
+                            className="bg-background"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      acao && (
+                        <div className="mt-2 border-t border-destructive/20 pt-2 text-xs">
+                          <span className="font-semibold">Plano de ação:</span> {acao.texto}
+                          {acao.prazo && (
+                            <span className="ml-1 text-muted-foreground">
+                              (prazo: {new Date(acao.prazo + "T00:00:00").toLocaleDateString("pt-BR")})
+                            </span>
+                          )}
+                        </div>
+                      )
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </CardContent>

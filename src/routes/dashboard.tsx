@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/elevare/AppShell";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, TrendingDown, Users, Building2, ClipboardCheck, AlertTriangle } from "lucide-react";
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from "recharts";
 import { checklistSections } from "@/lib/checklist-data";
@@ -16,148 +16,157 @@ export const Route = createFileRoute("/dashboard")({
   component: DashboardPage,
 });
 
-function DashboardPage() {
-  const [stats, setStats] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+const DASHBOARD_COLUMNS =
+  "id, status, conformidade, cnpj, estabelecimento_nome, data_inicio, consultor_id, dados, respostas";
 
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        const { data: inspections, error } = await supabase
-          .from("inspecoes")
-          .select("*");
+async function fetchDashboardStats() {
+  const { data: inspections, error } = await supabase.from("inspecoes").select(DASHBOARD_COLUMNS);
 
-        if (error) throw error;
+  if (error) throw error;
 
-        const { data: consultants } = await supabase
-          .from("profiles")
-          .select("id, nome")
-          .eq("perfil", "consultor");
+  const { data: consultants } = await supabase
+    .from("profiles")
+    .select("id, nome")
+    .eq("perfil", "consultor");
 
-        const consultantMap = (consultants || []).reduce((acc: any, c: any) => {
-          acc[c.id] = c.nome;
-          return acc;
-        }, {});
+  const consultantMap = (consultants || []).reduce((acc: any, c: any) => {
+    acc[c.id] = c.nome;
+    return acc;
+  }, {});
 
-        // Process metrics
-        const totalInspections = inspections?.length || 0;
-        const concluded = inspections?.filter(i => i.status === "concluida") || [];
-        const avgCompliance = concluded.length > 0 
-          ? concluded.reduce((acc, i) => acc + (Number(i.conformidade) || 0), 0) / concluded.length 
-          : 0;
-        
-        const activeEstabs = new Set(inspections?.map(i => i.cnpj || i.estabelecimento_nome)).size;
-        
-        const classifications = concluded.reduce((acc, i) => {
-          const conf = Number(i.conformidade) || 0;
-          if (conf >= 76) acc.bom++;
-          else if (conf >= 51) acc.regular++;
-          else acc.ruim++;
-          return acc;
-        }, { bom: 0, regular: 0, ruim: 0 });
+  // Process metrics
+  const totalInspections = inspections?.length || 0;
+  const concluded = inspections?.filter((i) => i.status === "concluida") || [];
+  const avgCompliance =
+    concluded.length > 0
+      ? concluded.reduce((acc, i) => acc + (Number(i.conformidade) || 0), 0) / concluded.length
+      : 0;
 
-        const pctRuim = concluded.length > 0 ? (classifications.ruim / concluded.length) * 100 : 0;
+  const activeEstabs = new Set(inspections?.map((i) => i.cnpj || i.estabelecimento_nome)).size;
 
-        // Monthly data
-        const monthlyDataMap: any = {};
-        inspections?.forEach(i => {
-          const date = new Date(i.data_inicio);
-          const key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-          if (!monthlyDataMap[key]) monthlyDataMap[key] = { name: key, concluida: 0, em_andamento: 0 };
-          if (i.status === "concluida") monthlyDataMap[key].concluida++;
-          else monthlyDataMap[key].em_andamento++;
-        });
-        const monthlyData = Object.values(monthlyDataMap).sort((a: any, b: any) => a.name.localeCompare(b.name));
+  const classifications = concluded.reduce(
+    (acc, i) => {
+      const conf = Number(i.conformidade) || 0;
+      if (conf >= 76) acc.bom++;
+      else if (conf >= 51) acc.regular++;
+      else acc.ruim++;
+      return acc;
+    },
+    { bom: 0, regular: 0, ruim: 0 },
+  );
 
-        // Pie chart data
-        const pieData = [
-          { name: "Bom", value: classifications.bom, color: "#10b981" },
-          { name: "Regular", value: classifications.regular, color: "#f59e0b" },
-          { name: "Ruim", value: classifications.ruim, color: "#ef4444" },
-        ].filter(d => d.value > 0);
+  const pctRuim = concluded.length > 0 ? (classifications.ruim / concluded.length) * 100 : 0;
 
-        // Non-conformities ranking
-        const sectionNonConf: any = {};
-        checklistSections.forEach(s => sectionNonConf[s.id] = { id: s.id, title: s.title, count: 0 });
-        
-        inspections?.forEach(i => {
-          const respostas = i.respostas as any;
-          if (respostas) {
-            checklistSections.forEach(sec => {
-              sec.items.forEach(item => {
-                if (respostas[item.id] === "N") {
-                  sectionNonConf[sec.id].count++;
-                }
-              });
-            });
+  // Monthly data
+  const monthlyDataMap: any = {};
+  inspections?.forEach((i) => {
+    const date = new Date(i.data_inicio);
+    const key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}`;
+    if (!monthlyDataMap[key]) monthlyDataMap[key] = { name: key, concluida: 0, em_andamento: 0 };
+    if (i.status === "concluida") monthlyDataMap[key].concluida++;
+    else monthlyDataMap[key].em_andamento++;
+  });
+  const monthlyData = Object.values(monthlyDataMap).sort((a: any, b: any) =>
+    a.name.localeCompare(b.name),
+  );
+
+  // Pie chart data
+  const pieData = [
+    { name: "Bom", value: classifications.bom, color: "#10b981" },
+    { name: "Regular", value: classifications.regular, color: "#f59e0b" },
+    { name: "Ruim", value: classifications.ruim, color: "#ef4444" },
+  ].filter((d) => d.value > 0);
+
+  // Non-conformities ranking
+  const sectionNonConf: any = {};
+  checklistSections.forEach((s) => (sectionNonConf[s.id] = { id: s.id, title: s.title, count: 0 }));
+
+  inspections?.forEach((i) => {
+    const respostas = i.respostas as any;
+    if (respostas) {
+      checklistSections.forEach((sec) => {
+        sec.items.forEach((item) => {
+          if (respostas[item.id] === "N") {
+            sectionNonConf[sec.id].count++;
           }
         });
-        const rankingNonConf = Object.values(sectionNonConf)
-          .sort((a: any, b: any) => b.count - a.count)
-          .slice(0, 8);
+      });
+    }
+  });
+  const rankingNonConf = Object.values(sectionNonConf)
+    .sort((a: any, b: any) => b.count - a.count)
+    .slice(0, 8);
 
-        // Bottom 5 establishments
-        const bottomEstabs = concluded
-          .sort((a, b) => (Number(a.conformidade) || 0) - (Number(b.conformidade) || 0))
-          .slice(0, 5);
+  // Bottom 5 establishments
+  const bottomEstabs = concluded
+    .sort((a, b) => (Number(a.conformidade) || 0) - (Number(b.conformidade) || 0))
+    .slice(0, 5);
 
-        // Consultant performance
-        const consultantPerfMap: any = {};
-        inspections?.forEach(i => {
-          const cId = i.consultor_id;
-          if (cId) {
-            if (!consultantPerfMap[cId]) consultantPerfMap[cId] = { nome: consultantMap[cId] || "Desconhecido", count: 0, sum: 0, concluded: 0 };
-            consultantPerfMap[cId].count++;
-            if (i.status === "concluida") {
-              consultantPerfMap[cId].concluded++;
-              consultantPerfMap[cId].sum += (Number(i.conformidade) || 0);
-            }
-          }
-        });
-        const consultantPerf = Object.values(consultantPerfMap).map((c: any) => ({
-          ...c,
-          avg: c.concluded > 0 ? c.sum / c.concluded : 0
-        }));
-
-        // Segment performance
-        const segmentMap: any = {};
-        inspections?.forEach(i => {
-          const segment = (i.dados as any)?.estabelecimento?.atividade || "Não informado";
-          if (!segmentMap[segment]) segmentMap[segment] = { name: segment, count: 0, sum: 0, concluded: 0 };
-          segmentMap[segment].count++;
-          if (i.status === "concluida") {
-            segmentMap[segment].concluded++;
-            segmentMap[segment].sum += (Number(i.conformidade) || 0);
-          }
-        });
-        const segmentPerf = Object.values(segmentMap).map((s: any) => ({
-          ...s,
-          avg: s.concluded > 0 ? s.sum / s.concluded : 0
-        })).sort((a: any, b: any) => b.count - a.count).slice(0, 10);
-
-        setStats({
-          totalInspections,
-          avgCompliance,
-          activeEstabs,
-          pctRuim,
-          monthlyData,
-          pieData,
-          rankingNonConf,
-          bottomEstabs,
-          consultantPerf,
-          segmentPerf
-        });
-      } catch (err) {
-        console.error("Error fetching stats:", err);
-      } finally {
-        setLoading(false);
+  // Consultant performance
+  const consultantPerfMap: any = {};
+  inspections?.forEach((i) => {
+    const cId = i.consultor_id;
+    if (cId) {
+      if (!consultantPerfMap[cId])
+        consultantPerfMap[cId] = {
+          nome: consultantMap[cId] || "Desconhecido",
+          count: 0,
+          sum: 0,
+          concluded: 0,
+        };
+      consultantPerfMap[cId].count++;
+      if (i.status === "concluida") {
+        consultantPerfMap[cId].concluded++;
+        consultantPerfMap[cId].sum += Number(i.conformidade) || 0;
       }
     }
-    fetchData();
-  }, []);
+  });
+  const consultantPerf = Object.values(consultantPerfMap).map((c: any) => ({
+    ...c,
+    avg: c.concluded > 0 ? c.sum / c.concluded : 0,
+  }));
 
-  if (loading) {
+  // Segment performance
+  const segmentMap: any = {};
+  inspections?.forEach((i) => {
+    const segment = (i.dados as any)?.estabelecimento?.atividade || "Não informado";
+    if (!segmentMap[segment])
+      segmentMap[segment] = { name: segment, count: 0, sum: 0, concluded: 0 };
+    segmentMap[segment].count++;
+    if (i.status === "concluida") {
+      segmentMap[segment].concluded++;
+      segmentMap[segment].sum += Number(i.conformidade) || 0;
+    }
+  });
+  const segmentPerf = Object.values(segmentMap)
+    .map((s: any) => ({
+      ...s,
+      avg: s.concluded > 0 ? s.sum / s.concluded : 0,
+    }))
+    .sort((a: any, b: any) => b.count - a.count)
+    .slice(0, 10);
+
+  return {
+    totalInspections,
+    avgCompliance,
+    activeEstabs,
+    pctRuim,
+    monthlyData,
+    pieData,
+    rankingNonConf,
+    bottomEstabs,
+    consultantPerf,
+    segmentPerf,
+  };
+}
+
+function DashboardPage() {
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ["dashboard-stats"],
+    queryFn: fetchDashboardStats,
+  });
+
+  if (isLoading) {
     return (
       <AppShell>
         <div className="flex items-center justify-center min-h-[60vh]">

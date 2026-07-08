@@ -17,6 +17,7 @@ import { Route as NovaInspecaoRouteImport } from './routes/nova-inspecao'
 import { Route as MeuResultadoRouteImport } from './routes/meu-resultado'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as HistoricoRouteImport } from './routes/historico'
+import { Route as EstabelecimentoRouteImport } from './routes/estabelecimento'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as ChecklistRouteImport } from './routes/checklist'
@@ -64,6 +65,11 @@ const HistoricoRoute = HistoricoRouteImport.update({
   path: '/historico',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EstabelecimentoRoute = EstabelecimentoRouteImport.update({
+  id: '/estabelecimento',
+  path: '/estabelecimento',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -102,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/checklist': typeof ChecklistRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
+  '/estabelecimento': typeof EstabelecimentoRoute
   '/historico': typeof HistoricoRoute
   '/login': typeof LoginRoute
   '/meu-resultado': typeof MeuResultadoRoute
@@ -118,6 +125,7 @@ export interface FileRoutesByTo {
   '/checklist': typeof ChecklistRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
+  '/estabelecimento': typeof EstabelecimentoRoute
   '/historico': typeof HistoricoRoute
   '/login': typeof LoginRoute
   '/meu-resultado': typeof MeuResultadoRoute
@@ -135,6 +143,7 @@ export interface FileRoutesById {
   '/checklist': typeof ChecklistRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
+  '/estabelecimento': typeof EstabelecimentoRoute
   '/historico': typeof HistoricoRoute
   '/login': typeof LoginRoute
   '/meu-resultado': typeof MeuResultadoRoute
@@ -153,6 +162,7 @@ export interface FileRouteTypes {
     | '/checklist'
     | '/configuracoes'
     | '/dashboard'
+    | '/estabelecimento'
     | '/historico'
     | '/login'
     | '/meu-resultado'
@@ -169,6 +179,7 @@ export interface FileRouteTypes {
     | '/checklist'
     | '/configuracoes'
     | '/dashboard'
+    | '/estabelecimento'
     | '/historico'
     | '/login'
     | '/meu-resultado'
@@ -185,6 +196,7 @@ export interface FileRouteTypes {
     | '/checklist'
     | '/configuracoes'
     | '/dashboard'
+    | '/estabelecimento'
     | '/historico'
     | '/login'
     | '/meu-resultado'
@@ -202,6 +214,7 @@ export interface RootRouteChildren {
   ChecklistRoute: typeof ChecklistRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   DashboardRoute: typeof DashboardRoute
+  EstabelecimentoRoute: typeof EstabelecimentoRoute
   HistoricoRoute: typeof HistoricoRoute
   LoginRoute: typeof LoginRoute
   MeuResultadoRoute: typeof MeuResultadoRoute
@@ -270,6 +283,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HistoricoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/estabelecimento': {
+      id: '/estabelecimento'
+      path: '/estabelecimento'
+      fullPath: '/estabelecimento'
+      preLoaderRoute: typeof EstabelecimentoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -322,6 +342,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChecklistRoute: ChecklistRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
   DashboardRoute: DashboardRoute,
+  EstabelecimentoRoute: EstabelecimentoRoute,
   HistoricoRoute: HistoricoRoute,
   LoginRoute: LoginRoute,
   MeuResultadoRoute: MeuResultadoRoute,
@@ -334,3 +355,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
