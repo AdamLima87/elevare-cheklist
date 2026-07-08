@@ -1,15 +1,17 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/elevare/AppShell";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, TrendingDown, Users, Building2, ClipboardCheck, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, TrendingDown, Users, Building2, ClipboardCheck, AlertTriangle, CalendarClock } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from "recharts";
 import { checklistSections } from "@/lib/checklist-data";
+import { dedupeLatestPerCnpj, dueDate, isWithinReminderWindow } from "@/lib/reinspection";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/dashboard")({
@@ -17,7 +19,7 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 const DASHBOARD_COLUMNS =
-  "id, status, conformidade, cnpj, estabelecimento_nome, data_inicio, consultor_id, dados, respostas";
+  "id, status, conformidade, cnpj, estabelecimento_nome, data_inicio, data_conclusao, consultor_id, dados, respostas";
 
 async function fetchDashboardStats() {
   const { data: inspections, error } = await supabase.from("inspecoes").select(DASHBOARD_COLUMNS);
@@ -102,6 +104,22 @@ async function fetchDashboardStats() {
     .sort((a, b) => (Number(a.conformidade) || 0) - (Number(b.conformidade) || 0))
     .slice(0, 5);
 
+  // Establishments due (or overdue) for reinspection within the reminder window,
+  // one entry per cnpj using its most recent concluded inspection.
+  const latestPerCnpj = dedupeLatestPerCnpj(
+    concluded
+      .filter((i) => i.cnpj && i.data_conclusao)
+      .sort(
+        (a, b) => new Date(b.data_conclusao as string).getTime() - new Date(a.data_conclusao as string).getTime(),
+      ),
+  );
+  const now = new Date();
+  const reinspectionsDue = latestPerCnpj
+    .map((i) => ({ ...i, prazo: dueDate(i.data_conclusao as string) }))
+    .filter((i) => isWithinReminderWindow(i.prazo, now))
+    .sort((a, b) => a.prazo.getTime() - b.prazo.getTime())
+    .slice(0, 8);
+
   // Consultant performance
   const consultantPerfMap: any = {};
   inspections?.forEach((i) => {
@@ -155,12 +173,14 @@ async function fetchDashboardStats() {
     pieData,
     rankingNonConf,
     bottomEstabs,
+    reinspectionsDue,
     consultantPerf,
     segmentPerf,
   };
 }
 
 function DashboardPage() {
+  const navigate = useNavigate();
   const { data: stats, isLoading } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: fetchDashboardStats,
@@ -224,6 +244,52 @@ function DashboardPage() {
               sub="Abaixo de 50%"
             />
           </div>
+
+          {stats.reinspectionsDue.length > 0 && (
+            <Card className="p-6 border-l-4" style={{ borderLeftColor: "var(--amber-seal)" }}>
+              <CardHeader className="px-0 pt-0 flex-row items-center gap-2 space-y-0">
+                <CalendarClock className="h-4 w-4 shrink-0" style={{ color: "var(--amber-seal)" }} />
+                <CardTitle className="text-base font-semibold">
+                  Reinspeções a vencer ({stats.reinspectionsDue.length})
+                </CardTitle>
+              </CardHeader>
+              <div className="divide-y divide-border">
+                {stats.reinspectionsDue.map((item: any) => {
+                  const overdue = item.prazo.getTime() < Date.now();
+                  const dias = Math.round((item.prazo.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold truncate">{item.estabelecimento_nome}</div>
+                        <div
+                          className={cn(
+                            "text-xs mt-0.5",
+                            overdue ? "text-destructive font-medium" : "text-muted-foreground",
+                          )}
+                        >
+                          {overdue
+                            ? `Vencida há ${Math.abs(dias)} dia${Math.abs(dias) === 1 ? "" : "s"}`
+                            : `Vence em ${dias} dia${dias === 1 ? "" : "s"}`}{" "}
+                          · {item.prazo.toLocaleDateString("pt-BR")}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => navigate({ to: "/estabelecimento", search: { cnpj: item.cnpj } })}
+                      >
+                        Ver histórico
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <Card className="p-6">
