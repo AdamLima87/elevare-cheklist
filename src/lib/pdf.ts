@@ -3,6 +3,7 @@ import autoTable from "jspdf-autotable";
 import { checklistSections } from "./checklist-data";
 import { calcularPercentual, classificacao, type Inspecao } from "./storage";
 import { ensurePlanoAcao } from "./plano-acao";
+import logoUrl from "@/assets/elevare-logo-full.png";
 
 export async function gerarPDF(insp: Inspecao) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
@@ -40,9 +41,7 @@ export async function gerarPDF(insp: Inspecao) {
     });
   };
 
-  // Carregar Logo (URL direta solicitada)
-  const logoUrl =
-    "https://elevate-check-pro.lovable.app/__l5e/assets-v1/1f90790f-e01b-48e0-8e59-4578c2d4a2f1/elevare-logo.png";
+  // Carregar Logo (asset local)
   let logoData = "";
   try {
     const response = await fetch(logoUrl);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import logoAsset from "@/assets/elevare-shield.png.asset.json";
+import shield from "@/assets/elevare-shield.png";
 
 export function SplashScreen({ onComplete }: { onComplete: () => void }) {
   const [isVisible, setIsVisible] = useState(true);
@@ -28,7 +28,7 @@ export function SplashScreen({ onComplete }: { onComplete: () => void }) {
           <div className="absolute inset-0 rounded-full border border-white/20 animate-stamp" />
           <div className="absolute inset-3 rounded-full border border-white/10 animate-stamp [animation-delay:120ms]" />
           <img
-            src={logoAsset.url}
+            src={shield}
             alt="Elevare Consultoria"
             className="relative h-24 w-24 object-contain brightness-0 invert animate-stamp [animation-delay:180ms]"
           />

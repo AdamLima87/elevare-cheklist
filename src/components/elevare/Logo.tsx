@@ -1,8 +1,8 @@
-import logoAsset from "@/assets/elevare-logo-full.png.asset.json";
-import shieldAsset from "@/assets/elevare-shield.png.asset.json";
+import logoFull from "@/assets/elevare-logo-full.png";
+import shield from "@/assets/elevare-shield.png";
 
 export function Logo({ compact = false }: { compact?: boolean }) {
-  const src = compact ? shieldAsset.url : logoAsset.url;
+  const src = compact ? shield : logoFull;
   return (
     <div className="inline-flex items-center justify-center">
       <img
