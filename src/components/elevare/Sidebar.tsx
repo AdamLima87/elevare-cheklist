@@ -13,7 +13,9 @@ import {
   Menu,
   X,
   Building2,
-  Briefcase
+  Briefcase,
+  CalendarDays,
+  Target
 } from "lucide-react";
 import { Logo } from "./Logo";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,6 +47,8 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
       { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
       { icon: ClipboardCheck, label: "Nova Inspeção", to: "/nova-inspecao" },
       { icon: Building2, label: "Clientes", to: "/clientes" },
+      { icon: Target, label: "Prospecção", to: "/prospeccao" },
+      { icon: CalendarDays, label: "Agenda", to: "/agenda" },
       { icon: History, label: "Histórico", to: "/historico" },
       { icon: BarChart3, label: "Relatórios", to: "/relatorios" },
       { icon: Users, label: "Usuários", to: "/admin" },
@@ -54,6 +58,8 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
       { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
       { icon: ClipboardCheck, label: "Nova Inspeção", to: "/nova-inspecao" },
       { icon: Building2, label: "Clientes", to: "/clientes" },
+      { icon: Target, label: "Prospecção", to: "/prospeccao" },
+      { icon: CalendarDays, label: "Agenda", to: "/agenda" },
       { icon: History, label: "Histórico", to: "/historico" },
       { icon: BarChart3, label: "Relatórios", to: "/relatorios" },
       { icon: Users, label: "Usuários", to: "/admin" },
@@ -63,6 +69,8 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
     consultor: [
       { icon: ClipboardCheck, label: "Nova Inspeção", to: "/nova-inspecao" },
       { icon: Building2, label: "Clientes", to: "/clientes" },
+      { icon: Target, label: "Prospecção", to: "/prospeccao" },
+      { icon: CalendarDays, label: "Agenda", to: "/agenda" },
       { icon: History, label: "Histórico", to: "/historico" },
       { icon: BarChart3, label: "Meus Relatórios", to: "/relatorios" },
     ],

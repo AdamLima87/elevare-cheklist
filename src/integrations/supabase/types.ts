@@ -39,15 +39,71 @@ export type Database = {
   }
   public: {
     Tables: {
+      cliente_interacoes: {
+        Row: {
+          autor_id: string | null
+          cliente_id: string
+          created_at: string
+          empresa_id: string
+          id: string
+          texto: string
+          tipo: string
+        }
+        Insert: {
+          autor_id?: string | null
+          cliente_id: string
+          created_at?: string
+          empresa_id: string
+          id?: string
+          texto: string
+          tipo?: string
+        }
+        Update: {
+          autor_id?: string | null
+          cliente_id?: string
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          texto?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cliente_interacoes_autor_id_fkey"
+            columns: ["autor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cliente_interacoes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cliente_interacoes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clientes: {
         Row: {
           categoria: string | null
           cnpj: string | null
           created_at: string
           empresa_id: string
+          etapa_funil: string | null
           foto_url: string | null
           id: string
           nome: string
+          origem: string | null
+          responsavel_id: string | null
+          status: string
           updated_at: string
         }
         Insert: {
@@ -55,9 +111,13 @@ export type Database = {
           cnpj?: string | null
           created_at?: string
           empresa_id: string
+          etapa_funil?: string | null
           foto_url?: string | null
           id?: string
           nome: string
+          origem?: string | null
+          responsavel_id?: string | null
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -65,9 +125,13 @@ export type Database = {
           cnpj?: string | null
           created_at?: string
           empresa_id?: string
+          etapa_funil?: string | null
           foto_url?: string | null
           id?: string
           nome?: string
+          origem?: string | null
+          responsavel_id?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: [
@@ -76,6 +140,13 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clientes_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -407,6 +478,77 @@ export type Database = {
           reason?: string
         }
         Relationships: []
+      }
+      visitas: {
+        Row: {
+          cliente_id: string
+          consultor_id: string | null
+          created_at: string
+          data_hora: string
+          empresa_id: string
+          id: string
+          inspecao_id: string | null
+          observacoes: string | null
+          status: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          cliente_id: string
+          consultor_id?: string | null
+          created_at?: string
+          data_hora: string
+          empresa_id: string
+          id?: string
+          inspecao_id?: string | null
+          observacoes?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          cliente_id?: string
+          consultor_id?: string | null
+          created_at?: string
+          data_hora?: string
+          empresa_id?: string
+          id?: string
+          inspecao_id?: string | null
+          observacoes?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visitas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visitas_consultor_id_fkey"
+            columns: ["consultor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visitas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visitas_inspecao_id_fkey"
+            columns: ["inspecao_id"]
+            isOneToOne: false
+            referencedRelation: "inspecoes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

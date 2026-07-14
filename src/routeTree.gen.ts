@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResultadoRouteImport } from './routes/resultado'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
+import { Route as ProspeccaoRouteImport } from './routes/prospeccao'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as NovaInspecaoRouteImport } from './routes/nova-inspecao'
 import { Route as MeuResultadoRouteImport } from './routes/meu-resultado'
@@ -21,13 +22,14 @@ import { Route as EstabelecimentoRouteImport } from './routes/estabelecimento'
 import { Route as EmpresasRouteImport } from './routes/empresas'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
-import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as ChecklistRouteImport } from './routes/checklist'
+import { Route as AgendaRouteImport } from './routes/agenda'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AcessoNegadoRouteImport } from './routes/acesso-negado'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ClientesIndexRouteImport } from './routes/clientes/index'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
-import { Route as ClientesIdRouteImport } from './routes/clientes.$id'
+import { Route as ClientesIdRouteImport } from './routes/clientes/$id'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
@@ -49,6 +51,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const RelatoriosRoute = RelatoriosRouteImport.update({
   id: '/relatorios',
   path: '/relatorios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProspeccaoRoute = ProspeccaoRouteImport.update({
+  id: '/prospeccao',
+  path: '/prospeccao',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PerfilRoute = PerfilRouteImport.update({
@@ -96,14 +103,14 @@ const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
   path: '/configuracoes',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ClientesRoute = ClientesRouteImport.update({
-  id: '/clientes',
-  path: '/clientes',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ChecklistRoute = ChecklistRouteImport.update({
   id: '/checklist',
   path: '/checklist',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgendaRoute = AgendaRouteImport.update({
+  id: '/agenda',
+  path: '/agenda',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -121,15 +128,20 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ClientesIndexRoute = ClientesIndexRouteImport.update({
+  id: '/clientes/',
+  path: '/clientes/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
   id: '/email/unsubscribe',
   path: '/email/unsubscribe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClientesIdRoute = ClientesIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => ClientesRoute,
+  id: '/clientes/$id',
+  path: '/clientes/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
   id: '/lovable/email/suppression',
@@ -175,8 +187,8 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/acesso-negado': typeof AcessoNegadoRoute
   '/admin': typeof AdminRoute
+  '/agenda': typeof AgendaRoute
   '/checklist': typeof ChecklistRoute
-  '/clientes': typeof ClientesRouteWithChildren
   '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
   '/empresas': typeof EmpresasRoute
@@ -186,11 +198,13 @@ export interface FileRoutesByFullPath {
   '/meu-resultado': typeof MeuResultadoRoute
   '/nova-inspecao': typeof NovaInspecaoRoute
   '/perfil': typeof PerfilRoute
+  '/prospeccao': typeof ProspeccaoRoute
   '/relatorios': typeof RelatoriosRoute
   '/reset-password': typeof ResetPasswordRoute
   '/resultado': typeof ResultadoRoute
   '/clientes/$id': typeof ClientesIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/clientes/': typeof ClientesIndexRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -203,8 +217,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/acesso-negado': typeof AcessoNegadoRoute
   '/admin': typeof AdminRoute
+  '/agenda': typeof AgendaRoute
   '/checklist': typeof ChecklistRoute
-  '/clientes': typeof ClientesRouteWithChildren
   '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
   '/empresas': typeof EmpresasRoute
@@ -214,11 +228,13 @@ export interface FileRoutesByTo {
   '/meu-resultado': typeof MeuResultadoRoute
   '/nova-inspecao': typeof NovaInspecaoRoute
   '/perfil': typeof PerfilRoute
+  '/prospeccao': typeof ProspeccaoRoute
   '/relatorios': typeof RelatoriosRoute
   '/reset-password': typeof ResetPasswordRoute
   '/resultado': typeof ResultadoRoute
   '/clientes/$id': typeof ClientesIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/clientes': typeof ClientesIndexRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -232,8 +248,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/acesso-negado': typeof AcessoNegadoRoute
   '/admin': typeof AdminRoute
+  '/agenda': typeof AgendaRoute
   '/checklist': typeof ChecklistRoute
-  '/clientes': typeof ClientesRouteWithChildren
   '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
   '/empresas': typeof EmpresasRoute
@@ -243,11 +259,13 @@ export interface FileRoutesById {
   '/meu-resultado': typeof MeuResultadoRoute
   '/nova-inspecao': typeof NovaInspecaoRoute
   '/perfil': typeof PerfilRoute
+  '/prospeccao': typeof ProspeccaoRoute
   '/relatorios': typeof RelatoriosRoute
   '/reset-password': typeof ResetPasswordRoute
   '/resultado': typeof ResultadoRoute
   '/clientes/$id': typeof ClientesIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/clientes/': typeof ClientesIndexRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -262,8 +280,8 @@ export interface FileRouteTypes {
     | '/'
     | '/acesso-negado'
     | '/admin'
+    | '/agenda'
     | '/checklist'
-    | '/clientes'
     | '/configuracoes'
     | '/dashboard'
     | '/empresas'
@@ -273,11 +291,13 @@ export interface FileRouteTypes {
     | '/meu-resultado'
     | '/nova-inspecao'
     | '/perfil'
+    | '/prospeccao'
     | '/relatorios'
     | '/reset-password'
     | '/resultado'
     | '/clientes/$id'
     | '/email/unsubscribe'
+    | '/clientes/'
     | '/lovable/email/suppression'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -290,8 +310,8 @@ export interface FileRouteTypes {
     | '/'
     | '/acesso-negado'
     | '/admin'
+    | '/agenda'
     | '/checklist'
-    | '/clientes'
     | '/configuracoes'
     | '/dashboard'
     | '/empresas'
@@ -301,11 +321,13 @@ export interface FileRouteTypes {
     | '/meu-resultado'
     | '/nova-inspecao'
     | '/perfil'
+    | '/prospeccao'
     | '/relatorios'
     | '/reset-password'
     | '/resultado'
     | '/clientes/$id'
     | '/email/unsubscribe'
+    | '/clientes'
     | '/lovable/email/suppression'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -318,8 +340,8 @@ export interface FileRouteTypes {
     | '/'
     | '/acesso-negado'
     | '/admin'
+    | '/agenda'
     | '/checklist'
-    | '/clientes'
     | '/configuracoes'
     | '/dashboard'
     | '/empresas'
@@ -329,11 +351,13 @@ export interface FileRouteTypes {
     | '/meu-resultado'
     | '/nova-inspecao'
     | '/perfil'
+    | '/prospeccao'
     | '/relatorios'
     | '/reset-password'
     | '/resultado'
     | '/clientes/$id'
     | '/email/unsubscribe'
+    | '/clientes/'
     | '/lovable/email/suppression'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -347,8 +371,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AcessoNegadoRoute: typeof AcessoNegadoRoute
   AdminRoute: typeof AdminRoute
+  AgendaRoute: typeof AgendaRoute
   ChecklistRoute: typeof ChecklistRoute
-  ClientesRoute: typeof ClientesRouteWithChildren
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   DashboardRoute: typeof DashboardRoute
   EmpresasRoute: typeof EmpresasRoute
@@ -358,10 +382,13 @@ export interface RootRouteChildren {
   MeuResultadoRoute: typeof MeuResultadoRoute
   NovaInspecaoRoute: typeof NovaInspecaoRoute
   PerfilRoute: typeof PerfilRoute
+  ProspeccaoRoute: typeof ProspeccaoRoute
   RelatoriosRoute: typeof RelatoriosRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ResultadoRoute: typeof ResultadoRoute
+  ClientesIdRoute: typeof ClientesIdRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
+  ClientesIndexRoute: typeof ClientesIndexRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
@@ -392,6 +419,13 @@ declare module '@tanstack/react-router' {
       path: '/relatorios'
       fullPath: '/relatorios'
       preLoaderRoute: typeof RelatoriosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/prospeccao': {
+      id: '/prospeccao'
+      path: '/prospeccao'
+      fullPath: '/prospeccao'
+      preLoaderRoute: typeof ProspeccaoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/perfil': {
@@ -457,18 +491,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConfiguracoesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/clientes': {
-      id: '/clientes'
-      path: '/clientes'
-      fullPath: '/clientes'
-      preLoaderRoute: typeof ClientesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/checklist': {
       id: '/checklist'
       path: '/checklist'
       fullPath: '/checklist'
       preLoaderRoute: typeof ChecklistRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agenda': {
+      id: '/agenda'
+      path: '/agenda'
+      fullPath: '/agenda'
+      preLoaderRoute: typeof AgendaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -492,6 +526,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/clientes/': {
+      id: '/clientes/'
+      path: '/clientes'
+      fullPath: '/clientes/'
+      preLoaderRoute: typeof ClientesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/email/unsubscribe': {
       id: '/email/unsubscribe'
       path: '/email/unsubscribe'
@@ -501,10 +542,10 @@ declare module '@tanstack/react-router' {
     }
     '/clientes/$id': {
       id: '/clientes/$id'
-      path: '/$id'
+      path: '/clientes/$id'
       fullPath: '/clientes/$id'
       preLoaderRoute: typeof ClientesIdRouteImport
-      parentRoute: typeof ClientesRoute
+      parentRoute: typeof rootRouteImport
     }
     '/lovable/email/suppression': {
       id: '/lovable/email/suppression'
@@ -558,24 +599,12 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface ClientesRouteChildren {
-  ClientesIdRoute: typeof ClientesIdRoute
-}
-
-const ClientesRouteChildren: ClientesRouteChildren = {
-  ClientesIdRoute: ClientesIdRoute,
-}
-
-const ClientesRouteWithChildren = ClientesRoute._addFileChildren(
-  ClientesRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AcessoNegadoRoute: AcessoNegadoRoute,
   AdminRoute: AdminRoute,
+  AgendaRoute: AgendaRoute,
   ChecklistRoute: ChecklistRoute,
-  ClientesRoute: ClientesRouteWithChildren,
   ConfiguracoesRoute: ConfiguracoesRoute,
   DashboardRoute: DashboardRoute,
   EmpresasRoute: EmpresasRoute,
@@ -585,10 +614,13 @@ const rootRouteChildren: RootRouteChildren = {
   MeuResultadoRoute: MeuResultadoRoute,
   NovaInspecaoRoute: NovaInspecaoRoute,
   PerfilRoute: PerfilRoute,
+  ProspeccaoRoute: ProspeccaoRoute,
   RelatoriosRoute: RelatoriosRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ResultadoRoute: ResultadoRoute,
+  ClientesIdRoute: ClientesIdRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
+  ClientesIndexRoute: ClientesIndexRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,

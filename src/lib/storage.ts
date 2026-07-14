@@ -54,6 +54,9 @@ export interface AcaoCorretiva {
   texto: string;
   /** ISO date (YYYY-MM-DD) */
   prazo: string;
+  concluido?: boolean;
+  /** ISO date (YYYY-MM-DD), setado quando concluido vira true */
+  dataResolucao?: string;
 }
 
 export interface Inspecao {

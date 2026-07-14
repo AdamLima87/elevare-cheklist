@@ -26,9 +26,10 @@ import {
 import { Loader2, Plus, Search, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
-import { useClientes, useUpsertCliente } from "@/hooks/useClientes";
+import { useClientes, useUpsertCliente, type ClienteStatus } from "@/hooks/useClientes";
+import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/clientes")({
+export const Route = createFileRoute("/clientes/")({
   head: () => ({
     meta: [
       { title: "Clientes · Elevare" },
@@ -42,7 +43,8 @@ function ClientesPage() {
   const navigate = useNavigate();
   const { data: profile } = useCurrentProfile();
   const [search, setSearch] = useState("");
-  const { data: clientes = [], isLoading } = useClientes(search || undefined);
+  const [statusFilter, setStatusFilter] = useState<ClienteStatus>("ativo");
+  const { data: clientes = [], isLoading } = useClientes(search || undefined, statusFilter);
   const upsertCliente = useUpsertCliente();
 
   const [open, setOpen] = useState(false);
@@ -139,14 +141,38 @@ function ClientesPage() {
           </Dialog>
         </div>
 
-        <div className="relative w-full sm:w-72 mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome ou CNPJ..."
-            className="pl-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome ou CNPJ..."
+              className="pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="inline-flex rounded-lg bg-muted p-1 text-sm">
+            <button
+              type="button"
+              onClick={() => setStatusFilter("ativo")}
+              className={cn(
+                "rounded-md px-3 py-1.5 font-medium transition-colors",
+                statusFilter === "ativo" ? "bg-background shadow" : "text-muted-foreground",
+              )}
+            >
+              Ativos
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("prospeccao")}
+              className={cn(
+                "rounded-md px-3 py-1.5 font-medium transition-colors",
+                statusFilter === "prospeccao" ? "bg-background shadow" : "text-muted-foreground",
+              )}
+            >
+              Prospecção
+            </button>
+          </div>
         </div>
 
         <Card>
@@ -170,7 +196,9 @@ function ClientesPage() {
                     {filtered.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                          Nenhum cliente cadastrado ainda.
+                          {statusFilter === "prospeccao"
+                            ? "Nenhum prospect em andamento. Cadastre um na tela de Prospecção."
+                            : "Nenhum cliente cadastrado ainda."}
                         </TableCell>
                       </TableRow>
                     ) : (

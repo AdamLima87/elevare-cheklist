@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import {
   Bar,
@@ -414,6 +415,26 @@ function ResultadoPage() {
                             className="bg-background"
                           />
                         </div>
+                        <div className="flex items-center gap-2 sm:col-span-2">
+                          <Checkbox
+                            id={`acao-concluido-${nc.id}`}
+                            checked={!!acao?.concluido}
+                            onCheckedChange={(v) =>
+                              setPlanoAcao((prev) => ({
+                                ...prev,
+                                [nc.id]: {
+                                  texto: prev[nc.id]?.texto ?? "",
+                                  prazo: prev[nc.id]?.prazo ?? "",
+                                  concluido: v === true,
+                                  dataResolucao: v === true ? new Date().toISOString().slice(0, 10) : undefined,
+                                },
+                              }))
+                            }
+                          />
+                          <Label htmlFor={`acao-concluido-${nc.id}`} className="text-[11px] font-normal">
+                            Já resolvido
+                          </Label>
+                        </div>
                       </div>
                     ) : (
                       acao && (
@@ -423,6 +444,9 @@ function ResultadoPage() {
                             <span className="ml-1 text-muted-foreground">
                               (prazo: {new Date(acao.prazo + "T00:00:00").toLocaleDateString("pt-BR")})
                             </span>
+                          )}
+                          {acao.concluido && (
+                            <span className="ml-1 font-semibold text-green-700">(resolvido)</span>
                           )}
                         </div>
                       )
