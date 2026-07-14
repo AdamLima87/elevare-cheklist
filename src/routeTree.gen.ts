@@ -17,7 +17,6 @@ import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as NovaInspecaoRouteImport } from './routes/nova-inspecao'
 import { Route as MeuResultadoRouteImport } from './routes/meu-resultado'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as HistoricoRouteImport } from './routes/historico'
 import { Route as EstabelecimentoRouteImport } from './routes/estabelecimento'
 import { Route as EmpresasRouteImport } from './routes/empresas'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -76,11 +75,6 @@ const MeuResultadoRoute = MeuResultadoRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HistoricoRoute = HistoricoRouteImport.update({
-  id: '/historico',
-  path: '/historico',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EstabelecimentoRoute = EstabelecimentoRouteImport.update({
@@ -193,7 +187,6 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/empresas': typeof EmpresasRoute
   '/estabelecimento': typeof EstabelecimentoRoute
-  '/historico': typeof HistoricoRoute
   '/login': typeof LoginRoute
   '/meu-resultado': typeof MeuResultadoRoute
   '/nova-inspecao': typeof NovaInspecaoRoute
@@ -223,7 +216,6 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/empresas': typeof EmpresasRoute
   '/estabelecimento': typeof EstabelecimentoRoute
-  '/historico': typeof HistoricoRoute
   '/login': typeof LoginRoute
   '/meu-resultado': typeof MeuResultadoRoute
   '/nova-inspecao': typeof NovaInspecaoRoute
@@ -254,7 +246,6 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/empresas': typeof EmpresasRoute
   '/estabelecimento': typeof EstabelecimentoRoute
-  '/historico': typeof HistoricoRoute
   '/login': typeof LoginRoute
   '/meu-resultado': typeof MeuResultadoRoute
   '/nova-inspecao': typeof NovaInspecaoRoute
@@ -286,7 +277,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/empresas'
     | '/estabelecimento'
-    | '/historico'
     | '/login'
     | '/meu-resultado'
     | '/nova-inspecao'
@@ -316,7 +306,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/empresas'
     | '/estabelecimento'
-    | '/historico'
     | '/login'
     | '/meu-resultado'
     | '/nova-inspecao'
@@ -346,7 +335,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/empresas'
     | '/estabelecimento'
-    | '/historico'
     | '/login'
     | '/meu-resultado'
     | '/nova-inspecao'
@@ -377,7 +365,6 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   EmpresasRoute: typeof EmpresasRoute
   EstabelecimentoRoute: typeof EstabelecimentoRoute
-  HistoricoRoute: typeof HistoricoRoute
   LoginRoute: typeof LoginRoute
   MeuResultadoRoute: typeof MeuResultadoRoute
   NovaInspecaoRoute: typeof NovaInspecaoRoute
@@ -454,13 +441,6 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/historico': {
-      id: '/historico'
-      path: '/historico'
-      fullPath: '/historico'
-      preLoaderRoute: typeof HistoricoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/estabelecimento': {
@@ -609,7 +589,6 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   EmpresasRoute: EmpresasRoute,
   EstabelecimentoRoute: EstabelecimentoRoute,
-  HistoricoRoute: HistoricoRoute,
   LoginRoute: LoginRoute,
   MeuResultadoRoute: MeuResultadoRoute,
   NovaInspecaoRoute: NovaInspecaoRoute,

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/elevare/AppShell";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
@@ -30,6 +30,9 @@ import { useClientes, useUpsertCliente, type ClienteStatus } from "@/hooks/useCl
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/clientes/")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    new: Boolean(search.new),
+  }),
   head: () => ({
     meta: [
       { title: "Clientes · Elevare" },
@@ -41,6 +44,7 @@ export const Route = createFileRoute("/clientes/")({
 
 function ClientesPage() {
   const navigate = useNavigate();
+  const { new: openNewParam } = Route.useSearch();
   const { data: profile } = useCurrentProfile();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ClienteStatus>("ativo");
@@ -49,6 +53,10 @@ function ClientesPage() {
 
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ nome: "", cnpj: "", categoria: "" });
+
+  useEffect(() => {
+    if (openNewParam) setOpen(true);
+  }, [openNewParam]);
 
   const filtered = useMemo(() => clientes, [clientes]);
 

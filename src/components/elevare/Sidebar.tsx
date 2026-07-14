@@ -1,12 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { 
-  LayoutDashboard, 
-  ClipboardCheck, 
-  History, 
-  BarChart3, 
-  Users, 
-  Settings, 
+import {
+  LayoutDashboard,
+  BarChart3,
+  Users,
+  Settings,
   UserCircle,
   LogOut,
   FileCheck,
@@ -14,8 +12,11 @@ import {
   X,
   Building2,
   Briefcase,
+  Target,
+  UserPlus,
+  ClipboardCheck,
   CalendarDays,
-  Target
+  ChevronRight
 } from "lucide-react";
 import { Logo } from "./Logo";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,9 +32,19 @@ interface SidebarProps {
   setIsExpanded: (v: boolean) => void;
 }
 
+const clientesSubItems = [
+  { icon: UserPlus, label: "Novo Cliente", to: "/clientes", search: { new: true } },
+  { icon: Building2, label: "Clientes", to: "/clientes" },
+  { icon: CalendarDays, label: "Agenda", to: "/agenda" },
+  { icon: ClipboardCheck, label: "Nova Inspeção", to: "/nova-inspecao" },
+];
+
 export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: SidebarProps) {
   const location = useLocation();
   const [isMobile, setIsMobile] = useState(false);
+  const [flyoutOpen, setFlyoutOpen] = useState(false);
+  const [flyoutTop, setFlyoutTop] = useState(0);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -42,36 +53,38 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  const openFlyout = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    const rect = e.currentTarget.getBoundingClientRect();
+    setFlyoutTop(rect.top);
+    setFlyoutOpen(true);
+  };
+
+  const scheduleCloseFlyout = () => {
+    closeTimer.current = setTimeout(() => setFlyoutOpen(false), 150);
+  };
+
   const menuItems = {
     admin: [
       { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
-      { icon: ClipboardCheck, label: "Nova Inspeção", to: "/nova-inspecao" },
-      { icon: Building2, label: "Clientes", to: "/clientes" },
+      { icon: Building2, label: "Clientes", to: "/clientes", hasFlyout: true },
       { icon: Target, label: "Prospecção", to: "/prospeccao" },
-      { icon: CalendarDays, label: "Agenda", to: "/agenda" },
-      { icon: History, label: "Histórico", to: "/historico" },
       { icon: BarChart3, label: "Relatórios", to: "/relatorios" },
       { icon: Users, label: "Usuários", to: "/admin" },
       { icon: Settings, label: "Configurações", to: "/configuracoes" },
     ],
     super_admin: [
       { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
-      { icon: ClipboardCheck, label: "Nova Inspeção", to: "/nova-inspecao" },
-      { icon: Building2, label: "Clientes", to: "/clientes" },
+      { icon: Building2, label: "Clientes", to: "/clientes", hasFlyout: true },
       { icon: Target, label: "Prospecção", to: "/prospeccao" },
-      { icon: CalendarDays, label: "Agenda", to: "/agenda" },
-      { icon: History, label: "Histórico", to: "/historico" },
       { icon: BarChart3, label: "Relatórios", to: "/relatorios" },
       { icon: Users, label: "Usuários", to: "/admin" },
       { icon: Settings, label: "Configurações", to: "/configuracoes" },
       { icon: Briefcase, label: "Empresas", to: "/empresas" },
     ],
     consultor: [
-      { icon: ClipboardCheck, label: "Nova Inspeção", to: "/nova-inspecao" },
-      { icon: Building2, label: "Clientes", to: "/clientes" },
+      { icon: Building2, label: "Clientes", to: "/clientes", hasFlyout: true },
       { icon: Target, label: "Prospecção", to: "/prospeccao" },
-      { icon: CalendarDays, label: "Agenda", to: "/agenda" },
-      { icon: History, label: "Histórico", to: "/historico" },
       { icon: BarChart3, label: "Meus Relatórios", to: "/relatorios" },
     ],
     cliente: [
@@ -98,26 +111,49 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
         )}
 
         <nav className="flex-1 px-2 space-y-0.5">
-          {currentItems.map((item) => {
+          {currentItems.map((item: any) => {
             const isActive = location.pathname === item.to;
             return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-sm transition-all group overflow-hidden relative",
-                  isActive
-                    ? "bg-white/10 text-white border-l-2 border-[color:var(--olive)]"
-                    : "text-white/70 hover:bg-white/5 hover:text-white border-l-2 border-transparent"
+              <div key={item.to}>
+                <Link
+                  to={item.to}
+                  onMouseEnter={item.hasFlyout && !isMobile ? openFlyout : undefined}
+                  onMouseLeave={item.hasFlyout && !isMobile ? scheduleCloseFlyout : undefined}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-sm transition-all group overflow-hidden relative",
+                    isActive
+                      ? "bg-white/10 text-white border-l-2 border-[color:var(--olive)]"
+                      : "text-white/70 hover:bg-white/5 hover:text-white border-l-2 border-transparent"
+                  )}
+                >
+                  <item.icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.6} />
+                  {expanded && (
+                    <span className="font-medium whitespace-nowrap text-[13px] tracking-wide flex-1">
+                      {item.label}
+                    </span>
+                  )}
+                  {expanded && item.hasFlyout && (
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                  )}
+                </Link>
+
+                {/* Mobile: sub-itens aparecem indentados, sem flyout */}
+                {isMobile && item.hasFlyout && (
+                  <div className="ml-6 mt-0.5 space-y-0.5 border-l border-white/10 pl-2">
+                    {clientesSubItems.map((sub) => (
+                      <Link
+                        key={sub.label}
+                        to={sub.to}
+                        search={sub.search as any}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-sm text-white/60 hover:bg-white/5 hover:text-white transition-all text-[12px]"
+                      >
+                        <sub.icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.6} />
+                        {sub.label}
+                      </Link>
+                    ))}
+                  </div>
                 )}
-              >
-                <item.icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.6} />
-                {expanded && (
-                  <span className="font-medium whitespace-nowrap text-[13px] tracking-wide">
-                    {item.label}
-                  </span>
-                )}
-              </Link>
+              </div>
             );
           })}
 
@@ -162,6 +198,31 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
                 </span>
               </div>
             </div>
+          </div>
+        )}
+
+        {!isMobile && flyoutOpen && (
+          <div
+            className="fixed z-[60] w-52 rounded-md border border-black/5 bg-white py-1.5 shadow-xl"
+            style={{ top: flyoutTop, left: 210 }}
+            onMouseEnter={() => {
+              if (closeTimer.current) clearTimeout(closeTimer.current);
+              setFlyoutOpen(true);
+            }}
+            onMouseLeave={scheduleCloseFlyout}
+          >
+            {clientesSubItems.map((sub) => (
+              <Link
+                key={sub.label}
+                to={sub.to}
+                search={sub.search as any}
+                onClick={() => setFlyoutOpen(false)}
+                className="flex items-center gap-2.5 px-3.5 py-2 text-[13px] font-medium text-[color:var(--forest-deep)] hover:bg-[color:var(--olive)]/10"
+              >
+                <sub.icon className="h-4 w-4 shrink-0" strokeWidth={1.6} />
+                {sub.label}
+              </Link>
+            ))}
           </div>
         )}
       </div>

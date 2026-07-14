@@ -25,13 +25,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, FileText, ArrowLeft, Plus, CheckCircle2 } from "lucide-react";
+import { Loader2, FileText, ArrowLeft, Plus, CheckCircle2, PlayCircle } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { classificacao } from "@/lib/storage";
+import { classificacao, saveRascunho, type Inspecao } from "@/lib/storage";
 import { toTrendPoints } from "@/lib/compliance-trend";
 import { ComplianceTrendChart } from "@/components/elevare/ComplianceTrendChart";
 import { ComparativoInspecoes } from "@/components/elevare/ComparativoInspecoes";
+import { NovaInspecaoForm } from "@/components/elevare/NovaInspecaoForm";
 import { useCliente, ETAPAS_FUNIL, useUpdateClienteFunil, useConverterProspectEmCliente } from "@/hooks/useClientes";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { useClienteInteracoes, useCreateInteracao } from "@/hooks/useClienteInteracoes";
@@ -70,8 +71,41 @@ function ClienteDetailPage() {
     enabled: !!id,
   });
 
-  const isLoading = loadingCliente || loadingInspecoes;
+  const { data: emAndamento = [], isLoading: loadingEmAndamento } = useQuery({
+    queryKey: ["inspecoes-em-andamento-por-cliente", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("inspecoes")
+        .select("*")
+        .eq("cliente_id", id)
+        .eq("status", "em_andamento")
+        .order("data_inicio", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!id,
+  });
+
+  const isLoading = loadingCliente || loadingInspecoes || loadingEmAndamento;
   const isProspect = cliente?.status === "prospeccao";
+
+  const handleContinuar = async (row: any) => {
+    const mapped: Inspecao = {
+      id: row.id,
+      numero_sequencial: row.numero_sequencial,
+      status: "em_andamento",
+      estabelecimento: row.estabelecimento_nome || "",
+      dataInicio: row.data_inicio,
+      dataConclusao: row.data_conclusao,
+      progresso: row.progresso,
+      conformidade: row.conformidade ? Number(row.conformidade) : null,
+      dados: row.dados,
+      respostas: row.respostas,
+      cloudUpdatedAt: row.updated_at,
+    };
+    await saveRascunho(mapped);
+    navigate({ to: "/checklist" });
+  };
 
   return (
     <ProtectedRoute allowedProfiles={["admin", "consultor"]}>
@@ -111,6 +145,7 @@ function ClienteDetailPage() {
             <Tabs defaultValue="geral">
               <TabsList>
                 <TabsTrigger value="geral">Visão Geral</TabsTrigger>
+                <TabsTrigger value="nova-inspecao">Nova Inspeção</TabsTrigger>
                 <TabsTrigger value="planos">Planos de Ação</TabsTrigger>
                 <TabsTrigger value="agenda">Agenda</TabsTrigger>
                 <TabsTrigger value="comparativo">Comparativo</TabsTrigger>
@@ -121,6 +156,38 @@ function ClienteDetailPage() {
                   <ProspectOverview clienteId={id} etapaFunil={cliente?.etapa_funil ?? null} />
                 ) : (
                   <>
+                    {emAndamento.length > 0 && (
+                      <Card className="mb-6">
+                        <CardHeader>
+                          <CardTitle className="text-base">Em andamento ({emAndamento.length})</CardTitle>
+                          <CardDescription>Inspeções iniciadas mas ainda não concluídas.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          {emAndamento.map((row: any) => (
+                            <div
+                              key={row.id}
+                              className="flex items-center justify-between rounded-md border border-amber-300 bg-amber-50 p-3 text-sm"
+                            >
+                              <div>
+                                <div className="font-medium">{row.estabelecimento_nome || "Sem nome"}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  Iniciada em {new Date(row.data_inicio).toLocaleDateString("pt-BR")} ·{" "}
+                                  {row.progresso ?? 0}% concluído
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                className="gap-1.5"
+                                onClick={() => handleContinuar(row)}
+                              >
+                                <PlayCircle className="h-4 w-4" /> Continuar
+                              </Button>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    )}
+
                     <Card className="mb-6">
                       <CardHeader>
                         <CardTitle className="text-base">Evolução da conformidade</CardTitle>
@@ -210,6 +277,18 @@ function ClienteDetailPage() {
                   clienteId={id}
                   empresaId={cliente?.empresa_id}
                   autorId={profile?.userId}
+                />
+              </TabsContent>
+
+              <TabsContent value="nova-inspecao">
+                <NovaInspecaoForm
+                  clienteId={id}
+                  prefill={{
+                    razaoSocial: cliente?.nome ?? "",
+                    nomeFantasia: cliente?.nome ?? "",
+                    cnpj: cliente?.cnpj ?? "",
+                    atividade: cliente?.categoria ?? "",
+                  }}
                 />
               </TabsContent>
 

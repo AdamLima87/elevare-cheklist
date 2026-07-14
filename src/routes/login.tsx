@@ -178,7 +178,7 @@ function LoginPage() {
       if (profile?.perfil === "admin" || profile?.perfil === "super_admin") {
         navigate({ to: "/dashboard" });
       } else if (profile?.perfil === "consultor") {
-        navigate({ to: "/historico" });
+        navigate({ to: "/clientes" });
       } else if (profile?.perfil === "cliente") {
         navigate({ to: "/meu-resultado" });
       } else {

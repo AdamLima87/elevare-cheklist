@@ -34,7 +34,7 @@ function RedirectPage() {
       if (profile.perfil === "admin" || profile.perfil === "super_admin") {
         navigate({ to: "/dashboard", replace: true });
       } else if (profile.perfil === "consultor") {
-        navigate({ to: "/historico", replace: true });
+        navigate({ to: "/clientes", replace: true });
       } else if (profile.perfil === "cliente") {
         navigate({ to: "/meu-resultado", replace: true });
       } else {
