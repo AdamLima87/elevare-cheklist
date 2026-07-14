@@ -105,6 +105,8 @@ serve(async (req) => {
 
     const authHeader = req.headers.get('Authorization')
     let isAuthorized = false
+    let isSuperAdmin = false
+    let callerEmpresaId: string | null = null
 
     // Skip auth check for forgot_password
     if (action !== 'forgot_password') {
@@ -115,7 +117,7 @@ serve(async (req) => {
 
       const token = authHeader.replace('Bearer ', '')
       const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token)
-      
+
       if (userError) {
         console.error('Auth error:', userError)
         throw new Error(`Unauthorized: ${userError.message}`)
@@ -125,7 +127,7 @@ serve(async (req) => {
         console.log('User identified:', user.id)
         const { data: profile, error: profileError } = await supabaseAdmin
           .from('profiles')
-          .select('perfil')
+          .select('perfil, empresa_id')
           .eq('id', user.id)
           .single()
 
@@ -137,6 +139,11 @@ serve(async (req) => {
         if (profile?.perfil === 'admin' || profile?.perfil === 'consultor') {
           isAuthorized = true
         }
+        if (profile?.perfil === 'super_admin') {
+          isAuthorized = true
+          isSuperAdmin = true
+        }
+        callerEmpresaId = profile?.empresa_id ?? null
       } else {
         console.warn('No user found for token')
       }
@@ -146,6 +153,9 @@ serve(async (req) => {
 
     // Internal system actions or admin actions
     if (action === 'create_client' || action === 'create') {
+      if (!isAuthorized) throw new Error('Unauthorized')
+      if (!callerEmpresaId) throw new Error('Usuário autenticado não possui empresa associada')
+
       const { email, password, nome, perfil, cnpj } = userData
 
       // 1. Create user in Auth
@@ -161,21 +171,21 @@ serve(async (req) => {
           // If user exists, try to update profile if it's a client
           const { data: { users: allUsers } } = await supabaseAdmin.auth.admin.listUsers()
           const user = allUsers.find(u => u.email === email)
-          
+
           if (user) {
             // Se o perfil for cliente, atualiza o CNPJ
             if (perfil === 'cliente') {
               await supabaseAdmin.from('profiles').update({ cnpj, perfil: 'cliente' }).eq('id', user.id)
             }
-            
+
             if (queueId) {
               await supabaseAdmin.from('client_user_queue').update({ status: 'completed', processed_at: new Date().toISOString() }).eq('id', queueId)
             }
 
-            return new Response(JSON.stringify({ 
-              message: 'User already exists, updated profile', 
+            return new Response(JSON.stringify({
+              message: 'User already exists, updated profile',
               user: user,
-              alreadyExists: true 
+              alreadyExists: true
             }), {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
               status: 200,
@@ -185,20 +195,21 @@ serve(async (req) => {
         throw authError
       }
 
-      // 2. Update profile
-      const { error: updateError } = await supabaseAdmin
+      // 2. Create (or replace) the profile row — no DB trigger creates it automatically
+      const { error: upsertError } = await supabaseAdmin
         .from('profiles')
-        .update({ 
-          nome, 
-          email, 
-          perfil, 
-          cnpj: perfil === 'cliente' ? cnpj : null, 
+        .upsert({
+          id: authUser.user.id,
+          nome,
+          email,
+          perfil,
+          empresa_id: callerEmpresaId,
+          cnpj: perfil === 'cliente' ? cnpj : null,
           force_password_change: perfil === 'consultor',
-          senha_texto: password // Armazena a senha inicial
+          ativo: true,
         })
-        .eq('id', authUser.user.id)
 
-      if (updateError) throw updateError
+      if (upsertError) throw upsertError
 
       if (queueId) {
         await supabaseAdmin.from('client_user_queue').update({ status: 'completed', processed_at: new Date().toISOString() }).eq('id', queueId)
@@ -210,16 +221,80 @@ serve(async (req) => {
       })
     }
 
+    if (action === 'create_empresa') {
+      if (!isSuperAdmin) throw new Error('Unauthorized: apenas super_admin pode cadastrar novas empresas')
+
+      const { empresaNome, empresaCnpj, plano, adminNome, adminEmail, adminPassword } = userData
+      if (!empresaNome || !adminNome || !adminEmail) {
+        throw new Error('Dados obrigatórios: empresaNome, adminNome, adminEmail')
+      }
+
+      // 1. Create empresa
+      const { data: empresa, error: empresaError } = await supabaseAdmin
+        .from('empresas')
+        .insert({ nome: empresaNome, cnpj: empresaCnpj || null, plano: plano || 'trial', status: 'ativo' })
+        .select()
+        .single()
+
+      if (empresaError) throw empresaError
+
+      const finalPassword = adminPassword || generateTemporaryPassword()
+
+      // 2. Create the first admin user for this empresa
+      const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email: adminEmail,
+        password: finalPassword,
+        email_confirm: true,
+        user_metadata: { nome: adminNome, perfil: 'admin' },
+      })
+
+      if (authError) {
+        // Roll back the empresa if we couldn't create its admin
+        await supabaseAdmin.from('empresas').delete().eq('id', empresa.id)
+        throw authError
+      }
+
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .upsert({
+          id: authUser.user.id,
+          nome: adminNome,
+          email: adminEmail,
+          perfil: 'admin',
+          empresa_id: empresa.id,
+          force_password_change: true,
+          ativo: true,
+        })
+
+      if (profileError) {
+        await supabaseAdmin.from('empresas').delete().eq('id', empresa.id)
+        throw profileError
+      }
+
+      try {
+        await enqueueTemporaryPasswordEmail(supabaseAdmin, adminEmail, finalPassword, adminNome)
+      } catch (e) {
+        console.error('Failed to send onboarding email', e)
+      }
+
+      return new Response(JSON.stringify({ empresa, adminUser: authUser.user, tempPassword: finalPassword }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
     if (action === 'list_with_auth') {
       if (!isAuthorized) throw new Error('Unauthorized')
-      
+
       const { data: { users }, error: authError } = await supabaseAdmin.auth.admin.listUsers()
       if (authError) throw authError
 
-      const { data: profiles, error: profError } = await supabaseAdmin
-        .from('profiles')
-        .select('*')
-      
+      let profilesQuery = supabaseAdmin.from('profiles').select('*')
+      if (!isSuperAdmin) {
+        profilesQuery = profilesQuery.eq('empresa_id', callerEmpresaId)
+      }
+      const { data: profiles, error: profError } = await profilesQuery
+
       if (profError) throw profError
 
       const merged = profiles.map(p => {
@@ -256,9 +331,8 @@ serve(async (req) => {
       // Update profile to force password change
       const { error: updateError } = await supabaseAdmin
         .from('profiles')
-        .update({ 
+        .update({
           force_password_change: true,
-          senha_texto: tempPassword // Armazena a nova senha temporária
         })
         .eq('id', userId)
         
@@ -318,9 +392,8 @@ serve(async (req) => {
       // 4. Update Profile
       const { error: updateError } = await supabaseAdmin
         .from('profiles')
-        .update({ 
+        .update({
           force_password_change: true,
-          senha_texto: tempPassword
         })
         .eq('id', authUser.id)
       if (updateError) throw updateError

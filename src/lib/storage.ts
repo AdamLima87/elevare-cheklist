@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { useSyncStore } from "@/hooks/useSyncStore";
 import { isCloudNewer } from "./conflict";
+import { findOrCreateCliente } from "@/hooks/useClientes";
 
 export type Resposta = "S" | "N" | "NA" | null;
 
@@ -321,13 +322,40 @@ export async function saveToHistorico(insp: Inspecao) {
         return;
       }
 
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("empresa_id")
+        .eq("id", session.user.id)
+        .single();
+      const empresaId = profile?.empresa_id;
+      if (!empresaId) {
+        console.error("Usuário sem empresa associada, não é possível sincronizar a inspeção.");
+        return;
+      }
+
       const cnpj = insp.dados?.estabelecimento?.cnpj || null;
       const cleanCnpj = cnpj ? cnpj.replace(/\D/g, "") : null;
+
+      let clienteId: string | null = null;
+      if (insp.estabelecimento) {
+        try {
+          const cliente = await findOrCreateCliente({
+            empresa_id: empresaId,
+            nome: insp.estabelecimento,
+            cnpj: cleanCnpj,
+          });
+          clienteId = cliente.id;
+        } catch (err) {
+          console.error("Failed to find/create cliente:", err);
+        }
+      }
 
       const { data: upserted, error } = await supabase
         .from("inspecoes")
         .upsert({
           id: insp.id,
+          empresa_id: empresaId,
+          cliente_id: clienteId,
           consultor_id: session.user.id,
           numero_sequencial: insp.numero_sequencial,
           status: insp.status,

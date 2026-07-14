@@ -12,48 +12,82 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
-      client_user_queue: {
+      clientes: {
         Row: {
-          cnpj: string
-          created_at: string | null
-          email: string
-          error_message: string | null
+          categoria: string | null
+          cnpj: string | null
+          created_at: string
+          empresa_id: string
+          foto_url: string | null
           id: string
-          nome: string | null
-          processed_at: string | null
-          status: string | null
+          nome: string
+          updated_at: string
         }
         Insert: {
-          cnpj: string
-          created_at?: string | null
-          email: string
-          error_message?: string | null
+          categoria?: string | null
+          cnpj?: string | null
+          created_at?: string
+          empresa_id: string
+          foto_url?: string | null
           id?: string
-          nome?: string | null
-          processed_at?: string | null
-          status?: string | null
+          nome: string
+          updated_at?: string
         }
         Update: {
-          cnpj?: string
-          created_at?: string | null
-          email?: string
-          error_message?: string | null
+          categoria?: string | null
+          cnpj?: string | null
+          created_at?: string
+          empresa_id?: string
+          foto_url?: string | null
           id?: string
-          nome?: string | null
-          processed_at?: string | null
-          status?: string | null
+          nome?: string
+          updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clientes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       configuracoes: {
         Row: {
           created_at: string | null
-          email_contato: string
+          email_contato: string | null
+          empresa_id: string
           enviar_email_cliente: boolean | null
           id: string
-          nome_empresa: string
+          nome_empresa: string | null
           notificar_admin: boolean | null
           site: string | null
           telefone: string | null
@@ -61,10 +95,11 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
-          email_contato?: string
+          email_contato?: string | null
+          empresa_id: string
           enviar_email_cliente?: boolean | null
           id?: string
-          nome_empresa?: string
+          nome_empresa?: string | null
           notificar_admin?: boolean | null
           site?: string | null
           telefone?: string | null
@@ -72,16 +107,25 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
-          email_contato?: string
+          email_contato?: string | null
+          empresa_id?: string
           enviar_email_cliente?: boolean | null
           id?: string
-          nome_empresa?: string
+          nome_empresa?: string | null
           notificar_admin?: boolean | null
           site?: string | null
           telefone?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "configuracoes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       email_send_log: {
         Row: {
@@ -170,56 +214,107 @@ export type Database = {
         }
         Relationships: []
       }
-      inspecoes: {
+      empresas: {
         Row: {
           cnpj: string | null
-          conformidade: number | null
-          consultor_id: string | null
           created_at: string
-          dados: Json
-          data_conclusao: string | null
-          data_inicio: string
-          estabelecimento_nome: string | null
           id: string
-          numero_sequencial: number
-          progresso: number
-          respostas: Json
+          nome: string
+          plano: string
           status: string
           updated_at: string
         }
         Insert: {
           cnpj?: string | null
-          conformidade?: number | null
-          consultor_id?: string | null
           created_at?: string
-          dados?: Json
-          data_conclusao?: string | null
-          data_inicio?: string
-          estabelecimento_nome?: string | null
           id?: string
-          numero_sequencial: number
-          progresso?: number
-          respostas?: Json
+          nome: string
+          plano?: string
           status?: string
           updated_at?: string
         }
         Update: {
           cnpj?: string | null
-          conformidade?: number | null
-          consultor_id?: string | null
           created_at?: string
-          dados?: Json
-          data_conclusao?: string | null
-          data_inicio?: string
-          estabelecimento_nome?: string | null
           id?: string
-          numero_sequencial?: number
-          progresso?: number
-          respostas?: Json
+          nome?: string
+          plano?: string
           status?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      inspecoes: {
+        Row: {
+          cliente_id: string | null
+          cnpj: string | null
+          conformidade: number | null
+          consultor_id: string | null
+          created_at: string | null
+          dados: Json | null
+          data_conclusao: string | null
+          data_inicio: string | null
+          empresa_id: string
+          estabelecimento_nome: string | null
+          id: string
+          numero_sequencial: number | null
+          progresso: number | null
+          respostas: Json | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          cliente_id?: string | null
+          cnpj?: string | null
+          conformidade?: number | null
+          consultor_id?: string | null
+          created_at?: string | null
+          dados?: Json | null
+          data_conclusao?: string | null
+          data_inicio?: string | null
+          empresa_id: string
+          estabelecimento_nome?: string | null
+          id?: string
+          numero_sequencial?: number | null
+          progresso?: number | null
+          respostas?: Json | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          cliente_id?: string | null
+          cnpj?: string | null
+          conformidade?: number | null
+          consultor_id?: string | null
+          created_at?: string | null
+          dados?: Json | null
+          data_conclusao?: string | null
+          data_inicio?: string | null
+          empresa_id?: string
+          estabelecimento_nome?: string | null
+          id?: string
+          numero_sequencial?: number | null
+          progresso?: number | null
+          respostas?: Json | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspecoes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspecoes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       numeracao_inspecoes: {
         Row: {
@@ -241,42 +336,53 @@ export type Database = {
       }
       profiles: {
         Row: {
-          ativo: boolean
+          ativo: boolean | null
           cnpj: string | null
-          created_at: string
+          created_at: string | null
           email: string | null
+          empresa_id: string
           force_password_change: boolean | null
           id: string
-          nome: string
-          perfil: string
+          nome: string | null
+          perfil: string | null
           ultimo_acesso: string | null
-          updated_at: string
+          updated_at: string | null
         }
         Insert: {
-          ativo?: boolean
+          ativo?: boolean | null
           cnpj?: string | null
-          created_at?: string
+          created_at?: string | null
           email?: string | null
+          empresa_id: string
           force_password_change?: boolean | null
           id: string
-          nome: string
-          perfil: string
+          nome?: string | null
+          perfil?: string | null
           ultimo_acesso?: string | null
-          updated_at?: string
+          updated_at?: string | null
         }
         Update: {
-          ativo?: boolean
+          ativo?: boolean | null
           cnpj?: string | null
-          created_at?: string
+          created_at?: string | null
           email?: string | null
+          empresa_id?: string
           force_password_change?: boolean | null
           id?: string
-          nome?: string
-          perfil?: string
+          nome?: string | null
+          perfil?: string | null
           ultimo_acesso?: string | null
-          updated_at?: string
+          updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       suppressed_emails: {
         Row: {
@@ -311,12 +417,12 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
-      email_queue_dispatch: { Args: never; Returns: undefined }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
-      is_admin: { Args: never; Returns: boolean }
+      get_minha_empresa: { Args: never; Returns: string }
+      is_super_admin: { Args: never; Returns: boolean }
       move_to_dlq: {
         Args: {
           dlq_name: string
@@ -462,6 +568,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

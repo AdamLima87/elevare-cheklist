@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Inspecao, loadHistorico, HISTORICO_KEY } from "./storage";
 import { useSyncStore } from "@/hooks/useSyncStore";
+import { findOrCreateCliente } from "@/hooks/useClientes";
 
 export async function syncFromCloud(silent = false) {
   const setStatus = useSyncStore.getState().setStatus;
@@ -25,22 +26,39 @@ export async function syncFromCloud(silent = false) {
     // Get current user profile to check if consultant
     const { data: profile } = await supabase
       .from("profiles")
-      .select("perfil")
+      .select("perfil, empresa_id")
       .eq("id", session.user.id)
       .single();
 
     const isConsultant = profile?.perfil === "consultor";
 
     // If consultant, push any local data that might not be in cloud
-    if (isConsultant) {
+    if (isConsultant && profile?.empresa_id) {
+      const empresaId = profile.empresa_id;
       const localList = loadHistorico();
       for (const insp of localList) {
         try {
           const cnpj = insp.dados?.estabelecimento?.cnpj || null;
           const cleanCnpj = cnpj ? cnpj.replace(/\D/g, "") : null;
 
+          let clienteId: string | null = null;
+          if (insp.estabelecimento) {
+            try {
+              const cliente = await findOrCreateCliente({
+                empresa_id: empresaId,
+                nome: insp.estabelecimento,
+                cnpj: cleanCnpj,
+              });
+              clienteId = cliente.id;
+            } catch (err) {
+              console.error("Failed to find/create cliente during sync:", err);
+            }
+          }
+
           await supabase.from("inspecoes").upsert({
             id: insp.id,
+            empresa_id: empresaId,
+            cliente_id: clienteId,
             consultor_id: session.user.id,
             numero_sequencial: insp.numero_sequencial,
             status: insp.status,

@@ -18,13 +18,16 @@ import { Route as MeuResultadoRouteImport } from './routes/meu-resultado'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as HistoricoRouteImport } from './routes/historico'
 import { Route as EstabelecimentoRouteImport } from './routes/estabelecimento'
+import { Route as EmpresasRouteImport } from './routes/empresas'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
+import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as ChecklistRouteImport } from './routes/checklist'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AcessoNegadoRouteImport } from './routes/acesso-negado'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
+import { Route as ClientesIdRouteImport } from './routes/clientes.$id'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
@@ -78,6 +81,11 @@ const EstabelecimentoRoute = EstabelecimentoRouteImport.update({
   path: '/estabelecimento',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EmpresasRoute = EmpresasRouteImport.update({
+  id: '/empresas',
+  path: '/empresas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -86,6 +94,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
   id: '/configuracoes',
   path: '/configuracoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClientesRoute = ClientesRouteImport.update({
+  id: '/clientes',
+  path: '/clientes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChecklistRoute = ChecklistRouteImport.update({
@@ -112,6 +125,11 @@ const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
   id: '/email/unsubscribe',
   path: '/email/unsubscribe',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ClientesIdRoute = ClientesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ClientesRoute,
 } as any)
 const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
   id: '/lovable/email/suppression',
@@ -158,8 +176,10 @@ export interface FileRoutesByFullPath {
   '/acesso-negado': typeof AcessoNegadoRoute
   '/admin': typeof AdminRoute
   '/checklist': typeof ChecklistRoute
+  '/clientes': typeof ClientesRouteWithChildren
   '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
+  '/empresas': typeof EmpresasRoute
   '/estabelecimento': typeof EstabelecimentoRoute
   '/historico': typeof HistoricoRoute
   '/login': typeof LoginRoute
@@ -169,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/relatorios': typeof RelatoriosRoute
   '/reset-password': typeof ResetPasswordRoute
   '/resultado': typeof ResultadoRoute
+  '/clientes/$id': typeof ClientesIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -183,8 +204,10 @@ export interface FileRoutesByTo {
   '/acesso-negado': typeof AcessoNegadoRoute
   '/admin': typeof AdminRoute
   '/checklist': typeof ChecklistRoute
+  '/clientes': typeof ClientesRouteWithChildren
   '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
+  '/empresas': typeof EmpresasRoute
   '/estabelecimento': typeof EstabelecimentoRoute
   '/historico': typeof HistoricoRoute
   '/login': typeof LoginRoute
@@ -194,6 +217,7 @@ export interface FileRoutesByTo {
   '/relatorios': typeof RelatoriosRoute
   '/reset-password': typeof ResetPasswordRoute
   '/resultado': typeof ResultadoRoute
+  '/clientes/$id': typeof ClientesIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -209,8 +233,10 @@ export interface FileRoutesById {
   '/acesso-negado': typeof AcessoNegadoRoute
   '/admin': typeof AdminRoute
   '/checklist': typeof ChecklistRoute
+  '/clientes': typeof ClientesRouteWithChildren
   '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
+  '/empresas': typeof EmpresasRoute
   '/estabelecimento': typeof EstabelecimentoRoute
   '/historico': typeof HistoricoRoute
   '/login': typeof LoginRoute
@@ -220,6 +246,7 @@ export interface FileRoutesById {
   '/relatorios': typeof RelatoriosRoute
   '/reset-password': typeof ResetPasswordRoute
   '/resultado': typeof ResultadoRoute
+  '/clientes/$id': typeof ClientesIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -236,8 +263,10 @@ export interface FileRouteTypes {
     | '/acesso-negado'
     | '/admin'
     | '/checklist'
+    | '/clientes'
     | '/configuracoes'
     | '/dashboard'
+    | '/empresas'
     | '/estabelecimento'
     | '/historico'
     | '/login'
@@ -247,6 +276,7 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/reset-password'
     | '/resultado'
+    | '/clientes/$id'
     | '/email/unsubscribe'
     | '/lovable/email/suppression'
     | '/lovable/email/auth/preview'
@@ -261,8 +291,10 @@ export interface FileRouteTypes {
     | '/acesso-negado'
     | '/admin'
     | '/checklist'
+    | '/clientes'
     | '/configuracoes'
     | '/dashboard'
+    | '/empresas'
     | '/estabelecimento'
     | '/historico'
     | '/login'
@@ -272,6 +304,7 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/reset-password'
     | '/resultado'
+    | '/clientes/$id'
     | '/email/unsubscribe'
     | '/lovable/email/suppression'
     | '/lovable/email/auth/preview'
@@ -286,8 +319,10 @@ export interface FileRouteTypes {
     | '/acesso-negado'
     | '/admin'
     | '/checklist'
+    | '/clientes'
     | '/configuracoes'
     | '/dashboard'
+    | '/empresas'
     | '/estabelecimento'
     | '/historico'
     | '/login'
@@ -297,6 +332,7 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/reset-password'
     | '/resultado'
+    | '/clientes/$id'
     | '/email/unsubscribe'
     | '/lovable/email/suppression'
     | '/lovable/email/auth/preview'
@@ -312,8 +348,10 @@ export interface RootRouteChildren {
   AcessoNegadoRoute: typeof AcessoNegadoRoute
   AdminRoute: typeof AdminRoute
   ChecklistRoute: typeof ChecklistRoute
+  ClientesRoute: typeof ClientesRouteWithChildren
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   DashboardRoute: typeof DashboardRoute
+  EmpresasRoute: typeof EmpresasRoute
   EstabelecimentoRoute: typeof EstabelecimentoRoute
   HistoricoRoute: typeof HistoricoRoute
   LoginRoute: typeof LoginRoute
@@ -398,6 +436,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EstabelecimentoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/empresas': {
+      id: '/empresas'
+      path: '/empresas'
+      fullPath: '/empresas'
+      preLoaderRoute: typeof EmpresasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -410,6 +455,13 @@ declare module '@tanstack/react-router' {
       path: '/configuracoes'
       fullPath: '/configuracoes'
       preLoaderRoute: typeof ConfiguracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clientes': {
+      id: '/clientes'
+      path: '/clientes'
+      fullPath: '/clientes'
+      preLoaderRoute: typeof ClientesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/checklist': {
@@ -446,6 +498,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/email/unsubscribe'
       preLoaderRoute: typeof EmailUnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/clientes/$id': {
+      id: '/clientes/$id'
+      path: '/$id'
+      fullPath: '/clientes/$id'
+      preLoaderRoute: typeof ClientesIdRouteImport
+      parentRoute: typeof ClientesRoute
     }
     '/lovable/email/suppression': {
       id: '/lovable/email/suppression'
@@ -499,13 +558,27 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ClientesRouteChildren {
+  ClientesIdRoute: typeof ClientesIdRoute
+}
+
+const ClientesRouteChildren: ClientesRouteChildren = {
+  ClientesIdRoute: ClientesIdRoute,
+}
+
+const ClientesRouteWithChildren = ClientesRoute._addFileChildren(
+  ClientesRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AcessoNegadoRoute: AcessoNegadoRoute,
   AdminRoute: AdminRoute,
   ChecklistRoute: ChecklistRoute,
+  ClientesRoute: ClientesRouteWithChildren,
   ConfiguracoesRoute: ConfiguracoesRoute,
   DashboardRoute: DashboardRoute,
+  EmpresasRoute: EmpresasRoute,
   EstabelecimentoRoute: EstabelecimentoRoute,
   HistoricoRoute: HistoricoRoute,
   LoginRoute: LoginRoute,

@@ -18,6 +18,7 @@ import {
 } from "@/lib/storage";
 import { syncFromCloud } from "@/lib/sync";
 import { supabase } from "@/integrations/supabase/client";
+import type { Cliente } from "@/hooks/useClientes";
 import { ArrowRight, ClipboardCheck, Loader2, LogIn, LogOut, User, Cloud, RefreshCw } from "lucide-react";
 import { SyncStatus } from "@/components/elevare/SyncStatus";
 
@@ -157,6 +158,32 @@ function IndexPage() {
     if (digits.length !== 14) return;
 
     setLoadingCnpj(true);
+
+    // Se já existe um cliente cadastrado com esse CNPJ, reaproveita os dados
+    // e evita bater nas APIs públicas de CNPJ.
+    if (profile?.empresa_id) {
+      const { data: existing } = await supabase
+        .from("clientes")
+        .select("*")
+        .eq("empresa_id", profile.empresa_id)
+        .eq("cnpj", digits)
+        .maybeSingle();
+
+      if (existing) {
+        const cliente = existing as Cliente;
+        setEstab((s: Estabelecimento) => ({
+          ...s,
+          razaoSocial: cliente.nome || s.razaoSocial,
+          nomeFantasia: cliente.nome || s.nomeFantasia,
+          atividade: cliente.categoria || s.atividade,
+        }));
+        toast.success("Cliente já cadastrado — dados preenchidos automaticamente.", {
+          id: "cnpj-lookup",
+        });
+        setLoadingCnpj(false);
+        return;
+      }
+    }
 
     // Normaliza resposta de diferentes provedores para um shape único
     type Norm = {

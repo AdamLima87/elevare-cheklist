@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Loader2, Save, Download, Building, Bell, Info, Database } from "lucide-react";
 import { toast } from "sonner";
+import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 
 export const Route = createFileRoute("/configuracoes")({
   head: () => ({
@@ -22,6 +23,7 @@ export const Route = createFileRoute("/configuracoes")({
 });
 
 function ConfiguracoesPage() {
+  const { data: profile } = useCurrentProfile();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState<any>({
@@ -34,23 +36,22 @@ function ConfiguracoesPage() {
   });
 
   useEffect(() => {
-    async function fetchConfig() {
+    if (!profile?.empresa_id) return;
+
+    async function fetchConfig(empresaId: string) {
       setLoading(true);
       try {
         const { data, error } = await supabase
           .from("configuracoes")
           .select("*")
-          .single();
-        
-        if (error) {
-          if (error.code === "PGRST116") {
-            // No record found, we use defaults
-            console.log("No config found, using defaults");
-          } else {
-            throw error;
-          }
-        } else if (data) {
+          .eq("empresa_id", empresaId)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (data) {
           setConfig(data);
+        } else {
+          console.log("No config found for this empresa, using defaults");
         }
       } catch (error) {
         console.error("Error fetching config:", error);
@@ -59,14 +60,18 @@ function ConfiguracoesPage() {
         setLoading(false);
       }
     }
-    fetchConfig();
-  }, []);
+    fetchConfig(profile.empresa_id);
+  }, [profile?.empresa_id]);
 
   const handleSave = async () => {
+    if (!profile?.empresa_id) {
+      toast.error("Seu usuário não está associado a uma empresa.");
+      return;
+    }
     setSaving(true);
     try {
       const { id, created_at, updated_at, ...updateData } = config;
-      
+
       let error;
       if (id) {
         ({ error } = await supabase
@@ -76,7 +81,7 @@ function ConfiguracoesPage() {
       } else {
         ({ error } = await supabase
           .from("configuracoes")
-          .insert([updateData]));
+          .insert([{ ...updateData, empresa_id: profile.empresa_id }]));
       }
 
       if (error) throw error;

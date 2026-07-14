@@ -7,11 +7,13 @@ import {
   BarChart3, 
   Users, 
   Settings, 
-  UserCircle, 
-  LogOut, 
+  UserCircle,
+  LogOut,
   FileCheck,
   Menu,
-  X
+  X,
+  Building2,
+  Briefcase
 } from "lucide-react";
 import { Logo } from "./Logo";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,6 +44,7 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
     admin: [
       { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
       { icon: ClipboardCheck, label: "Nova Inspeção", to: "/nova-inspecao" },
+      { icon: Building2, label: "Clientes", to: "/clientes" },
       { icon: History, label: "Histórico", to: "/historico" },
       { icon: BarChart3, label: "Relatórios", to: "/relatorios" },
       { icon: Users, label: "Usuários", to: "/admin" },
@@ -50,13 +53,16 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
     super_admin: [
       { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
       { icon: ClipboardCheck, label: "Nova Inspeção", to: "/nova-inspecao" },
+      { icon: Building2, label: "Clientes", to: "/clientes" },
       { icon: History, label: "Histórico", to: "/historico" },
       { icon: BarChart3, label: "Relatórios", to: "/relatorios" },
       { icon: Users, label: "Usuários", to: "/admin" },
       { icon: Settings, label: "Configurações", to: "/configuracoes" },
+      { icon: Briefcase, label: "Empresas", to: "/empresas" },
     ],
     consultor: [
       { icon: ClipboardCheck, label: "Nova Inspeção", to: "/nova-inspecao" },
+      { icon: Building2, label: "Clientes", to: "/clientes" },
       { icon: History, label: "Histórico", to: "/historico" },
       { icon: BarChart3, label: "Meus Relatórios", to: "/relatorios" },
     ],
