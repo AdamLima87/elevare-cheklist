@@ -175,7 +175,7 @@ function LoginPage() {
         .update({ ultimo_acesso: new Date().toISOString() })
         .eq("id", profile.id);
 
-      if (profile?.perfil === "admin") {
+      if (profile?.perfil === "admin" || profile?.perfil === "super_admin") {
         navigate({ to: "/dashboard" });
       } else if (profile?.perfil === "consultor") {
         navigate({ to: "/historico" });

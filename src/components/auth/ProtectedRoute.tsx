@@ -46,7 +46,11 @@ export function ProtectedRoute({ children, allowedProfiles }: ProtectedRouteProp
         return;
       }
 
-      if (allowedProfiles && !allowedProfiles.includes(profile.perfil)) {
+      if (
+        profile.perfil !== "super_admin" &&
+        allowedProfiles &&
+        !allowedProfiles.includes(profile.perfil)
+      ) {
         navigate({ to: "/acesso-negado" });
         return;
       }

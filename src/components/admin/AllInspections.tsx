@@ -58,7 +58,7 @@ export function AllInspections() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: profile } = useCurrentProfile();
-  const isAdmin = profile?.perfil === "admin";
+  const isAdmin = profile?.perfil === "admin" || profile?.perfil === "super_admin";
   const { data: consultants = {} } = useConsultants(isAdmin);
   const resendEmail = useResendInspectionEmail();
 

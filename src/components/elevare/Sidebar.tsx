@@ -47,6 +47,14 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
       { icon: Users, label: "Usuários", to: "/admin" },
       { icon: Settings, label: "Configurações", to: "/configuracoes" },
     ],
+    super_admin: [
+      { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
+      { icon: ClipboardCheck, label: "Nova Inspeção", to: "/nova-inspecao" },
+      { icon: History, label: "Histórico", to: "/historico" },
+      { icon: BarChart3, label: "Relatórios", to: "/relatorios" },
+      { icon: Users, label: "Usuários", to: "/admin" },
+      { icon: Settings, label: "Configurações", to: "/configuracoes" },
+    ],
     consultor: [
       { icon: ClipboardCheck, label: "Nova Inspeção", to: "/nova-inspecao" },
       { icon: History, label: "Histórico", to: "/historico" },

@@ -56,7 +56,7 @@ const PAGE_SIZE = 25;
 function RelatoriosPage() {
   const navigate = useNavigate();
   const { data: profile } = useCurrentProfile();
-  const isAdmin = profile?.perfil === "admin";
+  const isAdmin = profile?.perfil === "admin" || profile?.perfil === "super_admin";
   const { data: consultants = {} } = useConsultants(isAdmin);
   const resendEmail = useResendInspectionEmail();
 
