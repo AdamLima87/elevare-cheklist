@@ -13,6 +13,7 @@ import {
 import { checklistSections } from "@/lib/checklist-data";
 import { dedupeLatestPerCnpj, dueDate, isWithinReminderWindow } from "@/lib/reinspection";
 import { cn } from "@/lib/utils";
+import { useUpcomingVisitas } from "@/hooks/useVisitas";
 
 export const Route = createFileRoute("/dashboard")({
   component: DashboardPage,
@@ -185,6 +186,7 @@ function DashboardPage() {
     queryKey: ["dashboard-stats"],
     queryFn: fetchDashboardStats,
   });
+  const { data: proximosCompromissos = [] } = useUpcomingVisitas(7);
 
   if (isLoading) {
     return (
@@ -287,6 +289,47 @@ function DashboardPage() {
                     </div>
                   );
                 })}
+              </div>
+            </Card>
+          )}
+
+          {proximosCompromissos.length > 0 && (
+            <Card className="p-6 border-l-4" style={{ borderLeftColor: "var(--forest)" }}>
+              <CardHeader className="px-0 pt-0 flex-row items-center justify-between space-y-0">
+                <div className="flex items-center gap-2">
+                  <CalendarClock className="h-4 w-4 shrink-0" style={{ color: "var(--forest)" }} />
+                  <CardTitle className="text-base font-semibold">
+                    Próximos Compromissos ({proximosCompromissos.length})
+                  </CardTitle>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/agenda" })}>
+                  Ver agenda
+                </Button>
+              </CardHeader>
+              <div className="divide-y divide-border">
+                {proximosCompromissos.slice(0, 6).map((v) => (
+                  <div
+                    key={v.id}
+                    className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold truncate">{v.clientes?.nome ?? "Cliente"}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {new Date(v.data_hora).toLocaleDateString("pt-BR")} às{" "}
+                        {new Date(v.data_hora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                        {v.observacoes ? ` · ${v.observacoes}` : ""}
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => navigate({ to: "/clientes/$id", params: { id: v.cliente_id } })}
+                    >
+                      Ver cliente
+                    </Button>
+                  </div>
+                ))}
               </div>
             </Card>
           )}

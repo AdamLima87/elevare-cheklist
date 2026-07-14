@@ -38,6 +38,29 @@ export function useVisitas(filters: { clienteId?: string; onlyUpcoming?: boolean
   });
 }
 
+// Visitas agendadas dentro de uma janela de dias a partir de agora (usado no
+// alerta de entrada no sistema e no widget do dashboard).
+export function useUpcomingVisitas(days: number = 1, enabled: boolean = true) {
+  return useQuery({
+    queryKey: ["visitas-upcoming", days],
+    enabled,
+    queryFn: async () => {
+      const now = new Date();
+      const limit = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+      const { data, error } = await supabase
+        .from("visitas")
+        .select("*, clientes(nome)")
+        .eq("status", "agendada")
+        .gte("data_hora", now.toISOString())
+        .lte("data_hora", limit.toISOString())
+        .order("data_hora", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as VisitaComCliente[];
+    },
+    staleTime: 60 * 1000,
+  });
+}
+
 export function useCreateVisita() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -3,6 +3,11 @@ import { type ReactNode, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Sidebar } from "./Sidebar";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { useUpcomingVisitas } from "@/hooks/useVisitas";
+import { CalendarClock } from "lucide-react";
+
+const VISITAS_ALERT_KEY = "elevare_visitas_alert_shown";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<any>(null);
@@ -34,6 +39,32 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
     getProfile();
   }, [navigate, location.pathname]);
+
+  const alertEnabled = !!profile && (profile.perfil === "admin" || profile.perfil === "consultor" || profile.perfil === "super_admin");
+  const { data: upcomingVisitas } = useUpcomingVisitas(1, alertEnabled);
+
+  useEffect(() => {
+    if (!alertEnabled || !upcomingVisitas) return;
+    if (typeof sessionStorage === "undefined") return;
+    if (sessionStorage.getItem(VISITAS_ALERT_KEY)) return;
+    sessionStorage.setItem(VISITAS_ALERT_KEY, "1");
+
+    if (upcomingVisitas.length === 0) return;
+
+    const nomes = upcomingVisitas.slice(0, 3).map((v) => v.clientes?.nome ?? "Cliente").join(", ");
+    const resto = upcomingVisitas.length > 3 ? ` e mais ${upcomingVisitas.length - 3}` : "";
+    toast.info(
+      `Você tem ${upcomingVisitas.length} visita${upcomingVisitas.length > 1 ? "s" : ""} agendada${upcomingVisitas.length > 1 ? "s" : ""} para hoje: ${nomes}${resto}.`,
+      {
+        icon: <CalendarClock className="h-4 w-4" />,
+        duration: 8000,
+        action: {
+          label: "Ver agenda",
+          onClick: () => navigate({ to: "/agenda" }),
+        },
+      },
+    );
+  }, [alertEnabled, upcomingVisitas, navigate]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

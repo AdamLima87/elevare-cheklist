@@ -4,10 +4,32 @@ import { AppShell } from "@/components/elevare/AppShell";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
-import { Loader2, CalendarDays } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Loader2, CalendarDays, Plus } from "lucide-react";
+import { toast } from "sonner";
+import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { useVisitas, useUpdateVisitaStatus } from "@/hooks/useVisitas";
+import { useVisitas, useUpdateVisitaStatus, useCreateVisita } from "@/hooks/useVisitas";
+import { useClientes } from "@/hooks/useClientes";
+import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 
 export const Route = createFileRoute("/agenda")({
   head: () => ({
@@ -25,9 +47,15 @@ function sameDay(a: Date, b: Date) {
 
 function AgendaPage() {
   const navigate = useNavigate();
+  const { data: profile } = useCurrentProfile();
   const { data: visitas = [], isLoading } = useVisitas();
   const updateStatus = useUpdateVisitaStatus();
+  const createVisita = useCreateVisita();
+  const { data: clientes = [] } = useClientes(undefined, "ativo");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ clienteId: "", dataHora: "", observacoes: "" });
 
   const datasComVisita = useMemo(
     () => visitas.map((v) => new Date(v.data_hora)),
@@ -41,12 +69,100 @@ function AgendaPage() {
       .sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime());
   }, [visitas, selectedDate]);
 
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile?.empresa_id || !form.clienteId || !form.dataHora) return;
+    try {
+      await createVisita.mutateAsync({
+        empresa_id: profile.empresa_id,
+        cliente_id: form.clienteId,
+        data_hora: new Date(form.dataHora).toISOString(),
+        observacoes: form.observacoes || null,
+      });
+      toast.success("Visita agendada!");
+      setOpen(false);
+      setForm({ clienteId: "", dataHora: "", observacoes: "" });
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao agendar visita");
+    }
+  };
+
   return (
     <ProtectedRoute allowedProfiles={["admin", "consultor"]}>
       <AppShell>
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold">Agenda</h1>
-          <p className="text-sm text-muted-foreground">Visitas agendadas de todos os clientes.</p>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold">Agenda</h1>
+            <p className="text-sm text-muted-foreground">Visitas agendadas de todos os clientes.</p>
+          </div>
+
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" /> Novo Agendamento
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <form onSubmit={handleCreate}>
+                <DialogHeader>
+                  <DialogTitle>Agendar Visita</DialogTitle>
+                  <DialogDescription>Escolha o cliente e a data/hora da visita.</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label>Cliente</Label>
+                    <Select
+                      value={form.clienteId}
+                      onValueChange={(v) => setForm({ ...form, clienteId: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o cliente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clientes.map((cliente) => (
+                          <SelectItem key={cliente.id} value={cliente.id}>
+                            {cliente.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="dataHora">Data e hora</Label>
+                    <Input
+                      id="dataHora"
+                      type="datetime-local"
+                      value={form.dataHora}
+                      onChange={(e) => setForm({ ...form, dataHora: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="observacoes">Observações</Label>
+                    <Input
+                      id="observacoes"
+                      value={form.observacoes}
+                      onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+                      placeholder="Opcional"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    type="submit"
+                    disabled={createVisita.isPending || !form.clienteId || !form.dataHora}
+                    className="w-full"
+                  >
+                    {createVisita.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      "Agendar"
+                    )}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {isLoading ? (
@@ -54,18 +170,20 @@ function AgendaPage() {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[auto_1fr]">
-            <Card className="w-fit">
-              <CardContent className="p-3">
+          <div className="space-y-6">
+            <Card>
+              <CardContent className="flex justify-center p-3 sm:p-6">
                 <Calendar
                   mode="single"
+                  locale={ptBR}
                   selected={selectedDate}
                   onSelect={setSelectedDate}
                   modifiers={{ hasVisit: datasComVisita }}
                   modifiersClassNames={{
-                    hasVisit: "after:content-[''] after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:h-1 after:w-1 after:rounded-full after:bg-primary",
+                    hasVisit:
+                      "after:content-[''] after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:h-1.5 after:w-1.5 after:rounded-full after:bg-[color:var(--amber-seal)]",
                   }}
-                  className="rounded-md"
+                  className="[--cell-size:2.25rem]"
                 />
               </CardContent>
             </Card>
