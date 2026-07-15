@@ -196,7 +196,7 @@ function AgendaPage() {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(420px,620px)_1fr] lg:items-start">
+          <div className="space-y-6">
             <Card>
               <CardContent className="p-3 sm:p-6">
                 <Calendar
