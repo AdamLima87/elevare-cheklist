@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import type { DayButton } from "react-day-picker";
 import { AppShell } from "@/components/elevare/AppShell";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,6 +44,31 @@ export const Route = createFileRoute("/agenda")({
 
 function sameDay(a: Date, b: Date) {
   return a.toDateString() === b.toDateString();
+}
+
+// Dia com largura flexível (estica pra preencher a semana) e altura fixa e
+// baixa — desacopla do aspect-square padrão do calendário pra caber largo e
+// curto ao mesmo tempo.
+function CompactDayButton({ className, day, modifiers, ...props }: React.ComponentProps<typeof DayButton>) {
+  const ref = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (modifiers.focused) ref.current?.focus();
+  }, [modifiers.focused]);
+
+  return (
+    <Button
+      ref={ref}
+      variant="ghost"
+      size="icon"
+      data-day={day.date.toLocaleDateString()}
+      data-selected-single={modifiers.selected}
+      className={cn(
+        "relative h-9 w-full min-w-9 flex-1 rounded-md font-normal leading-none data-[selected-single=true]:bg-primary data-[selected-single=true]:text-primary-foreground",
+        className,
+      )}
+      {...props}
+    />
+  );
 }
 
 function AgendaPage() {
@@ -170,20 +196,26 @@ function AgendaPage() {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(420px,620px)_1fr] lg:items-start">
             <Card>
-              <CardContent className="flex justify-center p-3 sm:p-6">
+              <CardContent className="p-3 sm:p-6">
                 <Calendar
                   mode="single"
                   locale={ptBR}
                   selected={selectedDate}
                   onSelect={setSelectedDate}
+                  components={{ DayButton: CompactDayButton }}
+                  classNames={{
+                    root: "w-full",
+                    week: "mt-1 flex w-full gap-1",
+                    day: "group/day relative flex-1 select-none p-0 text-center",
+                  }}
                   modifiers={{ hasVisit: datasComVisita }}
                   modifiersClassNames={{
                     hasVisit:
                       "after:content-[''] after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:h-1.5 after:w-1.5 after:rounded-full after:bg-[color:var(--amber-seal)]",
                   }}
-                  className="[--cell-size:2.25rem]"
+                  className="w-full [--cell-size:2.75rem]"
                 />
               </CardContent>
             </Card>
