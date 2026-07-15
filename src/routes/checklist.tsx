@@ -89,7 +89,14 @@ function ChecklistContent() {
 
       // Persist after state update is defined
       if (nextInsp) {
-        await saveToHistorico(nextInsp);
+        const newCloudUpdatedAt = await saveToHistorico(nextInsp);
+        // saveToHistorico compares insp.cloudUpdatedAt against the cloud row to
+        // detect concurrent edits. Without feeding the fresh timestamp back into
+        // state here, every save after the first one in this session would look
+        // like it conflicts with itself and get silently dropped.
+        if (newCloudUpdatedAt) {
+          setInsp((cur) => (cur && cur.id === nextInsp!.id ? { ...cur, cloudUpdatedAt: newCloudUpdatedAt } : cur));
+        }
       }
     } catch (error) {
       console.error("Erro ao persistir dados:", error);

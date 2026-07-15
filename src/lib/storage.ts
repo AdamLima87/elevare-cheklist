@@ -290,8 +290,8 @@ export function loadHistorico(): Inspecao[] {
   }
 }
 
-export async function saveToHistorico(insp: Inspecao) {
-  if (typeof localStorage === "undefined") return;
+export async function saveToHistorico(insp: Inspecao): Promise<string | undefined> {
+  if (typeof localStorage === "undefined") return undefined;
   const list = loadHistorico();
   const idx = list.findIndex((i) => i.id === insp.id);
 
@@ -322,7 +322,7 @@ export async function saveToHistorico(insp: Inspecao) {
         // since we last synced it. Don't clobber their edit with our stale copy —
         // flag it and let the next pull keep the cloud version.
         useSyncStore.getState().addConflict(insp.id);
-        return;
+        return undefined;
       }
 
       const { data: profile } = await supabase
@@ -333,7 +333,7 @@ export async function saveToHistorico(insp: Inspecao) {
       const empresaId = profile?.empresa_id;
       if (!empresaId) {
         console.error("Usuário sem empresa associada, não é possível sincronizar a inspeção.");
-        return;
+        return undefined;
       }
 
       const cnpj = insp.dados?.estabelecimento?.cnpj || null;
@@ -382,6 +382,18 @@ export async function saveToHistorico(insp: Inspecao) {
           freshList[freshIdx] = { ...freshList[freshIdx], cloudUpdatedAt: upserted.updated_at };
           localStorage.setItem(HISTORICO_KEY, JSON.stringify(freshList));
         }
+
+        // Also refresh the active rascunho (if it's this same inspection) so a
+        // later loadRascunho() doesn't read the pre-save timestamp. Callers that
+        // keep their own in-memory copy (e.g. the checklist page) still need to
+        // apply the returned cloudUpdatedAt themselves — otherwise every save
+        // after the first one falsely looks like a conflict with itself and gets
+        // silently dropped.
+        const currentRascunho = loadRascunho();
+        if (currentRascunho && currentRascunho.id === insp.id) {
+          currentRascunho.cloudUpdatedAt = upserted.updated_at;
+          localStorage.setItem(RASCUNHO_KEY, JSON.stringify(currentRascunho));
+        }
       }
 
       // If status changed to concluded, check for client creation
@@ -416,10 +428,14 @@ export async function saveToHistorico(insp: Inspecao) {
             });
         }
       }
+
+      return upserted?.updated_at;
     } catch (err) {
       console.error("Failed to sync to Cloud:", err);
+      return undefined;
     }
   }
+  return undefined;
 }
 
 export async function deleteFromHistorico(id: string) {

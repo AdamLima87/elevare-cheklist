@@ -161,8 +161,16 @@ function ResultadoPage() {
         dados: { ...finalInsp.dados, planoAcao },
       };
       
-      await saveToHistorico(updatedInsp);
-      setInsp(updatedInsp);
+      const newCloudUpdatedAt = await saveToHistorico(updatedInsp);
+      setInsp(newCloudUpdatedAt ? { ...updatedInsp, cloudUpdatedAt: newCloudUpdatedAt } : updatedInsp);
+
+      if (!newCloudUpdatedAt) {
+        toast.error(
+          "Não foi possível salvar: alguém mais atualizou esta inspeção nesse meio tempo. Recarregue a página e tente novamente.",
+        );
+        setLoading(false);
+        return;
+      }
       
       // Enviar e-mail automático e garantir acesso do cliente
       const email = updatedInsp.dados?.estabelecimento?.respLegalEmail || updatedInsp.dados?.estabelecimento?.email;
