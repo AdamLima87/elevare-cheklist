@@ -5,7 +5,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, TrendingDown, Users, Building2, ClipboardCheck, AlertTriangle, CalendarClock } from "lucide-react";
+import { Loader2, TrendingDown, Users, Building2, ClipboardCheck, AlertTriangle, CalendarClock, FileWarning } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
@@ -14,6 +14,7 @@ import { checklistSections } from "@/lib/checklist-data";
 import { dedupeLatestPerCnpj, dueDate, isWithinReminderWindow } from "@/lib/reinspection";
 import { cn } from "@/lib/utils";
 import { useUpcomingVisitas } from "@/hooks/useVisitas";
+import { useExpiringDocumentos } from "@/hooks/useDocumentos";
 
 export const Route = createFileRoute("/dashboard")({
   component: DashboardPage,
@@ -187,6 +188,7 @@ function DashboardPage() {
     queryFn: fetchDashboardStats,
   });
   const { data: proximosCompromissos = [] } = useUpcomingVisitas(7);
+  const { data: documentosVencendo = [] } = useExpiringDocumentos(30);
 
   if (isLoading) {
     return (
@@ -330,6 +332,55 @@ function DashboardPage() {
                     </Button>
                   </div>
                 ))}
+              </div>
+            </Card>
+          )}
+
+          {documentosVencendo.length > 0 && (
+            <Card className="p-6 border-l-4" style={{ borderLeftColor: "var(--destructive)" }}>
+              <CardHeader className="px-0 pt-0 flex-row items-center gap-2 space-y-0">
+                <FileWarning className="h-4 w-4 shrink-0" style={{ color: "var(--destructive)" }} />
+                <CardTitle className="text-base font-semibold">
+                  Documentos vencidos ou a vencer ({documentosVencendo.length})
+                </CardTitle>
+              </CardHeader>
+              <div className="divide-y divide-border">
+                {documentosVencendo.slice(0, 8).map((doc) => {
+                  const vencimento = doc.data_vencimento ? new Date(doc.data_vencimento + "T00:00:00") : null;
+                  const overdue = !!vencimento && vencimento.getTime() < Date.now();
+                  const dias = vencimento ? Math.round((vencimento.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0;
+                  return (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold truncate">
+                          {doc.tipo} · {doc.clientes?.nome ?? "Cliente"}
+                        </div>
+                        <div
+                          className={cn(
+                            "text-xs mt-0.5",
+                            overdue ? "text-destructive font-medium" : "text-muted-foreground",
+                          )}
+                        >
+                          {overdue
+                            ? `Vencido há ${Math.abs(dias)} dia${Math.abs(dias) === 1 ? "" : "s"}`
+                            : `Vence em ${dias} dia${dias === 1 ? "" : "s"}`}
+                          {vencimento ? ` · ${vencimento.toLocaleDateString("pt-BR")}` : ""}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => navigate({ to: "/clientes/$id", params: { id: doc.cliente_id } })}
+                      >
+                        Ver cliente
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
             </Card>
           )}

@@ -19,6 +19,7 @@ import {
 } from "recharts";
 import {
   calcularPercentual,
+  calcularSecoes,
   classificacao,
   clearRascunho,
   loadRascunho,
@@ -27,7 +28,7 @@ import {
   type Inspecao,
 } from "@/lib/storage";
 import { ensurePlanoAcao } from "@/lib/plano-acao";
-import { checklistSections } from "@/lib/checklist-data";
+import { checklistSections, contarNCCriticas, criticalItemIds } from "@/lib/checklist-data";
 import { FileDown, MessageCircle, Mail, Save, RotateCcw, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { gerarPDF } from "@/lib/pdf";
@@ -112,18 +113,55 @@ function ResultadoPage() {
 
 
   const score = useMemo(() => (insp ? calcularPercentual(insp.respostas) : null), [insp]);
-  const cls = score ? classificacao(score.percentual) : null;
+  const ncCriticas = useMemo(() => (insp ? contarNCCriticas(insp.respostas) : 0), [insp]);
+  const cls = score ? classificacao(score.percentual, ncCriticas) : null;
 
   const chartData = useMemo(() => {
     if (!insp) return [];
-    return checklistSections.map((sec) => {
-      const itens = sec.items.map((i) => insp.respostas[i.id]);
-      const itensAplicaveis = itens.filter((r) => r === "S" || r === "N");
-      const totalAplicaveis = itensAplicaveis.length;
-      const s = itensAplicaveis.filter((r) => r === "S").length;
-      const pct = totalAplicaveis === 0 ? 0 : Math.round((s / totalAplicaveis) * 100);
-      return { secao: sec.title.split(",")[0].slice(0, 18), pct };
-    });
+    return calcularSecoes(insp.respostas).map((sec) => ({
+      secao: sec.title.split(",")[0].slice(0, 18),
+      pct: sec.percentual === null ? 0 : Math.round(sec.percentual),
+    }));
+  }, [insp]);
+
+  // Reincidência: para cada NC atual, conta em quantas inspeções concluídas
+  // consecutivas (a partir da mais recente) o mesmo item já estava "N".
+  const [reincidencias, setReincidencias] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!insp) return;
+    const cnpj = insp.dados?.estabelecimento?.cnpj;
+    if (!cnpj) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("inspecoes")
+          .select("id, data_conclusao, respostas")
+          .eq("cnpj", cnpj)
+          .eq("status", "concluida")
+          .neq("id", insp.id)
+          .order("data_conclusao", { ascending: false })
+          .limit(10);
+        if (error || !data || cancelled) return;
+        const anteriores = data.map((d) => (d.respostas || {}) as Record<string, string>);
+        const out: Record<string, number> = {};
+        Object.entries(insp.respostas || {}).forEach(([itemId, r]) => {
+          if (r !== "N") return;
+          let streak = 0;
+          for (const resp of anteriores) {
+            if (resp[itemId] === "N") streak++;
+            else break;
+          }
+          if (streak > 0) out[itemId] = streak + 1; // inclui a inspeção atual
+        });
+        if (!cancelled) setReincidencias(out);
+      } catch {
+        // reincidência é informativa; falha silenciosa não bloqueia o resultado
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [insp]);
 
   const naoConformidades = useMemo(() => {
@@ -261,7 +299,7 @@ function ResultadoPage() {
 
   const baixarPDF = () => {
     try {
-      gerarPDF({ ...finalInsp, dados: { ...finalInsp.dados, planoAcao } });
+      gerarPDF({ ...finalInsp, dados: { ...finalInsp.dados, planoAcao } }, { reincidencias });
     } catch (e) {
       console.error(e);
       toast.error("Não foi possível gerar o PDF.");
@@ -330,6 +368,13 @@ function ResultadoPage() {
               <span><span className="font-semibold text-foreground">{score.nao}</span> não conformes</span>
               <span><span className="font-semibold text-foreground">{score.na}</span> não se aplica</span>
             </div>
+            {cls.limitadaPorCritico && (
+              <p className="mt-3 max-w-xs rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                Classificação limitada a REGULAR: {ncCriticas}{" "}
+                {ncCriticas === 1 ? "não conformidade crítica identificada" : "não conformidades críticas identificadas"}{" "}
+                (itens de risco sanitário direto).
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -385,7 +430,19 @@ function ResultadoPage() {
                     key={nc.id}
                     className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm"
                   >
-                    <div className="text-xs font-semibold uppercase tracking-wide text-destructive">{nc.secao}</div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-destructive">{nc.secao}</span>
+                      {criticalItemIds.has(nc.id) && (
+                        <span className="rounded-full bg-destructive px-2 py-0.5 text-[10px] font-bold uppercase text-destructive-foreground">
+                          Crítico
+                        </span>
+                      )}
+                      {reincidencias[nc.id] && (
+                        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-700">
+                          Reincidente — {reincidencias[nc.id]}ª inspeção consecutiva
+                        </span>
+                      )}
+                    </div>
                     <div className="mt-1"><span className="font-mono text-xs">{nc.id}.</span> {nc.text}</div>
 
                     {!search.readonly ? (

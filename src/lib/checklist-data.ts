@@ -1,6 +1,9 @@
 export interface ChecklistItem {
   id: string;
   text: string;
+  // Item de risco sanitário direto (RDC 216): uma não conformidade aqui
+  // limita a classificação final a REGULAR, independentemente do percentual.
+  critico?: boolean;
 }
 
 export interface ChecklistSection {
@@ -46,7 +49,7 @@ export const checklistSections: ChecklistSection[] = [
       { id: "11.3", text: "Sistema de exaustão dimensionado adequadamente." },
       { id: "11.4", text: "Registro periódico de manutenção dos equipamentos de climatização." },
       { id: "12", text: "Eliminação adequada de águas servidas, sem acúmulo e sem refluxo." },
-      { id: "13", text: "Água de abastecimento proveniente de fonte adequada e dentro dos padrões de potabilidade." },
+      { id: "13", text: "Água de abastecimento proveniente de fonte adequada e dentro dos padrões de potabilidade.", critico: true },
       { id: "13.1", text: "Volume e pressão suficientes para atender todas as atividades." },
       { id: "13.2", text: "Caixa d'água em adequado estado de conservação, livre de rachaduras e vazamentos." },
       { id: "13.3", text: "Caixa d'água higienizada periodicamente (mínimo a cada 6 meses), com registro." },
@@ -90,7 +93,7 @@ export const checklistSections: ChecklistSection[] = [
     id: "pragas",
     title: "Controle integrado de vetores e pragas urbanas",
     items: [
-      { id: "22", text: "Ausência de vetores e pragas urbanas ou qualquer evidência de sua presença." },
+      { id: "22", text: "Ausência de vetores e pragas urbanas ou qualquer evidência de sua presença.", critico: true },
       { id: "23", text: "Adoção de medidas preventivas e corretivas para impedir a atração, abrigo e proliferação de vetores." },
       { id: "24", text: "Quando aplicado controle químico, empresa especializada e registrada nos órgãos competentes." },
     ],
@@ -99,7 +102,7 @@ export const checklistSections: ChecklistSection[] = [
     id: "agua",
     title: "Abastecimento de água",
     items: [
-      { id: "25", text: "Utilização de água potável para manipulação de alimentos." },
+      { id: "25", text: "Utilização de água potável para manipulação de alimentos.", critico: true },
       { id: "26", text: "Quando utilizada solução alternativa, comprovada potabilidade semestral." },
       { id: "27", text: "Sistema de captação protegido (poços e cisternas)." },
       { id: "28", text: "Reservatório acessível com instalação hidráulica em adequada conservação." },
@@ -122,9 +125,9 @@ export const checklistSections: ChecklistSection[] = [
     title: "Manipuladores",
     items: [
       { id: "35", text: "Controle de saúde dos manipuladores realizado e registrado." },
-      { id: "36", text: "Manipuladores afastados quando apresentam lesões e/ou sintomas que comprometam a qualidade." },
+      { id: "36", text: "Manipuladores afastados quando apresentam lesões e/ou sintomas que comprometam a qualidade.", critico: true },
       { id: "37", text: "Asseio pessoal: boa apresentação, asseio corporal, mãos limpas, unhas curtas sem esmalte." },
-      { id: "38", text: "Lavagem cuidadosa das mãos antes da manipulação e após qualquer interrupção." },
+      { id: "38", text: "Lavagem cuidadosa das mãos antes da manipulação e após qualquer interrupção.", critico: true },
       { id: "39", text: "Cartazes de orientação sobre a correta lavagem das mãos em locais estratégicos." },
       { id: "40", text: "Manipuladores não fumam, não falam desnecessariamente, não cantam, não assobiam, não espirram, não tossem sobre os alimentos." },
       { id: "41", text: "Uniformes de trabalho de cor clara, adequados, limpos e em bom estado de conservação." },
@@ -142,26 +145,26 @@ export const checklistSections: ChecklistSection[] = [
       { id: "47", text: "Matérias-primas e ingredientes aguardando liberação identificados." },
       { id: "48", text: "Matérias-primas, ingredientes e embalagens armazenados sobre paletes, estrados e/ou prateleiras." },
       { id: "49", text: "Embalagens primárias íntegras, sem contato direto com piso, paredes e teto." },
-      { id: "50", text: "Validade respeitada para todos os insumos." },
+      { id: "50", text: "Validade respeitada para todos os insumos.", critico: true },
     ],
   },
   {
     id: "preparacao",
     title: "Preparação do alimento",
     items: [
-      { id: "51", text: "Adoção de medidas para evitar contaminação cruzada." },
+      { id: "51", text: "Adoção de medidas para evitar contaminação cruzada.", critico: true },
       { id: "52", text: "Manipuladores que atuam em diferentes atividades adotam medidas para evitar contaminação cruzada." },
       { id: "53", text: "Matérias-primas e ingredientes higienizados antes do uso." },
       { id: "54", text: "Procedimentos específicos para higienização de hortifrutícolas, com produtos regularizados." },
       { id: "55", text: "Descongelamento conduzido sob refrigeração (≤ 5°C) ou em forno de micro-ondas." },
       { id: "56", text: "Alimentos descongelados não recongelados antes ou após preparo." },
-      { id: "57", text: "Alimentos preparados mantidos em condições de tempo e temperatura que evitem multiplicação microbiana." },
-      { id: "58", text: "Tratamento térmico atinge no mínimo 70°C no centro geométrico do alimento." },
+      { id: "57", text: "Alimentos preparados mantidos em condições de tempo e temperatura que evitem multiplicação microbiana.", critico: true },
+      { id: "58", text: "Tratamento térmico atinge no mínimo 70°C no centro geométrico do alimento.", critico: true },
       { id: "59", text: "Óleos e gorduras utilizados em frituras não aquecidos acima de 180°C, substituídos quando apresentarem alterações." },
-      { id: "60", text: "Após cocção, alimentos expostos a quente mantidos acima de 60°C por no máximo 6 horas." },
+      { id: "60", text: "Após cocção, alimentos expostos a quente mantidos acima de 60°C por no máximo 6 horas.", critico: true },
       { id: "61", text: "Após cocção, alimentos resfriados de 60°C a 10°C em no máximo 2 horas." },
       { id: "62", text: "Resfriamento conduzido em equipamento adequado." },
-      { id: "63", text: "Alimentos resfriados conservados sob refrigeração (≤ 5°C) ou congelados." },
+      { id: "63", text: "Alimentos resfriados conservados sob refrigeração (≤ 5°C) ou congelados.", critico: true },
       { id: "64", text: "Para conservação a quente, equipamentos mantendo temperatura ≥ 60°C." },
       { id: "65", text: "Para conservação sob refrigeração ou congelamento, temperatura conforme recomendação do fabricante." },
       { id: "66", text: "Alimentos crus higienizados de forma a reduzir a contaminação superficial." },
@@ -204,3 +207,16 @@ export const checklistSections: ChecklistSection[] = [
 ];
 
 export const totalChecklistItems = checklistSections.reduce((acc, s) => acc + s.items.length, 0);
+
+export const criticalItemIds = new Set(
+  checklistSections.flatMap((s) => s.items.filter((i) => i.critico).map((i) => i.id)),
+);
+
+export function contarNCCriticas(
+  respostas: Record<string, string | null | undefined> | null | undefined,
+): number {
+  if (!respostas) return 0;
+  let n = 0;
+  for (const id of criticalItemIds) if (respostas[id] === "N") n++;
+  return n;
+}

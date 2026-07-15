@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Loader2, Search, FileText, Download } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { classificacao, type Inspecao } from "@/lib/storage";
+import { contarNCCriticas } from "@/lib/checklist-data";
 import { toTrendPoints } from "@/lib/compliance-trend";
 import { ComplianceTrendChart } from "@/components/elevare/ComplianceTrendChart";
 import { cn } from "@/lib/utils";
@@ -112,7 +113,7 @@ function ClientePage() {
               <div className="grid gap-4">
                 {inspections.map((insp) => {
                   const conf = Number(insp.conformidade);
-                  const cls = classificacao(conf);
+                  const cls = classificacao(conf, contarNCCriticas(insp.respostas));
                   return (
                     <Card key={insp.id}>
                       <CardContent className="p-4 flex items-center justify-between">

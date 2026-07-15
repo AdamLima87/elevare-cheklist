@@ -198,6 +198,73 @@ export type Database = {
           },
         ]
       }
+      documentos: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          created_by: string | null
+          data_emissao: string | null
+          data_vencimento: string | null
+          empresa_id: string
+          id: string
+          numero: string | null
+          observacoes: string | null
+          orgao_emissor: string | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          created_by?: string | null
+          data_emissao?: string | null
+          data_vencimento?: string | null
+          empresa_id: string
+          id?: string
+          numero?: string | null
+          observacoes?: string | null
+          orgao_emissor?: string | null
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          created_by?: string | null
+          data_emissao?: string | null
+          data_vencimento?: string | null
+          empresa_id?: string
+          id?: string
+          numero?: string | null
+          observacoes?: string | null
+          orgao_emissor?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documentos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_send_log: {
         Row: {
           created_at: string

@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSyncStore } from "@/hooks/useSyncStore";
 import { isCloudNewer } from "./conflict";
 import { findOrCreateCliente } from "@/hooks/useClientes";
+import { checklistSections } from "./checklist-data";
 
 export type Resposta = "S" | "N" | "NA" | null;
 
@@ -494,12 +495,61 @@ export function calcularPercentual(respostas: Record<string, Resposta>): {
   return { sim, nao, na, aplicavel, percentual };
 }
 
-export function classificacao(pct: number): {
+export function classificacao(
+  pct: number,
+  ncCriticas: number = 0,
+): {
   label: string;
   emoji: string;
   tone: "success" | "warning" | "destructive";
+  limitadaPorCritico?: boolean;
 } {
-  if (pct >= 76) return { label: "BOM", emoji: "✅", tone: "success" };
+  if (pct >= 76) {
+    // Uma não conformidade em item crítico (água, pragas, temperatura etc.)
+    // impede a classificação BOM, mesmo com percentual alto: 94% de
+    // conformidade sem água potável não é um estabelecimento "BOM".
+    if (ncCriticas > 0) {
+      return { label: "REGULAR", emoji: "⚠️", tone: "warning", limitadaPorCritico: true };
+    }
+    return { label: "BOM", emoji: "✅", tone: "success" };
+  }
   if (pct >= 51) return { label: "REGULAR", emoji: "⚠️", tone: "warning" };
   return { label: "RUIM", emoji: "❌", tone: "destructive" };
+}
+
+export interface SecaoScore {
+  id: string;
+  title: string;
+  sim: number;
+  nao: number;
+  na: number;
+  aplicavel: number;
+  // null quando a seção inteira é "não se aplica" (sem denominador)
+  percentual: number | null;
+}
+
+// Conformidade por seção com o MESMO critério da nota geral:
+// NA sai do denominador. Fonte única para a tela de resultado e o PDF.
+export function calcularSecoes(respostas: Record<string, Resposta>): SecaoScore[] {
+  return checklistSections.map((sec) => {
+    let sim = 0,
+      nao = 0,
+      na = 0;
+    sec.items.forEach((item) => {
+      const r = respostas?.[item.id];
+      if (r === "S") sim++;
+      else if (r === "N") nao++;
+      else if (r === "NA") na++;
+    });
+    const aplicavel = sim + nao;
+    return {
+      id: sec.id,
+      title: sec.title,
+      sim,
+      nao,
+      na,
+      aplicavel,
+      percentual: aplicavel === 0 ? null : (sim / aplicavel) * 100,
+    };
+  });
 }

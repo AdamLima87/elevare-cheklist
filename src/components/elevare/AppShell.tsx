@@ -5,9 +5,11 @@ import { Sidebar } from "./Sidebar";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useUpcomingVisitas } from "@/hooks/useVisitas";
-import { CalendarClock } from "lucide-react";
+import { useExpiringDocumentos } from "@/hooks/useDocumentos";
+import { CalendarClock, FileWarning } from "lucide-react";
 
 const VISITAS_ALERT_KEY = "elevare_visitas_alert_shown";
+const DOCUMENTOS_ALERT_KEY = "elevare_documentos_alert_shown";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<any>(null);
@@ -65,6 +67,33 @@ export function AppShell({ children }: { children: ReactNode }) {
       },
     );
   }, [alertEnabled, upcomingVisitas, navigate]);
+
+  const { data: expiringDocumentos } = useExpiringDocumentos(30, alertEnabled);
+
+  useEffect(() => {
+    if (!alertEnabled || !expiringDocumentos) return;
+    if (typeof sessionStorage === "undefined") return;
+    if (sessionStorage.getItem(DOCUMENTOS_ALERT_KEY)) return;
+    sessionStorage.setItem(DOCUMENTOS_ALERT_KEY, "1");
+
+    if (expiringDocumentos.length === 0) return;
+
+    const vencidos = expiringDocumentos.filter(
+      (d) => d.data_vencimento && new Date(d.data_vencimento + "T00:00:00").getTime() < Date.now(),
+    ).length;
+    const mensagem = vencidos > 0
+      ? `Você tem ${expiringDocumentos.length} documento${expiringDocumentos.length > 1 ? "s" : ""} vencido${vencidos > 1 ? "s" : ""} ou vencendo em até 30 dias (${vencidos} já vencido${vencidos > 1 ? "s" : ""}).`
+      : `Você tem ${expiringDocumentos.length} documento${expiringDocumentos.length > 1 ? "s" : ""} vencendo nos próximos 30 dias.`;
+
+    toast.warning(mensagem, {
+      icon: <FileWarning className="h-4 w-4" />,
+      duration: 8000,
+      action: {
+        label: "Ver clientes",
+        onClick: () => navigate({ to: "/clientes" }),
+      },
+    });
+  }, [alertEnabled, expiringDocumentos, navigate]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

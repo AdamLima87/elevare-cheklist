@@ -2,6 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { classificacao } from "@/lib/storage";
+import { contarNCCriticas } from "@/lib/checklist-data";
 
 export function useResendInspectionEmail() {
   return useMutation({
@@ -11,7 +12,7 @@ export function useResendInspectionEmail() {
       const cnpj = insp.cnpj || insp.dados?.estabelecimento?.cnpj || "";
       if (!email) throw new Error("E-mail do cliente não encontrado.");
 
-      const cls = classificacao(Number(insp.conformidade));
+      const cls = classificacao(Number(insp.conformidade), contarNCCriticas(insp.respostas));
       const response = await fetch("/lovable/email/transactional/send", {
         method: "POST",
         headers: {

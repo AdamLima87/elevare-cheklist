@@ -36,6 +36,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useNavigate } from "@tanstack/react-router";
 import { classificacao } from "@/lib/storage";
+import { contarNCCriticas } from "@/lib/checklist-data";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { useConsultants } from "@/hooks/useConsultants";
 import { useInspecoesQuery, useInspecoesStats } from "@/hooks/useInspecoesQuery";
@@ -275,7 +276,7 @@ function RelatoriosPage() {
                     </TableHeader>
                     <TableBody>
                       {visibleRows.map((insp: any) => {
-                        const cls = classificacao(Number(insp.conformidade));
+                        const cls = classificacao(Number(insp.conformidade), contarNCCriticas(insp.respostas));
                         const isSending =
                           resendEmail.isPending && resendEmail.variables?.id === insp.id;
                         return (

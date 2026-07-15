@@ -29,6 +29,7 @@ import { Loader2, FileText, ArrowLeft, Plus, CheckCircle2, PlayCircle } from "lu
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { classificacao, saveRascunho, type Inspecao } from "@/lib/storage";
+import { contarNCCriticas } from "@/lib/checklist-data";
 import { toTrendPoints } from "@/lib/compliance-trend";
 import { ComplianceTrendChart } from "@/components/elevare/ComplianceTrendChart";
 import { ComparativoInspecoes } from "@/components/elevare/ComparativoInspecoes";
@@ -38,7 +39,15 @@ import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { useClienteInteracoes, useCreateInteracao } from "@/hooks/useClienteInteracoes";
 import { usePlanosAcaoCliente, useTogglePlanoAcao } from "@/hooks/usePlanosAcaoCliente";
 import { useVisitas, useCreateVisita, useUpdateVisitaStatus } from "@/hooks/useVisitas";
+import {
+  useDocumentos,
+  useCreateDocumento,
+  useDeleteDocumento,
+  documentoStatus,
+  TIPOS_DOCUMENTO,
+} from "@/hooks/useDocumentos";
 import { supabase } from "@/integrations/supabase/client";
+import { Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/clientes/$id")({
   head: () => ({
@@ -148,6 +157,7 @@ function ClienteDetailPage() {
                 <TabsTrigger value="nova-inspecao">Nova Inspeção</TabsTrigger>
                 <TabsTrigger value="planos">Planos de Ação</TabsTrigger>
                 <TabsTrigger value="agenda">Agenda</TabsTrigger>
+                <TabsTrigger value="documentos">Documentos</TabsTrigger>
                 <TabsTrigger value="comparativo">Comparativo</TabsTrigger>
               </TabsList>
 
@@ -224,7 +234,7 @@ function ClienteDetailPage() {
                                 </TableRow>
                               ) : (
                                 rows.map((insp: any) => {
-                                  const cls = classificacao(Number(insp.conformidade));
+                                  const cls = classificacao(Number(insp.conformidade), contarNCCriticas(insp.respostas));
                                   return (
                                     <TableRow key={insp.id}>
                                       <TableCell className="text-sm">
@@ -298,6 +308,10 @@ function ClienteDetailPage() {
 
               <TabsContent value="agenda">
                 <AgendaTab clienteId={id} empresaId={cliente?.empresa_id} />
+              </TabsContent>
+
+              <TabsContent value="documentos">
+                <DocumentosTab clienteId={id} empresaId={cliente?.empresa_id} autorId={profile?.userId} />
               </TabsContent>
 
               <TabsContent value="comparativo">
@@ -524,6 +538,166 @@ function PlanosAcaoTab({ clienteId }: { clienteId: string }) {
                 </div>
               </div>
             ))
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function DocumentosTab({
+  clienteId,
+  empresaId,
+  autorId,
+}: {
+  clienteId: string;
+  empresaId: string | undefined;
+  autorId: string | undefined;
+}) {
+  const { data: documentos = [], isLoading } = useDocumentos(clienteId);
+  const createDocumento = useCreateDocumento();
+  const deleteDocumento = useDeleteDocumento();
+  const [form, setForm] = useState({
+    tipo: "",
+    numero: "",
+    orgaoEmissor: "",
+    dataEmissao: "",
+    dataVencimento: "",
+    observacoes: "",
+  });
+
+  const handleCreate = async () => {
+    if (!form.tipo || !empresaId) return;
+    try {
+      await createDocumento.mutateAsync({
+        empresa_id: empresaId,
+        cliente_id: clienteId,
+        tipo: form.tipo,
+        numero: form.numero || null,
+        orgao_emissor: form.orgaoEmissor || null,
+        data_emissao: form.dataEmissao || null,
+        data_vencimento: form.dataVencimento || null,
+        observacoes: form.observacoes || null,
+        created_by: autorId,
+      });
+      setForm({ tipo: "", numero: "", orgaoEmissor: "", dataEmissao: "", dataVencimento: "", observacoes: "" });
+      toast.success("Documento registrado!");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao registrar documento");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteDocumento.mutateAsync(id);
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao remover documento");
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Registrar documento</CardTitle>
+          <CardDescription>Alvará, licenças, laudos e certificados com controle de vencimento.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <Label className="mb-1.5 block text-xs text-muted-foreground">Tipo de documento</Label>
+            <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                {TIPOS_DOCUMENTO.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="mb-1.5 block text-xs text-muted-foreground">Número</Label>
+            <Input value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} placeholder="Opcional" />
+          </div>
+          <div>
+            <Label className="mb-1.5 block text-xs text-muted-foreground">Órgão emissor</Label>
+            <Input value={form.orgaoEmissor} onChange={(e) => setForm({ ...form, orgaoEmissor: e.target.value })} placeholder="Opcional" />
+          </div>
+          <div>
+            <Label className="mb-1.5 block text-xs text-muted-foreground">Data de emissão</Label>
+            <Input type="date" value={form.dataEmissao} onChange={(e) => setForm({ ...form, dataEmissao: e.target.value })} />
+          </div>
+          <div>
+            <Label className="mb-1.5 block text-xs text-muted-foreground">Data de vencimento</Label>
+            <Input type="date" value={form.dataVencimento} onChange={(e) => setForm({ ...form, dataVencimento: e.target.value })} />
+          </div>
+          <div className="sm:col-span-2">
+            <Label className="mb-1.5 block text-xs text-muted-foreground">Observações</Label>
+            <Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} className="min-h-16" placeholder="Opcional" />
+          </div>
+          <div className="sm:col-span-2 flex justify-end">
+            <Button onClick={handleCreate} disabled={createDocumento.isPending || !form.tipo} className="gap-1.5">
+              <Plus className="h-4 w-4" /> Registrar
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Documentos ({documentos.length})</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {isLoading ? (
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          ) : documentos.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum documento registrado ainda.</p>
+          ) : (
+            documentos.map((doc) => {
+              const status = documentoStatus(doc.data_vencimento);
+              return (
+                <div key={doc.id} className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{doc.tipo}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {[doc.numero, doc.orgao_emissor].filter(Boolean).join(" · ") || "Sem número/órgão"}
+                    </div>
+                    {doc.data_vencimento && (
+                      <div className="text-xs text-muted-foreground">
+                        Vencimento: {new Date(doc.data_vencimento + "T00:00:00").toLocaleDateString("pt-BR")}
+                      </div>
+                    )}
+                    {doc.observacoes && <div className="text-xs text-muted-foreground">{doc.observacoes}</div>}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {status !== "sem-vencimento" && (
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase",
+                          status === "vencido" && "bg-red-100 text-red-700",
+                          status === "vencendo" && "bg-amber-100 text-amber-700",
+                          status === "ok" && "bg-green-100 text-green-700",
+                        )}
+                      >
+                        {status === "vencido" ? "Vencido" : status === "vencendo" ? "Vencendo" : "Em dia"}
+                      </span>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                      onClick={() => handleDelete(doc.id)}
+                      title="Remover"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })
           )}
         </CardContent>
       </Card>

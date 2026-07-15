@@ -14,6 +14,7 @@ import {
 import { Loader2, FileText, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { classificacao } from "@/lib/storage";
+import { contarNCCriticas } from "@/lib/checklist-data";
 import { toTrendPoints } from "@/lib/compliance-trend";
 import { ComplianceTrendChart } from "@/components/elevare/ComplianceTrendChart";
 import { useInspecoesQuery } from "@/hooks/useInspecoesQuery";
@@ -112,7 +113,7 @@ function EstabelecimentoPage() {
                     </TableHeader>
                     <TableBody>
                       {rows.map((insp: any) => {
-                        const cls = classificacao(Number(insp.conformidade));
+                        const cls = classificacao(Number(insp.conformidade), contarNCCriticas(insp.respostas));
                         return (
                           <TableRow key={insp.id}>
                             <TableCell className="text-sm">

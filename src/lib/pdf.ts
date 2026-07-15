@@ -1,14 +1,19 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { checklistSections } from "./checklist-data";
-import { calcularPercentual, classificacao, type Inspecao } from "./storage";
+import { checklistSections, contarNCCriticas, criticalItemIds } from "./checklist-data";
+import { calcularPercentual, calcularSecoes, classificacao, type Inspecao } from "./storage";
 import { ensurePlanoAcao } from "./plano-acao";
 import logoUrl from "@/assets/elevare-logo-full.png";
 
-export async function gerarPDF(insp: Inspecao) {
+export async function gerarPDF(
+  insp: Inspecao,
+  opts?: { reincidencias?: Record<string, number> },
+) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const score = calcularPercentual(insp.respostas);
-  const cls = classificacao(score.percentual);
+  const ncCriticas = contarNCCriticas(insp.respostas);
+  const cls = classificacao(score.percentual, ncCriticas);
+  const reincidencias = opts?.reincidencias ?? {};
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
 
@@ -169,6 +174,18 @@ export async function gerarPDF(insp: Inspecao) {
   doc.setTextColor(255, 255, 255);
   doc.text(cls.label, 165, y + 9, { align: "center" });
 
+  if (cls.limitadaPorCritico) {
+    doc.setFontSize(8);
+    doc.setTextColor(185, 28, 28);
+    doc.setFont("helvetica", "bold");
+    doc.text(
+      `Classificação limitada a REGULAR: ${ncCriticas} não conformidade(s) em item(ns) crítico(s) de risco sanitário.`,
+      215,
+      y + 9,
+    );
+    doc.setFont("helvetica", "normal");
+  }
+
   // Barra de progresso horizontal
   y += 35;
   const fullBarW = pageWidth - 40;
@@ -179,16 +196,10 @@ export async function gerarPDF(insp: Inspecao) {
 
   y += 30;
 
-  // 3. Tabela de seções
-  const sectionRows = checklistSections.map((sec) => {
-    const itens = sec.items.map((i) => insp.respostas[i.id]);
-    const s = itens.filter((r) => r === "S").length;
-    const n = itens.filter((r) => r === "N").length;
-    const na = itens.filter((r) => r === "NA").length;
-    const totalDaSecao = sec.items.length;
-    const val = totalDaSecao === 0 ? 0 : (s / totalDaSecao) * 100;
-    const pct = `${val.toFixed(0)}%`;
-    return [sec.title, String(s), String(n), String(na), pct, ""];
+  // 3. Tabela de seções — mesmo critério da nota geral: NA fora do denominador
+  const sectionRows = calcularSecoes(insp.respostas).map((sec) => {
+    const pct = sec.percentual === null ? "-" : `${sec.percentual.toFixed(0)}%`;
+    return [sec.title, String(sec.sim), String(sec.nao), String(sec.na), pct, ""];
   });
 
   autoTable(doc, {
@@ -244,7 +255,11 @@ export async function gerarPDF(insp: Inspecao) {
         const prazoFormatado = acao?.prazo
           ? new Date(acao.prazo + "T00:00:00").toLocaleDateString("pt-BR")
           : "";
-        ncRows.push([it.id, sec.title, it.text, acao?.texto || "", prazoFormatado]);
+        const marcadores: string[] = [];
+        if (criticalItemIds.has(it.id)) marcadores.push("[CRÍTICO]");
+        if (reincidencias[it.id]) marcadores.push(`[REINCIDENTE — ${reincidencias[it.id]}ª inspeção consecutiva]`);
+        const descricao = marcadores.length ? `${marcadores.join(" ")} ${it.text}` : it.text;
+        ncRows.push([it.id, sec.title, descricao, acao?.texto || "", prazoFormatado]);
       }
     });
   });
