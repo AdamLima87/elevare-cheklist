@@ -31,7 +31,7 @@ import { useEmpresas, useCreateEmpresa } from "@/hooks/useEmpresas";
 export const Route = createFileRoute("/empresas")({
   head: () => ({
     meta: [
-      { title: "Empresas · Elevare" },
+      { title: "Empresas · RDCheck" },
       { name: "description", content: "Gestão das empresas (tenants) da plataforma." },
     ],
   }),

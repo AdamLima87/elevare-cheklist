@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/checklist")({
   head: () => ({
-    meta: [{ title: "Checklist · Elevare" }, { name: "description", content: "Lista de Verificação Higiênico-Sanitária e Questionário Socioeconômico." }],
+    meta: [{ title: "Checklist · RDCheck" }, { name: "description", content: "Lista de Verificação Higiênico-Sanitária e Questionário Socioeconômico." }],
   }),
   component: ChecklistPage,
 });

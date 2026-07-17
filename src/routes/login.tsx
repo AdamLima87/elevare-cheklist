@@ -250,22 +250,22 @@ function LoginPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4 animate-in fade-in duration-500">
               <button
                 onClick={() => selectUserType("consultor")}
-                className="flex flex-col items-center justify-center p-8 rounded-xl border-2 border-slate-100 bg-white hover:border-[#1a4d2e] hover:bg-[#1a4d2e]/5 transition-all group text-center space-y-3"
+                className="flex flex-col items-center justify-center p-8 rounded-xl border-2 border-slate-100 bg-white hover:border-[#184878] hover:bg-[#184878]/5 transition-all group text-center space-y-3"
               >
-                <div className="p-4 rounded-full bg-slate-50 group-hover:bg-[#1a4d2e]/10 transition-colors">
+                <div className="p-4 rounded-full bg-slate-50 group-hover:bg-[#184878]/10 transition-colors">
                   <span className="text-3xl" role="img" aria-label="Search">🔍</span>
                 </div>
                 <div>
                   <h3 className="font-semibold text-slate-800">Consultor / Admin</h3>
-                  <p className="text-xs text-slate-500">Acesso para equipe Elevare</p>
+                  <p className="text-xs text-slate-500">Acesso para consultores e equipe</p>
                 </div>
               </button>
 
               <button
                 onClick={() => selectUserType("cliente")}
-                className="flex flex-col items-center justify-center p-8 rounded-xl border-2 border-slate-100 bg-white hover:border-[#1a4d2e] hover:bg-[#1a4d2e]/5 transition-all group text-center space-y-3"
+                className="flex flex-col items-center justify-center p-8 rounded-xl border-2 border-slate-100 bg-white hover:border-[#184878] hover:bg-[#184878]/5 transition-all group text-center space-y-3"
               >
-                <div className="p-4 rounded-full bg-slate-50 group-hover:bg-[#1a4d2e]/10 transition-colors">
+                <div className="p-4 rounded-full bg-slate-50 group-hover:bg-[#184878]/10 transition-colors">
                   <span className="text-3xl" role="img" aria-label="Shop">🏪</span>
                 </div>
                 <div>
@@ -283,7 +283,7 @@ function LoginPage() {
                   setEmail("");
                   setPassword("");
                 }}
-                className="flex items-center text-sm font-medium text-slate-500 hover:text-[#1a4d2e] transition-colors mb-2"
+                className="flex items-center text-sm font-medium text-slate-500 hover:text-[#184878] transition-colors mb-2"
               >
                 <span className="mr-1">←</span> Voltar para seleção
               </button>
@@ -296,7 +296,7 @@ function LoginPage() {
                   placeholder="exemplo@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="focus-visible:ring-[#1a4d2e]"
+                  className="focus-visible:ring-[#184878]"
                   required
                 />
               </div>
@@ -320,7 +320,7 @@ function LoginPage() {
                   onChange={(e) => handlePasswordChange(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder={userType === "cliente" ? "CNPJ (somente números)" : "Sua senha"}
-                  className="focus-visible:ring-[#1a4d2e]"
+                  className="focus-visible:ring-[#184878]"
                   required
                 />
                 {userType === "cliente" && (
@@ -335,7 +335,7 @@ function LoginPage() {
               <div className="pt-2">
                 <Button 
                   type="submit" 
-                  className="w-full bg-[#1a4d2e] hover:bg-[#1a4d2e]/90 text-white font-semibold py-6 h-auto transition-colors" 
+                  className="w-full bg-[#184878] hover:bg-[#184878]/90 text-white font-semibold py-6 h-auto transition-colors" 
                   disabled={loading || (userType === "cliente" && password.length !== 14)}
                 >
                   {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Entrar"}
@@ -347,7 +347,7 @@ function LoginPage() {
                   type="button"
                   onClick={handleResetPassword}
                   disabled={resetLoading}
-                  className="text-sm text-[#1a4d2e] hover:underline font-medium"
+                  className="text-sm text-[#184878] hover:underline font-medium"
                 >
                   Esqueci minha senha
                 </button>

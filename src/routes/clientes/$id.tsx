@@ -52,7 +52,7 @@ import { Trash2 } from "lucide-react";
 export const Route = createFileRoute("/clientes/$id")({
   head: () => ({
     meta: [
-      { title: "Histórico do Cliente · Elevare" },
+      { title: "Histórico do Cliente · RDCheck" },
       { name: "description", content: "Evolução da conformidade de um cliente ao longo do tempo." },
     ],
   }),

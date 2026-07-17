@@ -1,5 +1,5 @@
-import logoFull from "@/assets/elevare-logo-full.png";
-import shield from "@/assets/elevare-shield.png";
+import logoFull from "@/assets/rdcheck-logo-full.png";
+import shield from "@/assets/rdcheck-shield.png";
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   const src = compact ? shield : logoFull;
@@ -7,7 +7,7 @@ export function Logo({ compact = false }: { compact?: boolean }) {
     <div className="inline-flex items-center justify-center">
       <img
         src={src}
-        alt="Elevare Consultoria"
+        alt="RDCheck"
         className={`${compact ? "h-10" : "h-14"} w-auto object-contain shrink-0`}
       />
     </div>

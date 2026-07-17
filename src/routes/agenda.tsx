@@ -35,7 +35,7 @@ import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 export const Route = createFileRoute("/agenda")({
   head: () => ({
     meta: [
-      { title: "Agenda · Elevare" },
+      { title: "Agenda · RDCheck" },
       { name: "description", content: "Calendário de visitas agendadas." },
     ],
   }),

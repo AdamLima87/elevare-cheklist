@@ -84,7 +84,7 @@ function ClientePage() {
 
         {loading ? (
           <div className="flex justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-[#1a4d2e]" />
+            <Loader2 className="h-8 w-8 animate-spin text-[#184878]" />
           </div>
         ) : (
           <div className="space-y-4">

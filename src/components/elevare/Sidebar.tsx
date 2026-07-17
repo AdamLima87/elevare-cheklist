@@ -97,16 +97,18 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
   const SidebarContent = ({ forceExpanded = false }: { forceExpanded?: boolean }) => {
     const expanded = forceExpanded || isExpanded;
     return (
-      <div className="flex flex-col h-full bg-forest-grain text-white">
+      <div className="flex flex-col h-full bg-brand-grain text-white">
         <div className={cn("px-4 py-5 flex items-center", expanded ? "justify-start" : "justify-center")}>
-          <Logo compact={!expanded} />
+          <div className={cn("inline-flex items-center rounded-lg bg-white shadow-sm", expanded ? "px-3 py-2" : "p-1.5")}>
+            <Logo compact={!expanded} />
+          </div>
         </div>
 
         <div className="mx-3 mb-4 h-px bg-white/10" />
 
         {expanded && (
           <div className="px-4 pb-2">
-            <span className="label-eyebrow text-[color:var(--olive)]/80">Navegação</span>
+            <span className="label-eyebrow text-[color:var(--brand-accent)]/80">Navegação</span>
           </div>
         )}
 
@@ -122,7 +124,7 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
                   className={cn(
                     "flex items-center gap-3 px-3 py-2 rounded-sm transition-all group overflow-hidden relative",
                     isActive
-                      ? "bg-white/10 text-white border-l-2 border-[color:var(--olive)]"
+                      ? "bg-white/10 text-white border-l-2 border-[color:var(--brand-accent)]"
                       : "text-white/70 hover:bg-white/5 hover:text-white border-l-2 border-transparent"
                   )}
                 >
@@ -166,7 +168,7 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
             className={cn(
               "flex items-center gap-3 px-3 py-2 rounded-sm transition-all overflow-hidden",
               location.pathname === "/perfil"
-                ? "bg-white/10 text-white border-l-2 border-[color:var(--olive)]"
+                ? "bg-white/10 text-white border-l-2 border-[color:var(--brand-accent)]"
                 : "text-white/70 hover:bg-white/5 hover:text-white border-l-2 border-transparent"
             )}
           >
@@ -186,14 +188,14 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
         {expanded && profile && (
           <div className="p-4 border-t border-white/10 mt-auto">
             <div className="flex items-center gap-3 overflow-hidden">
-              <Avatar className="h-9 w-9 bg-[color:var(--olive)]/25 shrink-0 border border-[color:var(--olive)]/40">
+              <Avatar className="h-9 w-9 bg-[color:var(--brand-accent)]/25 shrink-0 border border-[color:var(--brand-accent)]/40">
                 <AvatarFallback className="text-[11px] font-semibold text-white bg-transparent">
                   {profile.nome?.substring(0, 2).toUpperCase() || profile.email?.substring(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col min-w-0">
                 <span className="text-[13px] font-semibold truncate leading-tight text-white">{profile.nome}</span>
-                <span className="label-eyebrow text-[9px] text-[color:var(--olive)]/90 truncate mt-1">
+                <span className="label-eyebrow text-[9px] text-[color:var(--brand-accent)]/90 truncate mt-1">
                   {profile.perfil}
                 </span>
               </div>
@@ -217,7 +219,7 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
                 to={sub.to}
                 search={sub.search as any}
                 onClick={() => setFlyoutOpen(false)}
-                className="flex items-center gap-2.5 px-3.5 py-2 text-[13px] font-medium text-[color:var(--forest-deep)] hover:bg-[color:var(--olive)]/10"
+                className="flex items-center gap-2.5 px-3.5 py-2 text-[13px] font-medium text-[color:var(--brand-deep)] hover:bg-[color:var(--brand-accent)]/10"
               >
                 <sub.icon className="h-4 w-4 shrink-0" strokeWidth={1.6} />
                 {sub.label}
@@ -231,14 +233,14 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
 
   if (isMobile) {
     return (
-      <header className="fixed top-0 left-0 right-0 h-16 bg-forest-grain flex items-center px-4 z-50 border-b border-white/10">
+      <header className="fixed top-0 left-0 right-0 h-16 bg-brand-grain flex items-center px-4 z-50 border-b border-white/10">
         <Sheet>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
               <Menu className="h-6 w-6" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="p-0 border-none w-64 bg-[color:var(--forest-deep)]">
+          <SheetContent side="left" className="p-0 border-none w-64 bg-[color:var(--brand-deep)]">
             <SheetHeader className="sr-only">
               <SheetTitle>Menu de Navegação</SheetTitle>
             </SheetHeader>
@@ -246,7 +248,9 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
           </SheetContent>
         </Sheet>
         <div className="ml-4">
-          <Logo />
+          <div className="inline-flex items-center rounded-lg bg-white px-3 py-1.5 shadow-sm">
+            <Logo />
+          </div>
         </div>
       </header>
     );

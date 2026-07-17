@@ -3,33 +3,45 @@ import autoTable from "jspdf-autotable";
 import { checklistSections, contarNCCriticas, criticalItemIds } from "./checklist-data";
 import { calcularPercentual, calcularSecoes, classificacao, type Inspecao } from "./storage";
 import { ensurePlanoAcao } from "./plano-acao";
-import logoUrl from "@/assets/elevare-logo-full.png";
+import { BRAND } from "./brand";
+import logoUrl from "@/assets/rdcheck-logo-full.png";
+
+// Timbre do relatório: por padrão a marca do produto (RDCheck), mas cada
+// consultoria (tenant) pode sobrepor com seu nome/contato via Configurações.
+export interface MarcaRelatorio {
+  nome?: string;
+  contato?: string;
+}
 
 export async function gerarPDF(
   insp: Inspecao,
-  opts?: { reincidencias?: Record<string, number> },
+  opts?: { reincidencias?: Record<string, number>; marca?: MarcaRelatorio },
 ) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const score = calcularPercentual(insp.respostas);
   const ncCriticas = contarNCCriticas(insp.respostas);
   const cls = classificacao(score.percentual, ncCriticas);
   const reincidencias = opts?.reincidencias ?? {};
+  const marcaNome = opts?.marca?.nome?.trim() || BRAND.name;
+  const marcaContato = opts?.marca?.contato?.trim() || BRAND.defaultRemetente.contato;
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
 
   // Cores
-  const colorElevare = [26, 77, 46]; // #1a4d2e
+  // Paleta RDCheck: azul = cromia da marca; verde = semântica de conformidade.
+  const BRAND_BLUE: [number, number, number] = [24, 72, 120]; // #184878
+  const BRAND_GREEN: [number, number, number] = [24, 168, 96]; // #18a860
 
   // Função para adicionar rodapé e faixa de topo (presente em todas as páginas)
   const addLayoutElements = (pageDoc: jsPDF, pageIndex: number, totalPages: number) => {
     pageDoc.setPage(pageIndex);
 
-    // 1.1 Faixa colorida no topo (8px) - #1a4d2e
-    pageDoc.setFillColor(26, 77, 46);
+    // 1.1 Faixa colorida no topo (8px)
+    pageDoc.setFillColor(...BRAND_BLUE);
     pageDoc.rect(0, 0, pageWidth, 8, "F");
 
     // Rodapé
-    pageDoc.setDrawColor(26, 77, 46);
+    pageDoc.setDrawColor(...BRAND_BLUE);
     pageDoc.setLineWidth(0.5);
     pageDoc.line(20, pageHeight - 40, pageWidth - 20, pageHeight - 40);
 
@@ -37,7 +49,7 @@ export async function gerarPDF(
     pageDoc.setTextColor(100, 100, 100);
     pageDoc.setFont("helvetica", "normal");
     pageDoc.text(
-      "Elevare Consultoria · elevareconsultoria.com · (11) 99484-0948",
+      `${marcaNome} · ${marcaContato}`,
       20,
       pageHeight - 25,
     );
@@ -63,13 +75,13 @@ export async function gerarPDF(
   // 1. Cabeçalho
   let y = 60;
   if (logoData) {
-    // Logo com 50px de altura (approx 37.5pt)
-    doc.addImage(logoData, "PNG", 20, 20, 125, 37.5, undefined, "FAST");
+    // Logo RDCheck mantendo a proporção real (~2.69:1) para não distorcer.
+    doc.addImage(logoData, "PNG", 20, 22, 101, 37.5, undefined, "FAST");
   } else {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
-    doc.setTextColor(26, 77, 46);
-    doc.text("ELEVARE", 20, 45);
+    doc.setTextColor(...BRAND_BLUE);
+    doc.text(marcaNome.toUpperCase(), 20, 45);
   }
 
   doc.setFont("helvetica", "bold");
@@ -83,7 +95,7 @@ export async function gerarPDF(
   const e = insp.dados.estabelecimento;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.setTextColor(26, 77, 46);
+  doc.setTextColor(...BRAND_BLUE);
   doc.text("DADOS DO ESTABELECIMENTO", 20, y);
   y += 5;
   doc.setDrawColor(200);
@@ -122,7 +134,7 @@ export async function gerarPDF(
   // 2. Bloco de Resumo
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.setTextColor(26, 77, 46);
+  doc.setTextColor(...BRAND_BLUE);
   doc.text("RESUMO DO DESEMPENHO", 20, y);
   y += 15;
 
@@ -130,13 +142,13 @@ export async function gerarPDF(
   const cardW = (pageWidth - 60) / 3;
 
   // Conformes
-  doc.setFillColor(234, 243, 222);
+  doc.setFillColor(226, 246, 235);
   doc.roundedRect(20, y, cardW, 45, 3, 3, "F");
   doc.setFontSize(8);
   doc.setTextColor(80, 80, 80);
   doc.text("CONFORMES", 20 + cardW / 2, y + 15, { align: "center" });
   doc.setFontSize(16);
-  doc.setTextColor(26, 77, 46);
+  doc.setTextColor(...BRAND_GREEN);
   doc.text(String(score.sim), 20 + cardW / 2, y + 35, { align: "center" });
 
   // Não conformes
@@ -163,11 +175,11 @@ export async function gerarPDF(
 
   // Percentual e Badge
   doc.setFontSize(32);
-  doc.setTextColor(26, 77, 46);
+  doc.setTextColor(...BRAND_BLUE);
   doc.text(`${score.percentual.toFixed(2)}%`, 20, y + 15);
 
   const badgeColor =
-    cls.tone === "success" ? [26, 77, 46] : cls.tone === "warning" ? [234, 179, 8] : [185, 28, 28];
+    cls.tone === "success" ? [...BRAND_GREEN] : cls.tone === "warning" ? [234, 179, 8] : [185, 28, 28];
   doc.setFillColor(badgeColor[0], badgeColor[1], badgeColor[2]);
   doc.roundedRect(125, y - 5, 80, 22, 3, 3, "F");
   doc.setFontSize(10);
@@ -206,7 +218,7 @@ export async function gerarPDF(
     startY: y,
     head: [["Seção", "S", "N", "NA", "%", "Progresso"]],
     body: sectionRows,
-    headStyles: { fillColor: [26, 77, 46], textColor: 255, fontStyle: "bold" },
+    headStyles: { fillColor: [...BRAND_BLUE], textColor: 255, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [245, 245, 245] },
     styles: { fontSize: 8, cellPadding: 6, valign: "middle", font: "helvetica" },
     columnStyles: {
@@ -218,7 +230,7 @@ export async function gerarPDF(
         const valStr = data.cell.raw as string;
         if (valStr !== "-") {
           const val = parseInt(valStr);
-          if (val >= 76) doc.setTextColor(26, 77, 46);
+          if (val >= 76) doc.setTextColor(...BRAND_GREEN);
           else if (val >= 51) doc.setTextColor(180, 140, 0);
           else doc.setTextColor(185, 28, 28);
         } else {
@@ -235,7 +247,7 @@ export async function gerarPDF(
           doc.setFillColor(230, 230, 230);
           doc.rect(barX, barY, fullW, 4, "F");
           let bColor = [185, 28, 28];
-          if (val >= 76) bColor = [26, 77, 46];
+          if (val >= 76) bColor = [...BRAND_GREEN];
           else if (val >= 51) bColor = [234, 179, 8];
           doc.setFillColor(bColor[0], bColor[1], bColor[2]);
           doc.rect(barX, barY, (fullW * val) / 100, 4, "F");
@@ -273,13 +285,13 @@ export async function gerarPDF(
     }
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.setTextColor(26, 77, 46);
+    doc.setTextColor(...BRAND_BLUE);
     doc.text("NÃO CONFORMIDADES IDENTIFICADAS E PLANO DE AÇÃO", 20, tableY);
     autoTable(doc, {
       startY: tableY + 10,
       head: [["Item", "Seção", "Descrição da Não Conformidade", "Plano de Ação", "Prazo"]],
       body: ncRows,
-      headStyles: { fillColor: [26, 77, 46], textColor: 255 },
+      headStyles: { fillColor: [...BRAND_BLUE], textColor: 255 },
       alternateRowStyles: { fillColor: [245, 245, 245] },
       styles: { fontSize: 8, cellPadding: 8, overflow: "linebreak", font: "helvetica" },
       columnStyles: {
@@ -307,7 +319,7 @@ export async function gerarPDF(
   }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.setTextColor(26, 77, 46);
+  doc.setTextColor(...BRAND_BLUE);
   doc.text("OBSERVAÇÕES DO CONSULTOR", 20, finalY);
   finalY += 10;
   const obs = (insp as any).observacoes || "";
@@ -358,6 +370,6 @@ export async function gerarPDF(
     addLayoutElements(doc, i, totalPages);
   }
 
-  const filename = `Relatorio_Elevare_${(insp.estabelecimento || "inspecao").replace(/\s+/g, "_")}.pdf`;
+  const filename = `Relatorio_RDCheck_${(insp.estabelecimento || "inspecao").replace(/\s+/g, "_")}.pdf`;
   doc.save(filename);
 }

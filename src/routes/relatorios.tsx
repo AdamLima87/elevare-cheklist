@@ -45,7 +45,7 @@ import { useResendInspectionEmail } from "@/hooks/useResendInspectionEmail";
 export const Route = createFileRoute("/relatorios")({
   head: () => ({
     meta: [
-      { title: "Relatórios · Elevare" },
+      { title: "Relatórios · RDCheck" },
       { name: "description", content: "Relatórios de inspeções concluídas." },
     ],
   }),

@@ -35,7 +35,7 @@ export const Route = createFileRoute("/clientes/")({
   }),
   head: () => ({
     meta: [
-      { title: "Clientes · Elevare" },
+      { title: "Clientes · RDCheck" },
       { name: "description", content: "Cadastro de clientes e estabelecimentos." },
     ],
   }),

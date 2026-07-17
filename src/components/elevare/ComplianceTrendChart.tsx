@@ -39,7 +39,7 @@ export function ComplianceTrendChart({ data }: ComplianceTrendChartProps) {
           <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
           <ReferenceLine
             y={76}
-            stroke="var(--color-success, #10b981)"
+            stroke="var(--color-success, #18a860)"
             strokeDasharray="4 4"
             strokeOpacity={0.5}
           />

@@ -33,10 +33,12 @@ import { FileDown, MessageCircle, Mail, Save, RotateCcw, Loader2 } from "lucide-
 import { cn } from "@/lib/utils";
 import { gerarPDF } from "@/lib/pdf";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 
 export const Route = createFileRoute("/resultado")({
   head: () => ({
-    meta: [{ title: "Resultado · Elevare" }, { name: "description", content: "Resultado da inspeção sanitária com pontuação, gráfico e não conformidades." }],
+    meta: [{ title: "Resultado · RDCheck" }, { name: "description", content: "Resultado da inspeção sanitária com pontuação, gráfico e não conformidades." }],
   }),
   component: ResultadoPage,
 });
@@ -47,6 +49,22 @@ function ResultadoPage() {
   const [insp, setInsp] = useState<Inspecao | null>(null);
   const [loading, setLoading] = useState(false);
   const [planoAcao, setPlanoAcao] = useState<Record<string, AcaoCorretiva>>({});
+
+  // Timbre do relatório: puxa o cadastro da consultoria (tenant). Se estiver em
+  // branco, o PDF cai no fallback da marca do produto (RDCheck).
+  const { data: profile } = useCurrentProfile();
+  const { data: marcaConfig } = useQuery({
+    queryKey: ["config-marca", profile?.empresa_id],
+    enabled: !!profile?.empresa_id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("configuracoes")
+        .select("nome_empresa, email_contato, telefone, site")
+        .eq("empresa_id", profile!.empresa_id)
+        .maybeSingle();
+      return data;
+    },
+  });
 
   useEffect(() => {
     async function loadData() {
@@ -285,7 +303,7 @@ function ResultadoPage() {
   };
 
   const compartilharWhats = () => {
-    const msg = `*Checklist Elevare*%0A${insp.estabelecimento}%0APontuação: ${score.percentual.toFixed(2)}%25 - ${cls.label}%0ANão conformidades: ${naoConformidades.length}`;
+    const msg = `*RDCheck*%0A${insp.estabelecimento}%0APontuação: ${score.percentual.toFixed(2)}%25 - ${cls.label}%0ANão conformidades: ${naoConformidades.length}`;
     window.open(`https://wa.me/?text=${msg}`, "_blank");
   };
 
@@ -299,7 +317,16 @@ function ResultadoPage() {
 
   const baixarPDF = () => {
     try {
-      gerarPDF({ ...finalInsp, dados: { ...finalInsp.dados, planoAcao } }, { reincidencias });
+      const marca = marcaConfig
+        ? {
+            nome: marcaConfig.nome_empresa || undefined,
+            contato:
+              [marcaConfig.site, marcaConfig.telefone, marcaConfig.email_contato]
+                .filter(Boolean)
+                .join(" · ") || undefined,
+          }
+        : undefined;
+      gerarPDF({ ...finalInsp, dados: { ...finalInsp.dados, planoAcao } }, { reincidencias, marca });
     } catch (e) {
       console.error(e);
       toast.error("Não foi possível gerar o PDF.");
@@ -321,9 +348,9 @@ function ResultadoPage() {
       </div>
 
       <div className="bg-paper relative rounded-lg border border-border p-8 overflow-hidden">
-        {/* Elevare seal top-right */}
+        {/* RDCheck seal top-right */}
         <div className="absolute top-4 right-4 hidden sm:flex flex-col items-end">
-          <span className="label-eyebrow text-primary/70">Elevare</span>
+          <span className="label-eyebrow text-primary/70">RDCheck</span>
           <span className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Conformidade Sanitária</span>
         </div>
 

@@ -127,7 +127,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <footer className="py-6 text-center text-[10px] text-muted-foreground uppercase tracking-widest border-t bg-background">
-          Elevare Consultoria · Segurança dos Alimentos · RDC 216 & 275 ANVISA
+          RDCheck · Segurança dos Alimentos · RDC 216 & 275 ANVISA
         </footer>
       </main>
     </div>

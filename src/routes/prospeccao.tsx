@@ -37,7 +37,7 @@ import {
 export const Route = createFileRoute("/prospeccao")({
   head: () => ({
     meta: [
-      { title: "Prospecção · Elevare" },
+      { title: "Prospecção · RDCheck" },
       { name: "description", content: "Pipeline de novos clientes em prospecção." },
     ],
   }),

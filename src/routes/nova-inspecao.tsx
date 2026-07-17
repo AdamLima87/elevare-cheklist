@@ -20,7 +20,7 @@ export const Route = createFileRoute("/nova-inspecao")({
   },
   head: () => ({
     meta: [
-      { title: "Nova Inspeção · Elevare" },
+      { title: "Nova Inspeção · RDCheck" },
       { name: "description", content: "Inicie um novo diagnóstico sanitário." },
     ],
   }),

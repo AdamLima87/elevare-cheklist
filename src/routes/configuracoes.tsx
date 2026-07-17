@@ -15,7 +15,7 @@ import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 export const Route = createFileRoute("/configuracoes")({
   head: () => ({
     meta: [
-      { title: "Configurações · Elevare" },
+      { title: "Configurações · RDCheck" },
       { name: "description", content: "Configurações do sistema e dados da empresa." },
     ],
   }),
@@ -27,8 +27,8 @@ function ConfiguracoesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState<any>({
-    nome_empresa: "Elevare Consultoria",
-    email_contato: "contato@elevare.com.br",
+    nome_empresa: "",
+    email_contato: "",
     telefone: "",
     site: "",
     enviar_email_cliente: true,
@@ -106,7 +106,7 @@ function ConfiguracoesPage() {
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(inspections, null, 2));
       const downloadAnchorNode = document.createElement('a');
       downloadAnchorNode.setAttribute("href", dataStr);
-      downloadAnchorNode.setAttribute("download", `elevare_backup_${new Date().toISOString().split('T')[0]}.json`);
+      downloadAnchorNode.setAttribute("download", `rdcheck_backup_${new Date().toISOString().split('T')[0]}.json`);
       document.body.appendChild(downloadAnchorNode);
       downloadAnchorNode.click();
       downloadAnchorNode.remove();
@@ -148,12 +148,12 @@ function ConfiguracoesPage() {
                   <Info className="h-5 w-5 text-primary" />
                   <CardTitle className="text-lg">Sobre o Sistema</CardTitle>
                 </div>
-                <CardDescription>Informações gerais do Checklist Elevare</CardDescription>
+                <CardDescription>Informações gerais do RDCheck</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <span className="font-semibold">Nome do App:</span>
-                  <span>Checklist Elevare</span>
+                  <span>RDCheck</span>
                   <span className="font-semibold">Versão:</span>
                   <span>1.0.0</span>
                   <span className="font-semibold">Base Legal:</span>
@@ -200,16 +200,20 @@ function ConfiguracoesPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Building className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-lg">Dados da Empresa</CardTitle>
+                  <CardTitle className="text-lg">Dados da Consultoria</CardTitle>
                 </div>
-                <CardDescription>Estes dados serão utilizados nos cabeçalhos dos relatórios</CardDescription>
+                <CardDescription>
+                  Timbre da sua consultoria — usado no cabeçalho dos relatórios e nos e-mails ao cliente.
+                  Se ficar em branco, os relatórios usam a identidade do RDCheck.
+                </CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="nome_empresa">Nome da Empresa</Label>
-                  <Input 
-                    id="nome_empresa" 
-                    value={config.nome_empresa} 
+                  <Label htmlFor="nome_empresa">Nome da Consultoria</Label>
+                  <Input
+                    id="nome_empresa"
+                    value={config.nome_empresa}
+                    placeholder="Ex: Sua Consultoria Ltda"
                     onChange={e => setConfig({...config, nome_empresa: e.target.value})}
                   />
                 </div>

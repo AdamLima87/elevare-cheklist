@@ -76,7 +76,7 @@ async function fetchDashboardStats() {
 
   // Pie chart data
   const pieData = [
-    { name: "Bom", value: classifications.bom, color: "#10b981" },
+    { name: "Bom", value: classifications.bom, color: "#18a860" },
     { name: "Regular", value: classifications.regular, color: "#f59e0b" },
     { name: "Ruim", value: classifications.ruim, color: "#ef4444" },
   ].filter((d) => d.value > 0);
@@ -215,7 +215,7 @@ function DashboardPage() {
       <AppShell>
         <div className="space-y-8">
           <div className="border-b border-border pb-6">
-            <span className="label-eyebrow text-primary">Elevare · Painel</span>
+            <span className="label-eyebrow text-primary">RDCheck · Painel</span>
             <h1 className="font-display text-4xl font-semibold mt-2">Diagnóstico Sanitário</h1>
             <p className="text-sm text-muted-foreground mt-1">Visão geral das inspeções e performance de conformidade.</p>
           </div>
@@ -225,13 +225,13 @@ function DashboardPage() {
               title="Total de Inspeções"
               value={stats.totalInspections}
               icon={ClipboardCheck}
-              accent="var(--forest)"
+              accent="var(--brand)"
             />
             <StatCard
               title="Conformidade Média"
               value={`${(stats.avgCompliance || 0).toFixed(1)}%`}
               icon={TrendingDown}
-              accent="var(--olive)"
+              accent="var(--brand-accent)"
               sub="Dos concluídos"
             />
             <StatCard
@@ -296,10 +296,10 @@ function DashboardPage() {
           )}
 
           {proximosCompromissos.length > 0 && (
-            <Card className="p-6 border-l-4" style={{ borderLeftColor: "var(--forest)" }}>
+            <Card className="p-6 border-l-4" style={{ borderLeftColor: "var(--brand)" }}>
               <CardHeader className="px-0 pt-0 flex-row items-center justify-between space-y-0">
                 <div className="flex items-center gap-2">
-                  <CalendarClock className="h-4 w-4 shrink-0" style={{ color: "var(--forest)" }} />
+                  <CalendarClock className="h-4 w-4 shrink-0" style={{ color: "var(--brand)" }} />
                   <CardTitle className="text-base font-semibold">
                     Próximos Compromissos ({proximosCompromissos.length})
                   </CardTitle>
@@ -398,7 +398,7 @@ function DashboardPage() {
                     <YAxis fontSize={12} tickLine={false} axisLine={false} />
                     <Tooltip cursor={{fill: 'transparent'}} />
                     <Legend verticalAlign="top" align="right" height={36}/>
-                    <Bar dataKey="concluida" name="Concluídas" fill="#1a4d2e" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="concluida" name="Concluídas" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="em_andamento" name="Em andamento" fill="#5cb947" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>

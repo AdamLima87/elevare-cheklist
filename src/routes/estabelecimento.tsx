@@ -22,7 +22,7 @@ import { useInspecoesQuery } from "@/hooks/useInspecoesQuery";
 export const Route = createFileRoute("/estabelecimento")({
   head: () => ({
     meta: [
-      { title: "Histórico do Estabelecimento · Elevare" },
+      { title: "Histórico do Estabelecimento · RDCheck" },
       {
         name: "description",
         content: "Evolução da conformidade de um estabelecimento ao longo do tempo.",
