@@ -84,8 +84,6 @@ export interface Inspecao {
 
 export const HISTORICO_KEY = "elevare_inspecoes";
 const RASCUNHO_KEY = "elevare_rascunho";
-const NUMEROS_DISPONIVEIS_KEY = "elevare_numeros_disponiveis";
-const PROXIMO_NUMERO_KEY = "elevare_proximo_numero";
 
 export function emptyEstabelecimento(): Estabelecimento {
   return {
@@ -135,56 +133,18 @@ export function emptyFuncionario(): Funcionario {
   };
 }
 
+// Números não são reciclados: uma inspeção apagada não devolve seu número
+// ao pool (lacunas na sequência são aceitáveis para um documento de
+// compliance; duplicatas não são). A contagem é atômica e por empresa —
+// resolvida no banco via get_minha_empresa(), nunca por um empresa_id
+// enviado pelo cliente.
 async function getNextNumero(): Promise<number> {
-  const { data, error } = await supabase
-    .from("numeracao_inspecoes" as any)
-    .select("*")
-    .eq("id", 1)
-    .single();
-
-  if (error || !data) {
-    return 1;
+  const { data, error } = await supabase.rpc("get_next_numero_inspecao" as any);
+  if (error || data == null) {
+    console.error("Erro ao obter próximo número de inspeção:", error);
+    throw error ?? new Error("Não foi possível obter o número da inspeção.");
   }
-
-  const { ultimo_numero, numeros_disponiveis = [] } = data as any;
-
-  if (numeros_disponiveis.length > 0) {
-    const menor = Math.min(...numeros_disponiveis);
-    const novosDisponiveis = numeros_disponiveis.filter((n: number) => n !== menor);
-
-    await supabase
-      .from("numeracao_inspecoes" as any)
-      .update({ numeros_disponiveis: novosDisponiveis })
-      .eq("id", 1);
-
-    return menor;
-  }
-
-  const proximo = (ultimo_numero || 0) + 1;
-  await supabase
-    .from("numeracao_inspecoes" as any)
-    .update({ ultimo_numero: proximo })
-    .eq("id", 1);
-
-  return proximo;
-}
-
-export async function releaseNumero(numero: number) {
-  const { data, error } = await supabase
-    .from("numeracao_inspecoes" as any)
-    .select("*")
-    .eq("id", 1)
-    .single();
-
-  if (!error && data) {
-    const { numeros_disponiveis = [] } = data as any;
-    if (!numeros_disponiveis.includes(numero)) {
-      await supabase
-        .from("numeracao_inspecoes" as any)
-        .update({ numeros_disponiveis: [...numeros_disponiveis, numero] })
-        .eq("id", 1);
-    }
-  }
+  return data as number;
 }
 
 export function formatNumero(n: number) {
@@ -442,10 +402,6 @@ export async function saveToHistorico(insp: Inspecao): Promise<string | undefine
 export async function deleteFromHistorico(id: string) {
   if (typeof localStorage === "undefined") return;
   const list = loadHistorico();
-  const item = list.find((i) => i.id === id);
-  if (item) {
-    releaseNumero(item.numero_sequencial);
-  }
   const rascunho = loadRascunho();
   if (rascunho && rascunho.id === id) {
     await clearRascunho();
