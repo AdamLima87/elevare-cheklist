@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { provisionAdminTenant } from "../_shared/tenant-provisioning.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -229,53 +230,54 @@ serve(async (req) => {
         throw new Error('Dados obrigatórios: empresaNome, adminNome, adminEmail')
       }
 
-      // 1. Create empresa
-      const { data: empresa, error: empresaError } = await supabaseAdmin
-        .from('empresas')
-        .insert({ nome: empresaNome, cnpj: empresaCnpj || null, plano: plano || 'trial', status: 'ativo' })
-        .select()
-        .single()
-
-      if (empresaError) throw empresaError
-
       const finalPassword = adminPassword || generateTemporaryPassword()
 
-      // 2. Create the first admin user for this empresa
+      // 1. Cria o usuário Auth primeiro — provision_tenant() exige que o
+      // owner já exista em auth.users antes de rodar.
       const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email: adminEmail,
         password: finalPassword,
         email_confirm: true,
         user_metadata: { nome: adminNome, perfil: 'admin' },
       })
+      if (authError) throw authError
 
-      if (authError) {
-        // Roll back the empresa if we couldn't create its admin
-        await supabaseAdmin.from('empresas').delete().eq('id', empresa.id)
-        throw authError
+      // 2. Provisiona empresa+profile+configuracoes atomicamente — mesma
+      // camada compartilhada usada pelo cadastro público, mas com
+      // plano/status vindos do formulário administrativo (não hardcoded
+      // trial). Se falhar, o usuário Auth recém-criado é removido (evita
+      // órfão).
+      const provisioned = await provisionAdminTenant(supabaseAdmin, {
+        ownerId: authUser.user.id,
+        ownerEmail: adminEmail,
+        empresaNome,
+        ownerNome: adminNome,
+        whatsapp: '',
+        plano: plano || 'trial',
+        status: 'ativo',
+        origem: { via: 'admin-manage-users' },
+      })
+
+      if (provisioned.status !== 'created' && provisioned.status !== 'already_provisioned') {
+        await supabaseAdmin.auth.admin.deleteUser(authUser.user.id)
+        throw new Error('Não foi possível provisionar a empresa (estado inconsistente).')
       }
 
-      const { error: profileError } = await supabaseAdmin
-        .from('profiles')
-        .upsert({
-          id: authUser.user.id,
-          nome: adminNome,
-          email: adminEmail,
-          perfil: 'admin',
-          empresa_id: empresa.id,
-          force_password_change: true,
-          ativo: true,
-        })
-
-      if (profileError) {
-        await supabaseAdmin.from('empresas').delete().eq('id', empresa.id)
-        throw profileError
+      if (empresaCnpj) {
+        await supabaseAdmin.from('empresas').update({ cnpj: empresaCnpj }).eq('id', provisioned.empresaId)
       }
+      // force_password_change: diferente do signup público (usuário
+      // escolhe a própria senha), aqui o super admin define uma senha
+      // temporária que precisa ser trocada no primeiro login.
+      await supabaseAdmin.from('profiles').update({ force_password_change: true }).eq('id', authUser.user.id)
 
       try {
         await enqueueTemporaryPasswordEmail(supabaseAdmin, adminEmail, finalPassword, adminNome)
       } catch (e) {
         console.error('Failed to send onboarding email', e)
       }
+
+      const { data: empresa } = await supabaseAdmin.from('empresas').select('*').eq('id', provisioned.empresaId).single()
 
       return new Response(JSON.stringify({ empresa, adminUser: authUser.user, tempPassword: finalPassword }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
