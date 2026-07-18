@@ -140,6 +140,15 @@ serve(async (req) => {
       return successSent();
     }
 
+    // resendOnly: usado pela tela /confirme-email, que só coleta um
+    // e-mail (nenhum dado de cadastro). Sem esse modo, alguém navegando
+    // manualmente para /confirme-email?email=alguem@nunca-se-cadastrou.com
+    // e clicando "reenviar" acionaria o ramo "e-mail novo" com nome/
+    // empresa vazios ("-"), criando um tenant de verdade com dados de
+    // lixo. Em resendOnly, o ramo "novo" nunca cria nada — só os ramos
+    // onde o e-mail já existe (reenvio de verdade) são processados.
+    const isResendOnly = body.action === "resend";
+
     const normalizedEmail = normalizeEmail(body.email);
     const nomeCompleto = typeof body.nomeCompleto === "string" ? body.nomeCompleto.trim() : "";
     const whatsapp = typeof body.whatsapp === "string" ? body.whatsapp.trim() : "";
@@ -149,9 +158,11 @@ serve(async (req) => {
 
     if (!normalizedEmail) return genericError("E-mail inválido.");
     email = normalizedEmail;
-    if (nomeCompleto.length < 2) return genericError("Nome completo é obrigatório.");
-    if (empresaNome.length < 2) return genericError("Nome da empresa é obrigatório.");
-    if (password.length < 8) return genericError("A senha precisa ter pelo menos 8 caracteres.");
+    if (!isResendOnly) {
+      if (nomeCompleto.length < 2) return genericError("Nome completo é obrigatório.");
+      if (empresaNome.length < 2) return genericError("Nome da empresa é obrigatório.");
+      if (password.length < 8) return genericError("A senha precisa ter pelo menos 8 caracteres.");
+    }
 
     const rateLimit = await checkSignupRateLimit(admin, ip, email);
     if (!rateLimit.allowed) {
@@ -207,6 +218,14 @@ serve(async (req) => {
         await logSignupAttempt(admin, { ip, email, success: true, reason: "email_send_failed" });
         return successPending();
       }
+    }
+
+    // resendOnly + e-mail nunca cadastrado: nunca cria nada. Mesma
+    // resposta de sucesso genérica dos outros ramos (não revela se o
+    // e-mail existe ou não).
+    if (lookup.state === "new" && isResendOnly) {
+      await logSignupAttempt(admin, { ip, email, success: false, reason: "resend_of_unknown_email" });
+      return successSent();
     }
 
     // Se o e-mail já existe (não confirmado), pula a criação e vai direto
@@ -291,6 +310,15 @@ serve(async (req) => {
     if (!ownerId) {
       await logSignupAttempt(admin, { ip, email, success: false, reason: "error" });
       return genericError("Não foi possível concluir o cadastro. Tente novamente.", 500);
+    }
+
+    if (needsProvisioning && isResendOnly) {
+      // Estado raro (signup anterior parou antes de provisionar) + modo
+      // resend, que não tem nomeCompleto/empresaNome coletados — não dá
+      // pra provisionar com dados vazios. Sem ação; front orienta a
+      // pessoa a refazer o cadastro completo.
+      await logSignupAttempt(admin, { ip, email, success: false, reason: "resend_needs_full_signup" });
+      return successSent();
     }
 
     if (needsProvisioning) {
