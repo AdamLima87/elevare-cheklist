@@ -14,14 +14,18 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
 import { Route as ProspeccaoRouteImport } from './routes/prospeccao'
 import { Route as PerfilRouteImport } from './routes/perfil'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as NovaInspecaoRouteImport } from './routes/nova-inspecao'
 import { Route as MeuResultadoRouteImport } from './routes/meu-resultado'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as EstabelecimentoRouteImport } from './routes/estabelecimento'
 import { Route as EmpresasRouteImport } from './routes/empresas'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ConfirmeEmailRouteImport } from './routes/confirme-email'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
+import { Route as ConcluirCadastroRouteImport } from './routes/concluir-cadastro'
 import { Route as ChecklistRouteImport } from './routes/checklist'
+import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as AgendaRouteImport } from './routes/agenda'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AcessoNegadoRouteImport } from './routes/acesso-negado'
@@ -62,6 +66,11 @@ const PerfilRoute = PerfilRouteImport.update({
   path: '/perfil',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NovaInspecaoRoute = NovaInspecaoRouteImport.update({
   id: '/nova-inspecao',
   path: '/nova-inspecao',
@@ -92,14 +101,29 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConfirmeEmailRoute = ConfirmeEmailRouteImport.update({
+  id: '/confirme-email',
+  path: '/confirme-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
   id: '/configuracoes',
   path: '/configuracoes',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConcluirCadastroRoute = ConcluirCadastroRouteImport.update({
+  id: '/concluir-cadastro',
+  path: '/concluir-cadastro',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChecklistRoute = ChecklistRouteImport.update({
   id: '/checklist',
   path: '/checklist',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CadastroRoute = CadastroRouteImport.update({
+  id: '/cadastro',
+  path: '/cadastro',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AgendaRoute = AgendaRouteImport.update({
@@ -182,14 +206,18 @@ export interface FileRoutesByFullPath {
   '/acesso-negado': typeof AcessoNegadoRoute
   '/admin': typeof AdminRoute
   '/agenda': typeof AgendaRoute
+  '/cadastro': typeof CadastroRoute
   '/checklist': typeof ChecklistRoute
+  '/concluir-cadastro': typeof ConcluirCadastroRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/confirme-email': typeof ConfirmeEmailRoute
   '/dashboard': typeof DashboardRoute
   '/empresas': typeof EmpresasRoute
   '/estabelecimento': typeof EstabelecimentoRoute
   '/login': typeof LoginRoute
   '/meu-resultado': typeof MeuResultadoRoute
   '/nova-inspecao': typeof NovaInspecaoRoute
+  '/onboarding': typeof OnboardingRoute
   '/perfil': typeof PerfilRoute
   '/prospeccao': typeof ProspeccaoRoute
   '/relatorios': typeof RelatoriosRoute
@@ -211,14 +239,18 @@ export interface FileRoutesByTo {
   '/acesso-negado': typeof AcessoNegadoRoute
   '/admin': typeof AdminRoute
   '/agenda': typeof AgendaRoute
+  '/cadastro': typeof CadastroRoute
   '/checklist': typeof ChecklistRoute
+  '/concluir-cadastro': typeof ConcluirCadastroRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/confirme-email': typeof ConfirmeEmailRoute
   '/dashboard': typeof DashboardRoute
   '/empresas': typeof EmpresasRoute
   '/estabelecimento': typeof EstabelecimentoRoute
   '/login': typeof LoginRoute
   '/meu-resultado': typeof MeuResultadoRoute
   '/nova-inspecao': typeof NovaInspecaoRoute
+  '/onboarding': typeof OnboardingRoute
   '/perfil': typeof PerfilRoute
   '/prospeccao': typeof ProspeccaoRoute
   '/relatorios': typeof RelatoriosRoute
@@ -241,14 +273,18 @@ export interface FileRoutesById {
   '/acesso-negado': typeof AcessoNegadoRoute
   '/admin': typeof AdminRoute
   '/agenda': typeof AgendaRoute
+  '/cadastro': typeof CadastroRoute
   '/checklist': typeof ChecklistRoute
+  '/concluir-cadastro': typeof ConcluirCadastroRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/confirme-email': typeof ConfirmeEmailRoute
   '/dashboard': typeof DashboardRoute
   '/empresas': typeof EmpresasRoute
   '/estabelecimento': typeof EstabelecimentoRoute
   '/login': typeof LoginRoute
   '/meu-resultado': typeof MeuResultadoRoute
   '/nova-inspecao': typeof NovaInspecaoRoute
+  '/onboarding': typeof OnboardingRoute
   '/perfil': typeof PerfilRoute
   '/prospeccao': typeof ProspeccaoRoute
   '/relatorios': typeof RelatoriosRoute
@@ -272,14 +308,18 @@ export interface FileRouteTypes {
     | '/acesso-negado'
     | '/admin'
     | '/agenda'
+    | '/cadastro'
     | '/checklist'
+    | '/concluir-cadastro'
     | '/configuracoes'
+    | '/confirme-email'
     | '/dashboard'
     | '/empresas'
     | '/estabelecimento'
     | '/login'
     | '/meu-resultado'
     | '/nova-inspecao'
+    | '/onboarding'
     | '/perfil'
     | '/prospeccao'
     | '/relatorios'
@@ -301,14 +341,18 @@ export interface FileRouteTypes {
     | '/acesso-negado'
     | '/admin'
     | '/agenda'
+    | '/cadastro'
     | '/checklist'
+    | '/concluir-cadastro'
     | '/configuracoes'
+    | '/confirme-email'
     | '/dashboard'
     | '/empresas'
     | '/estabelecimento'
     | '/login'
     | '/meu-resultado'
     | '/nova-inspecao'
+    | '/onboarding'
     | '/perfil'
     | '/prospeccao'
     | '/relatorios'
@@ -330,14 +374,18 @@ export interface FileRouteTypes {
     | '/acesso-negado'
     | '/admin'
     | '/agenda'
+    | '/cadastro'
     | '/checklist'
+    | '/concluir-cadastro'
     | '/configuracoes'
+    | '/confirme-email'
     | '/dashboard'
     | '/empresas'
     | '/estabelecimento'
     | '/login'
     | '/meu-resultado'
     | '/nova-inspecao'
+    | '/onboarding'
     | '/perfil'
     | '/prospeccao'
     | '/relatorios'
@@ -360,14 +408,18 @@ export interface RootRouteChildren {
   AcessoNegadoRoute: typeof AcessoNegadoRoute
   AdminRoute: typeof AdminRoute
   AgendaRoute: typeof AgendaRoute
+  CadastroRoute: typeof CadastroRoute
   ChecklistRoute: typeof ChecklistRoute
+  ConcluirCadastroRoute: typeof ConcluirCadastroRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
+  ConfirmeEmailRoute: typeof ConfirmeEmailRoute
   DashboardRoute: typeof DashboardRoute
   EmpresasRoute: typeof EmpresasRoute
   EstabelecimentoRoute: typeof EstabelecimentoRoute
   LoginRoute: typeof LoginRoute
   MeuResultadoRoute: typeof MeuResultadoRoute
   NovaInspecaoRoute: typeof NovaInspecaoRoute
+  OnboardingRoute: typeof OnboardingRoute
   PerfilRoute: typeof PerfilRoute
   ProspeccaoRoute: typeof ProspeccaoRoute
   RelatoriosRoute: typeof RelatoriosRoute
@@ -422,6 +474,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PerfilRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/nova-inspecao': {
       id: '/nova-inspecao'
       path: '/nova-inspecao'
@@ -464,6 +523,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/confirme-email': {
+      id: '/confirme-email'
+      path: '/confirme-email'
+      fullPath: '/confirme-email'
+      preLoaderRoute: typeof ConfirmeEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/configuracoes': {
       id: '/configuracoes'
       path: '/configuracoes'
@@ -471,11 +537,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConfiguracoesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/concluir-cadastro': {
+      id: '/concluir-cadastro'
+      path: '/concluir-cadastro'
+      fullPath: '/concluir-cadastro'
+      preLoaderRoute: typeof ConcluirCadastroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/checklist': {
       id: '/checklist'
       path: '/checklist'
       fullPath: '/checklist'
       preLoaderRoute: typeof ChecklistRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cadastro': {
+      id: '/cadastro'
+      path: '/cadastro'
+      fullPath: '/cadastro'
+      preLoaderRoute: typeof CadastroRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/agenda': {
@@ -584,14 +664,18 @@ const rootRouteChildren: RootRouteChildren = {
   AcessoNegadoRoute: AcessoNegadoRoute,
   AdminRoute: AdminRoute,
   AgendaRoute: AgendaRoute,
+  CadastroRoute: CadastroRoute,
   ChecklistRoute: ChecklistRoute,
+  ConcluirCadastroRoute: ConcluirCadastroRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
+  ConfirmeEmailRoute: ConfirmeEmailRoute,
   DashboardRoute: DashboardRoute,
   EmpresasRoute: EmpresasRoute,
   EstabelecimentoRoute: EstabelecimentoRoute,
   LoginRoute: LoginRoute,
   MeuResultadoRoute: MeuResultadoRoute,
   NovaInspecaoRoute: NovaInspecaoRoute,
+  OnboardingRoute: OnboardingRoute,
   PerfilRoute: PerfilRoute,
   ProspeccaoRoute: ProspeccaoRoute,
   RelatoriosRoute: RelatoriosRoute,
