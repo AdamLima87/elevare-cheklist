@@ -60,11 +60,10 @@ function OnboardingPage() {
         .maybeSingle();
 
       const payload = { nome_empresa: nomeEmpresa, email_contato: emailContato, telefone };
-      if (existing) {
-        await supabase.from("configuracoes").update(payload).eq("id", existing.id);
-      } else {
-        await supabase.from("configuracoes").insert({ ...payload, empresa_id: profile.empresa_id });
-      }
+      const { error } = existing
+        ? await supabase.from("configuracoes").update(payload).eq("id", existing.id)
+        : await supabase.from("configuracoes").insert({ ...payload, empresa_id: profile.empresa_id });
+      if (error) throw error;
       setStep("resumo");
     } catch (err) {
       console.error("Erro ao salvar dados da consultoria:", err);
@@ -78,10 +77,11 @@ function OnboardingPage() {
     if (!profile?.empresa_id) return;
     setLoading(true);
     try {
-      await supabase
-        .from("empresas")
-        .update({ onboarding_completed_at: new Date().toISOString() })
-        .eq("id", profile.empresa_id);
+      // empresas não tem policy de UPDATE para o cliente (de propósito —
+      // evita abrir escrita direta em colunas sensíveis como plano/status).
+      // Uma RPC SECURITY DEFINER estreita faz só este UPDATE específico.
+      const { error } = await supabase.rpc("complete_onboarding" as any);
+      if (error) throw error;
       navigate({ to: "/dashboard" });
     } catch (err) {
       console.error("Erro ao concluir onboarding:", err);
