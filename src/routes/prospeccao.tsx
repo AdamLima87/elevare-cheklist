@@ -22,7 +22,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Loader2, Plus, CheckCircle2 } from "lucide-react";
+import { Loader2, Plus, CheckCircle2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
@@ -57,6 +57,7 @@ function ProspeccaoPage() {
   const [form, setForm] = useState({ nome: "", cnpj: "", origem: "" });
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverEtapa, setDragOverEtapa] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,15 +127,19 @@ function ProspeccaoPage() {
     handleMoverEtapa(cliente, etapa);
   };
 
+  const clientesFiltrados = search.trim()
+    ? clientes.filter((c) => c.nome.toLowerCase().includes(search.trim().toLowerCase()))
+    : clientes;
+
   const colunas = ETAPAS_FUNIL.map((etapa) => ({
     ...etapa,
-    clientes: clientes.filter((c) => (c.etapa_funil ?? "novo_lead") === etapa.value),
+    clientes: clientesFiltrados.filter((c) => (c.etapa_funil ?? "novo_lead") === etapa.value),
   }));
 
   return (
     <ProtectedRoute allowedProfiles={["admin", "consultor"]}>
       <AppShell>
-        <div className="mb-6 flex flex-col sm:flex-row gap-4 justify-between sm:items-center">
+        <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold">Prospecção</h1>
             <p className="text-sm text-muted-foreground">
@@ -199,35 +204,47 @@ function ProspeccaoPage() {
           </Dialog>
         </div>
 
+        <div className="relative mb-4 max-w-xs">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar prospect..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+
         {isLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 overflow-x-auto pb-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="flex gap-3 overflow-x-auto pb-2">
             {colunas.map((coluna) => (
               <div
                 key={coluna.value}
-                className="min-w-[220px]"
+                className="flex w-[260px] shrink-0 flex-col rounded-xl bg-muted/40 p-2"
                 onDragOver={(e) => handleDragOverColuna(e, coluna.value)}
                 onDragLeave={() => setDragOverEtapa((prev) => (prev === coluna.value ? null : prev))}
                 onDrop={(e) => handleDropColuna(e, coluna.value)}
               >
-                <div className="mb-2 flex items-center justify-between gap-2 px-1">
-                  <span className="label-eyebrow truncate text-[13px] text-muted-foreground">{coluna.label}</span>
-                  <span className="shrink-0 text-xs text-muted-foreground">{coluna.clientes.length}</span>
+                <div className="mb-2 flex items-center justify-between gap-2 px-1 pt-1">
+                  <span className="truncate text-sm font-semibold text-foreground">{coluna.label}</span>
+                  <span className="shrink-0 rounded-full bg-background px-2 py-0.5 text-xs font-medium text-muted-foreground shadow-sm">
+                    {coluna.clientes.length}
+                  </span>
                 </div>
                 <div
                   className={cn(
-                    "space-y-2 rounded-lg min-h-[60px] p-1 -m-1 transition-colors",
-                    dragOverEtapa === coluna.value && "bg-primary/5 ring-2 ring-primary/30",
+                    "flex-1 space-y-2 rounded-lg p-1 transition-colors",
+                    dragOverEtapa === coluna.value && "bg-primary/10 ring-2 ring-primary/30",
                   )}
                 >
                   {coluna.clientes.map((cliente) => (
                     <Card
                       key={cliente.id}
                       className={cn(
-                        "w-full cursor-grab active:cursor-grabbing",
+                        "w-full cursor-grab shadow-sm active:cursor-grabbing",
                         draggingId === cliente.id && "opacity-40",
                       )}
                       draggable
@@ -271,7 +288,9 @@ function ProspeccaoPage() {
                     </Card>
                   ))}
                   {coluna.clientes.length === 0 && (
-                    <p className="px-1 text-xs text-muted-foreground">Vazio</p>
+                    <div className="flex min-h-[100px] items-center justify-center rounded-lg border border-dashed border-border px-3 text-center text-xs leading-relaxed text-muted-foreground">
+                      Arraste para cá para mover prospects pra essa etapa
+                    </div>
                   )}
                 </div>
               </div>
