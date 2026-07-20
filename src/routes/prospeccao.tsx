@@ -214,7 +214,7 @@ function ProspeccaoPage() {
                 onDrop={(e) => handleDropColuna(e, coluna.value)}
               >
                 <div className="mb-2 flex items-center justify-between gap-2 px-1">
-                  <span className="label-eyebrow truncate text-muted-foreground">{coluna.label}</span>
+                  <span className="label-eyebrow truncate text-[13px] text-muted-foreground">{coluna.label}</span>
                   <span className="shrink-0 text-xs text-muted-foreground">{coluna.clientes.length}</span>
                 </div>
                 <div
