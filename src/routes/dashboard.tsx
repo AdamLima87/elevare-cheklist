@@ -5,16 +5,19 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, TrendingDown, Users, Building2, ClipboardCheck, AlertTriangle, CalendarClock, FileWarning } from "lucide-react";
+import { Loader2, CalendarClock, FileWarning } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from "recharts";
-import { checklistSections } from "@/lib/checklist-data";
+import { checklistSections, contarNCCriticas } from "@/lib/checklist-data";
 import { dedupeLatestPerCnpj, dueDate, isWithinReminderWindow } from "@/lib/reinspection";
 import { cn } from "@/lib/utils";
 import { useUpcomingVisitas } from "@/hooks/useVisitas";
 import { useExpiringDocumentos } from "@/hooks/useDocumentos";
+import { calcularSecoes, classificacao } from "@/lib/storage";
+import { toTrendPoints } from "@/lib/compliance-trend";
+import { DashboardSummaryCards } from "@/components/elevare/DashboardSummaryCards";
 
 export const Route = createFileRoute("/dashboard")({
   component: DashboardPage,
@@ -24,14 +27,17 @@ const DASHBOARD_COLUMNS =
   "id, status, conformidade, cnpj, estabelecimento_nome, data_inicio, data_conclusao, consultor_id, dados, respostas";
 
 async function fetchDashboardStats() {
-  const { data: inspections, error } = await supabase.from("inspecoes").select(DASHBOARD_COLUMNS);
+  const [
+    { data: inspections, error },
+    { data: consultants },
+    { count: agendadasCount },
+  ] = await Promise.all([
+    supabase.from("inspecoes").select(DASHBOARD_COLUMNS),
+    supabase.from("profiles").select("id, nome").eq("perfil", "consultor"),
+    supabase.from("visitas").select("id", { count: "exact", head: true }).eq("status", "agendada"),
+  ]);
 
   if (error) throw error;
-
-  const { data: consultants } = await supabase
-    .from("profiles")
-    .select("id, nome")
-    .eq("perfil", "consultor");
 
   const consultantMap = (consultants || []).reduce((acc: any, c: any) => {
     acc[c.id] = c.nome;
@@ -166,6 +172,57 @@ async function fetchDashboardStats() {
     .sort((a: any, b: any) => b.count - a.count)
     .slice(0, 10);
 
+  // Summary cards: detalhamento por categoria + totais de não conformidade
+  const CATEGORY_IDS = ["instalacoes", "manipuladores", "higienizacao", "armazenamento"];
+  const sectionAgg: Record<string, { title: string; sumPct: number; count: number }> = {};
+  checklistSections.forEach((s) => (sectionAgg[s.id] = { title: s.title, sumPct: 0, count: 0 }));
+
+  let totalNC = 0;
+  let totalCriticalNC = 0;
+
+  concluded.forEach((i) => {
+    const respostas = i.respostas as any;
+    if (!respostas) return;
+    calcularSecoes(respostas).forEach((sec) => {
+      if (sec.percentual !== null) {
+        sectionAgg[sec.id].sumPct += sec.percentual;
+        sectionAgg[sec.id].count++;
+      }
+    });
+    totalNC += Object.values(respostas).filter((r) => r === "N").length;
+    totalCriticalNC += contarNCCriticas(respostas);
+  });
+
+  const categoryBreakdown = CATEGORY_IDS.map((id) => {
+    const agg = sectionAgg[id];
+    return {
+      id,
+      title: agg.title.split(",")[0].slice(0, 18),
+      percentual: agg.count > 0 ? agg.sumPct / agg.count : 0,
+    };
+  });
+
+  const classification = classificacao(avgCompliance, totalCriticalNC);
+
+  const trendPoints = toTrendPoints(
+    concluded.map((i) => ({ data_conclusao: i.data_conclusao, conformidade: i.conformidade })),
+  );
+  const trendWindow = trendPoints.slice(-8);
+  const trendDelta =
+    trendWindow.length >= 2
+      ? trendWindow[trendWindow.length - 1].conformidade - trendWindow[0].conformidade
+      : null;
+  const trendDeltaLabel =
+    trendDelta === null
+      ? "Dados insuficientes"
+      : `${trendDelta >= 0 ? "+" : ""}${trendDelta.toFixed(0)} p.p. em ${trendWindow.length} inspeções`;
+
+  const statusCounts = {
+    finalizadas: concluded.length,
+    emAndamento: totalInspections - concluded.length,
+    agendadas: agendadasCount ?? 0,
+  };
+
   return {
     totalInspections,
     avgCompliance,
@@ -178,6 +235,13 @@ async function fetchDashboardStats() {
     reinspectionsDue,
     consultantPerf,
     segmentPerf,
+    categoryBreakdown,
+    totalNC,
+    totalCriticalNC,
+    classification,
+    trendWindow,
+    trendDeltaLabel,
+    statusCounts,
   };
 }
 
@@ -220,34 +284,16 @@ function DashboardPage() {
             <p className="text-sm text-muted-foreground mt-1">Visão geral das inspeções e performance de conformidade.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              title="Total de Inspeções"
-              value={stats.totalInspections}
-              icon={ClipboardCheck}
-              accent="var(--brand)"
-            />
-            <StatCard
-              title="Conformidade Média"
-              value={`${(stats.avgCompliance || 0).toFixed(1)}%`}
-              icon={TrendingDown}
-              accent="var(--brand-accent)"
-              sub="Dos concluídos"
-            />
-            <StatCard
-              title="Estabelecimentos"
-              value={stats.activeEstabs}
-              icon={Building2}
-              accent="var(--amber-seal)"
-            />
-            <StatCard
-              title="Classificação Ruim"
-              value={`${(stats.pctRuim || 0).toFixed(1)}%`}
-              icon={AlertTriangle}
-              accent="var(--destructive)"
-              sub="Abaixo de 50%"
-            />
-          </div>
+          <DashboardSummaryCards
+            overallPercent={stats.avgCompliance || 0}
+            classification={stats.classification}
+            categoryBreakdown={stats.categoryBreakdown}
+            totalNC={stats.totalNC}
+            criticalNC={stats.totalCriticalNC}
+            trendPoints={stats.trendWindow}
+            trendDeltaLabel={stats.trendDeltaLabel}
+            statusCounts={stats.statusCounts}
+          />
 
           {stats.reinspectionsDue.length > 0 && (
             <Card className="p-6 border-l-4" style={{ borderLeftColor: "var(--amber-seal)" }}>
@@ -535,23 +581,3 @@ function DashboardPage() {
   );
 }
 
-function StatCard({ title, value, icon: Icon, accent, sub }: any) {
-  return (
-    <div
-      className="relative bg-card rounded-md p-5 flex items-center gap-4 border border-border shadow-sm overflow-hidden"
-      style={{ borderLeft: `3px solid ${accent}` }}
-    >
-      <div
-        className="p-2.5 rounded-md"
-        style={{ background: `color-mix(in oklab, ${accent} 12%, transparent)`, color: accent }}
-      >
-        <Icon className="h-5 w-5" strokeWidth={1.8} />
-      </div>
-      <div>
-        <p className="label-eyebrow text-muted-foreground">{title}</p>
-        <h3 className="font-display text-3xl font-semibold mt-1 leading-none">{value}</h3>
-        {sub && <p className="text-[11px] text-muted-foreground mt-1.5">{sub}</p>}
-      </div>
-    </div>
-  );
-}
