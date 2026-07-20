@@ -39,11 +39,20 @@ const clientesSubItems = [
   { icon: ClipboardCheck, label: "Nova Inspeção", to: "/nova-inspecao" },
 ];
 
+const crmSubItems = [
+  { icon: LayoutDashboard, label: "Mesa de Trabalho", to: "/crm" },
+  { icon: Building2, label: "Contas", to: "/crm/empresas" },
+  { icon: Target, label: "Pipeline", to: "/crm/pipeline" },
+  { icon: CalendarDays, label: "Atividades", to: "/crm/atividades" },
+  { icon: BarChart3, label: "Dashboard", to: "/crm/dashboard" },
+];
+
 export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: SidebarProps) {
   const location = useLocation();
   const [isMobile, setIsMobile] = useState(false);
   const [flyoutOpen, setFlyoutOpen] = useState(false);
   const [flyoutTop, setFlyoutTop] = useState(0);
+  const [flyoutItems, setFlyoutItems] = useState<typeof clientesSubItems>([]);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -53,10 +62,11 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const openFlyout = (e: React.MouseEvent<HTMLAnchorElement>) => {
+  const openFlyout = (e: React.MouseEvent<HTMLAnchorElement>, subItems: typeof clientesSubItems) => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
     const rect = e.currentTarget.getBoundingClientRect();
     setFlyoutTop(rect.top);
+    setFlyoutItems(subItems);
     setFlyoutOpen(true);
   };
 
@@ -67,24 +77,27 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
   const menuItems = {
     admin: [
       { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
-      { icon: Building2, label: "Clientes", to: "/clientes", hasFlyout: true },
+      { icon: Building2, label: "Clientes", to: "/clientes", hasFlyout: true, subItems: clientesSubItems },
       { icon: Target, label: "Prospecção", to: "/prospeccao" },
+      { icon: Briefcase, label: "CRM Comercial", to: "/crm", hasFlyout: true, subItems: crmSubItems },
       { icon: BarChart3, label: "Relatórios", to: "/relatorios" },
       { icon: Users, label: "Usuários", to: "/admin" },
       { icon: Settings, label: "Configurações", to: "/configuracoes" },
     ],
     super_admin: [
       { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
-      { icon: Building2, label: "Clientes", to: "/clientes", hasFlyout: true },
+      { icon: Building2, label: "Clientes", to: "/clientes", hasFlyout: true, subItems: clientesSubItems },
       { icon: Target, label: "Prospecção", to: "/prospeccao" },
+      { icon: Briefcase, label: "CRM Comercial", to: "/crm", hasFlyout: true, subItems: crmSubItems },
       { icon: BarChart3, label: "Relatórios", to: "/relatorios" },
       { icon: Users, label: "Usuários", to: "/admin" },
       { icon: Settings, label: "Configurações", to: "/configuracoes" },
       { icon: Briefcase, label: "Empresas", to: "/empresas" },
     ],
     consultor: [
-      { icon: Building2, label: "Clientes", to: "/clientes", hasFlyout: true },
+      { icon: Building2, label: "Clientes", to: "/clientes", hasFlyout: true, subItems: clientesSubItems },
       { icon: Target, label: "Prospecção", to: "/prospeccao" },
+      { icon: Briefcase, label: "CRM Comercial", to: "/crm", hasFlyout: true, subItems: crmSubItems },
       { icon: BarChart3, label: "Meus Relatórios", to: "/relatorios" },
     ],
     cliente: [
@@ -119,7 +132,7 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
               <div key={item.to}>
                 <Link
                   to={item.to}
-                  onMouseEnter={item.hasFlyout && !isMobile ? openFlyout : undefined}
+                  onMouseEnter={item.hasFlyout && !isMobile ? (e) => openFlyout(e, item.subItems ?? []) : undefined}
                   onMouseLeave={item.hasFlyout && !isMobile ? scheduleCloseFlyout : undefined}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2 rounded-sm transition-all group overflow-hidden relative",
@@ -142,7 +155,7 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
                 {/* Mobile: sub-itens aparecem indentados, sem flyout */}
                 {isMobile && item.hasFlyout && (
                   <div className="ml-6 mt-0.5 space-y-0.5 border-l border-white/10 pl-2">
-                    {clientesSubItems.map((sub) => (
+                    {(item.subItems ?? []).map((sub) => (
                       <Link
                         key={sub.label}
                         to={sub.to}
@@ -213,7 +226,7 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
             }}
             onMouseLeave={scheduleCloseFlyout}
           >
-            {clientesSubItems.map((sub) => (
+            {flyoutItems.map((sub) => (
               <Link
                 key={sub.label}
                 to={sub.to}

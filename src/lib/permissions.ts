@@ -17,7 +17,8 @@ export type Permission =
   | "manage_clients"
   | "manage_inspections"
   | "delete_company"
-  | "transfer_ownership";
+  | "transfer_ownership"
+  | "manage_crm";
 
 const PERMISSIONS: Record<Perfil, ReadonlySet<Permission>> = {
   super_admin: new Set([
@@ -28,6 +29,7 @@ const PERMISSIONS: Record<Perfil, ReadonlySet<Permission>> = {
     "manage_inspections",
     "delete_company",
     "transfer_ownership",
+    "manage_crm",
   ]),
   // Hoje o admin É o dono da empresa — por isso recebe também as
   // permissões "exclusivas de owner". Quando o papel owner existir de
@@ -40,8 +42,9 @@ const PERMISSIONS: Record<Perfil, ReadonlySet<Permission>> = {
     "manage_inspections",
     "delete_company",
     "transfer_ownership",
+    "manage_crm",
   ]),
-  consultor: new Set(["manage_clients", "manage_inspections"]),
+  consultor: new Set(["manage_clients", "manage_inspections", "manage_crm"]),
   cliente: new Set([]),
 };
 
@@ -81,4 +84,8 @@ export function canDeleteCompany(profile: ProfileLike | null | undefined): boole
 
 export function canTransferOwnership(profile: ProfileLike | null | undefined): boolean {
   return hasPermission(profile, "transfer_ownership");
+}
+
+export function canManageCrm(profile: ProfileLike | null | undefined): boolean {
+  return hasPermission(profile, "manage_crm");
 }

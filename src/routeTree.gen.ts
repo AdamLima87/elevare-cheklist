@@ -30,10 +30,13 @@ import { Route as AgendaRouteImport } from './routes/agenda'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AcessoNegadoRouteImport } from './routes/acesso-negado'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CrmIndexRouteImport } from './routes/crm/index'
 import { Route as ClientesIndexRouteImport } from './routes/clientes/index'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as ClientesIdRouteImport } from './routes/clientes/$id'
+import { Route as CrmEmpresasIndexRouteImport } from './routes/crm/empresas/index'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
+import { Route as CrmEmpresasIdRouteImport } from './routes/crm/empresas/$id'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as LovableEmailRemindersCheckReinspectionRouteImport } from './routes/lovable/email/reminders/check-reinspection'
@@ -146,6 +149,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CrmIndexRoute = CrmIndexRouteImport.update({
+  id: '/crm/',
+  path: '/crm/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ClientesIndexRoute = ClientesIndexRouteImport.update({
   id: '/clientes/',
   path: '/clientes/',
@@ -161,9 +169,19 @@ const ClientesIdRoute = ClientesIdRouteImport.update({
   path: '/clientes/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CrmEmpresasIndexRoute = CrmEmpresasIndexRouteImport.update({
+  id: '/crm/empresas/',
+  path: '/crm/empresas/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
   id: '/lovable/email/suppression',
   path: '/lovable/email/suppression',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CrmEmpresasIdRoute = CrmEmpresasIdRouteImport.update({
+  id: '/crm/empresas/$id',
+  path: '/crm/empresas/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LovableEmailTransactionalSendRoute =
@@ -226,7 +244,10 @@ export interface FileRoutesByFullPath {
   '/clientes/$id': typeof ClientesIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/clientes/': typeof ClientesIndexRoute
+  '/crm/': typeof CrmIndexRoute
+  '/crm/empresas/$id': typeof CrmEmpresasIdRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
+  '/crm/empresas/': typeof CrmEmpresasIndexRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -259,7 +280,10 @@ export interface FileRoutesByTo {
   '/clientes/$id': typeof ClientesIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/clientes': typeof ClientesIndexRoute
+  '/crm': typeof CrmIndexRoute
+  '/crm/empresas/$id': typeof CrmEmpresasIdRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
+  '/crm/empresas': typeof CrmEmpresasIndexRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -293,7 +317,10 @@ export interface FileRoutesById {
   '/clientes/$id': typeof ClientesIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/clientes/': typeof ClientesIndexRoute
+  '/crm/': typeof CrmIndexRoute
+  '/crm/empresas/$id': typeof CrmEmpresasIdRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
+  '/crm/empresas/': typeof CrmEmpresasIndexRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -328,7 +355,10 @@ export interface FileRouteTypes {
     | '/clientes/$id'
     | '/email/unsubscribe'
     | '/clientes/'
+    | '/crm/'
+    | '/crm/empresas/$id'
     | '/lovable/email/suppression'
+    | '/crm/empresas/'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
@@ -361,7 +391,10 @@ export interface FileRouteTypes {
     | '/clientes/$id'
     | '/email/unsubscribe'
     | '/clientes'
+    | '/crm'
+    | '/crm/empresas/$id'
     | '/lovable/email/suppression'
+    | '/crm/empresas'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
@@ -394,7 +427,10 @@ export interface FileRouteTypes {
     | '/clientes/$id'
     | '/email/unsubscribe'
     | '/clientes/'
+    | '/crm/'
+    | '/crm/empresas/$id'
     | '/lovable/email/suppression'
+    | '/crm/empresas/'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
@@ -428,7 +464,10 @@ export interface RootRouteChildren {
   ClientesIdRoute: typeof ClientesIdRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   ClientesIndexRoute: typeof ClientesIndexRoute
+  CrmIndexRoute: typeof CrmIndexRoute
+  CrmEmpresasIdRoute: typeof CrmEmpresasIdRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
+  CrmEmpresasIndexRoute: typeof CrmEmpresasIndexRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
@@ -586,6 +625,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/crm/': {
+      id: '/crm/'
+      path: '/crm'
+      fullPath: '/crm/'
+      preLoaderRoute: typeof CrmIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/clientes/': {
       id: '/clientes/'
       path: '/clientes'
@@ -607,11 +653,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClientesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/crm/empresas/': {
+      id: '/crm/empresas/'
+      path: '/crm/empresas'
+      fullPath: '/crm/empresas/'
+      preLoaderRoute: typeof CrmEmpresasIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lovable/email/suppression': {
       id: '/lovable/email/suppression'
       path: '/lovable/email/suppression'
       fullPath: '/lovable/email/suppression'
       preLoaderRoute: typeof LovableEmailSuppressionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/crm/empresas/$id': {
+      id: '/crm/empresas/$id'
+      path: '/crm/empresas/$id'
+      fullPath: '/crm/empresas/$id'
+      preLoaderRoute: typeof CrmEmpresasIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lovable/email/transactional/send': {
@@ -684,7 +744,10 @@ const rootRouteChildren: RootRouteChildren = {
   ClientesIdRoute: ClientesIdRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   ClientesIndexRoute: ClientesIndexRoute,
+  CrmIndexRoute: CrmIndexRoute,
+  CrmEmpresasIdRoute: CrmEmpresasIdRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
+  CrmEmpresasIndexRoute: CrmEmpresasIndexRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
