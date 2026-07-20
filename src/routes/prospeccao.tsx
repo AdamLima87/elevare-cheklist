@@ -185,16 +185,16 @@ function ProspeccaoPage() {
                 </div>
                 <div className="space-y-2">
                   {coluna.clientes.map((cliente) => (
-                    <Card key={cliente.id}>
-                      <CardHeader className="pb-2">
+                    <Card key={cliente.id} className="w-full">
+                      <CardHeader className="p-3 pb-2">
                         <CardTitle
-                          className="cursor-pointer text-sm hover:underline"
+                          className="cursor-pointer text-sm leading-snug hover:underline"
                           onClick={() => navigate({ to: "/clientes/$id", params: { id: cliente.id } })}
                         >
                           {cliente.nome}
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-2 pb-3 text-xs text-muted-foreground">
+                      <CardContent className="space-y-2 p-3 pt-0 text-xs text-muted-foreground">
                         {cliente.origem && <div>Origem: {cliente.origem}</div>}
                         <Select
                           value={cliente.etapa_funil ?? "novo_lead"}
