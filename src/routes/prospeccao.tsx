@@ -177,11 +177,11 @@ function ProspeccaoPage() {
           <div className="grid grid-cols-1 gap-4 overflow-x-auto pb-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             {colunas.map((coluna) => (
               <div key={coluna.value} className="min-w-[220px]">
-                <div className="mb-2 flex items-center justify-between px-1">
-                  <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                <div className="mb-2 flex items-center justify-between gap-2 px-1">
+                  <h3 className="truncate text-xs font-semibold uppercase text-muted-foreground">
                     {coluna.label}
                   </h3>
-                  <span className="text-xs text-muted-foreground">{coluna.clientes.length}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{coluna.clientes.length}</span>
                 </div>
                 <div className="space-y-2">
                   {coluna.clientes.map((cliente) => (
