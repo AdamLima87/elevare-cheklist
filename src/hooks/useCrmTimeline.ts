@@ -30,6 +30,23 @@ export function useCrmTimeline(crmOportunidadeId: string | undefined) {
   });
 }
 
+// Feed completo da Conta — todas as oportunidades, "nada invisível".
+export function useCrmTimelinePorConta(crmEmpresaId: string | undefined) {
+  return useQuery({
+    queryKey: ["crm-timeline", "conta", crmEmpresaId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("crm_timeline")
+        .select("*")
+        .eq("crm_empresa_id", crmEmpresaId as string)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as CrmTimelineEvento[];
+    },
+    enabled: !!crmEmpresaId,
+  });
+}
+
 // Só permite origem='usuario' com autor_id = usuário logado — a RLS de
 // crm_timeline reforça exatamente essa regra no banco (eventos 'sistema'
 // só entram via trigger/RPC), então esta é a única forma de inserção que o

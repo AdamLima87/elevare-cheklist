@@ -27,13 +27,15 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { useCrmEmpresas } from "@/hooks/useCrmEmpresas";
-import { useCrmPipelinePadrao, useCrmEtapas } from "@/hooks/useCrmCatalogos";
+import { useCrmPipelinePadrao, useCrmEtapas, useCrmTiposAtividade } from "@/hooks/useCrmCatalogos";
 import {
   useCrmOportunidades,
   useUpsertCrmOportunidade,
   useMoverEtapaOportunidade,
+  isProximaAcaoObrigatoriaError,
   type CrmOportunidade,
 } from "@/hooks/useCrmOportunidades";
+import { NextActionRequiredDialog } from "@/components/crm/NextActionRequiredDialog";
 
 export const Route = createFileRoute("/crm/pipeline")({
   head: () => ({
@@ -57,6 +59,7 @@ function CrmPipelinePage() {
   const { data: etapas = [], isLoading: loadingEtapas } = useCrmEtapas(pipeline?.id);
   const { data: oportunidades = [], isLoading: loadingOportunidades } = useCrmOportunidades(pipeline?.id);
   const { data: contas = [] } = useCrmEmpresas();
+  const { data: tiposAtividade = [] } = useCrmTiposAtividade();
   const upsertOportunidade = useUpsertCrmOportunidade();
   const moverEtapa = useMoverEtapaOportunidade();
 
@@ -65,6 +68,10 @@ function CrmPipelinePage() {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverEtapa, setDragOverEtapa] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [proximaAcaoPendente, setProximaAcaoPendente] = useState<{
+    oportunidade: CrmOportunidade;
+    etapaId: string;
+  } | null>(null);
 
   const etapasAbertas = etapas.filter((e) => e.tipo === "aberta");
   const primeiraEtapa = etapas.find((e) => e.tipo === "aberta");
@@ -97,6 +104,27 @@ function CrmPipelinePage() {
     if (!pipeline) return;
     try {
       await moverEtapa.mutateAsync({ id: oportunidade.id, etapa_id: etapaId, pipeline_id: pipeline.id });
+    } catch (error: any) {
+      if (isProximaAcaoObrigatoriaError(error)) {
+        setProximaAcaoPendente({ oportunidade, etapaId });
+        return;
+      }
+      toast.error(error.message || "Erro ao mover etapa");
+    }
+  };
+
+  const handleConfirmarProximaAcao = async (tipoId: string, vencimentoIso: string) => {
+    if (!proximaAcaoPendente || !pipeline) return;
+    try {
+      await moverEtapa.mutateAsync({
+        id: proximaAcaoPendente.oportunidade.id,
+        etapa_id: proximaAcaoPendente.etapaId,
+        pipeline_id: pipeline.id,
+        nova_atividade_tipo_id: tipoId,
+        nova_atividade_vencimento: vencimentoIso,
+      });
+      toast.success("Etapa movida e próxima atividade agendada!");
+      setProximaAcaoPendente(null);
     } catch (error: any) {
       toast.error(error.message || "Erro ao mover etapa");
     }
@@ -313,6 +341,14 @@ function CrmPipelinePage() {
             ))}
           </div>
         )}
+
+        <NextActionRequiredDialog
+          open={!!proximaAcaoPendente}
+          onOpenChange={(v) => !v && setProximaAcaoPendente(null)}
+          tiposAtividade={tiposAtividade}
+          onConfirm={handleConfirmarProximaAcao}
+          isPending={moverEtapa.isPending}
+        />
       </AppShell>
     </ProtectedRoute>
   );

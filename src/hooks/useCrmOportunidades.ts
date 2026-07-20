@@ -84,18 +84,29 @@ export function useUpsertCrmOportunidade() {
   });
 }
 
-// Move de etapa "simples" (etapa 'aberta' -> 'aberta'). Fechamento
-// ganho/perdido usa uma RPC transacional dedicada (Etapa 7).
+// Move de etapa "aberta -> aberta", via RPC atômica que garante a regra de
+// "próxima ação obrigatória" (crm_mover_etapa_com_proxima_acao). Se a
+// oportunidade ficar sem nenhuma atividade pendente, a RPC exige que o
+// caller informe tipo+vencimento da próxima atividade — senão lança um erro
+// cuja mensagem começa com "PROXIMA_ACAO_OBRIGATORIA", que a UI reconhece
+// pra abrir um dialog de agendamento e tentar de novo.
+// Fechamento ganho/perdido usa uma RPC transacional dedicada (Etapa 7).
 export function useMoverEtapaOportunidade() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id: string; etapa_id: string; pipeline_id: string }) => {
-      const { data, error } = await supabase
-        .from("crm_oportunidades")
-        .update({ etapa_id: input.etapa_id })
-        .eq("id", input.id)
-        .select()
-        .single();
+    mutationFn: async (input: {
+      id: string;
+      etapa_id: string;
+      pipeline_id: string;
+      nova_atividade_tipo_id?: string;
+      nova_atividade_vencimento?: string;
+    }) => {
+      const { data, error } = await supabase.rpc("crm_mover_etapa_com_proxima_acao", {
+        p_oportunidade_id: input.id,
+        p_etapa_id: input.etapa_id,
+        p_nova_atividade_tipo_id: input.nova_atividade_tipo_id ?? null,
+        p_nova_atividade_vencimento: input.nova_atividade_vencimento ?? null,
+      });
       if (error) throw error;
       return data as CrmOportunidade;
     },
@@ -103,6 +114,12 @@ export function useMoverEtapaOportunidade() {
       queryClient.invalidateQueries({ queryKey: ["crm-oportunidades", data.pipeline_id] });
       queryClient.invalidateQueries({ queryKey: ["crm-oportunidade", data.id] });
       queryClient.invalidateQueries({ queryKey: ["crm-timeline"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-atividades"] });
     },
   });
+}
+
+export function isProximaAcaoObrigatoriaError(error: unknown): boolean {
+  const message = (error as { message?: string } | null)?.message;
+  return typeof message === "string" && message.startsWith("PROXIMA_ACAO_OBRIGATORIA");
 }

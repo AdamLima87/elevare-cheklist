@@ -17,11 +17,27 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Loader2, ArrowLeft, Plus, Trash2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2, ArrowLeft, Plus, Trash2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { useCrmEmpresa, type CrmEmpresaStatus } from "@/hooks/useCrmEmpresas";
 import { useCrmContatos, useUpsertCrmContato, useDeleteCrmContato } from "@/hooks/useCrmContatos";
+import { useCrmTiposAtividade } from "@/hooks/useCrmCatalogos";
+import {
+  useCrmAtividadesPorConta,
+  useCriarCrmAtividade,
+  useConcluirCrmAtividade,
+  type CrmAtividade,
+} from "@/hooks/useCrmAtividades";
+import { isProximaAcaoObrigatoriaError } from "@/hooks/useCrmOportunidades";
+import { NextActionRequiredDialog } from "@/components/crm/NextActionRequiredDialog";
 
 const STATUS_LABEL: Record<CrmEmpresaStatus, string> = {
   lead: "Lead",
@@ -73,6 +89,7 @@ function CrmEmpresaDetailPage() {
               <TabsList>
                 <TabsTrigger value="geral">Visão Geral</TabsTrigger>
                 <TabsTrigger value="contatos">Contatos</TabsTrigger>
+                <TabsTrigger value="atividades">Atividades</TabsTrigger>
               </TabsList>
 
               <TabsContent value="geral">
@@ -111,6 +128,10 @@ function CrmEmpresaDetailPage() {
 
               <TabsContent value="contatos">
                 <ContatosTab crmEmpresaId={id} />
+              </TabsContent>
+
+              <TabsContent value="atividades">
+                <AtividadesTab crmEmpresaId={id} />
               </TabsContent>
             </Tabs>
           </>
@@ -263,6 +284,202 @@ function ContatosTab({ crmEmpresaId }: { crmEmpresaId: string }) {
           ))
         )}
       </CardContent>
+    </Card>
+  );
+}
+
+function AtividadesTab({ crmEmpresaId }: { crmEmpresaId: string }) {
+  const { data: profile } = useCurrentProfile();
+  const { data: atividades = [], isLoading } = useCrmAtividadesPorConta(crmEmpresaId);
+  const { data: tiposAtividade = [] } = useCrmTiposAtividade();
+  const criarAtividade = useCriarCrmAtividade();
+  const concluirAtividade = useConcluirCrmAtividade();
+
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ tipo_id: "", vencimento: "", observacoes: "" });
+  const [concluindoId, setConcluindoId] = useState<string | null>(null);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile?.empresa_id || !form.tipo_id || !form.vencimento) return;
+    try {
+      await criarAtividade.mutateAsync({
+        empresa_id: profile.empresa_id,
+        crm_empresa_id: crmEmpresaId,
+        tipo_id: form.tipo_id,
+        responsavel_id: profile.userId,
+        vencimento: new Date(form.vencimento).toISOString(),
+        observacoes: form.observacoes || null,
+      });
+      toast.success("Atividade agendada!");
+      setOpen(false);
+      setForm({ tipo_id: "", vencimento: "", observacoes: "" });
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao agendar atividade");
+    }
+  };
+
+  const handleConcluir = async (atividade: CrmAtividade) => {
+    try {
+      await concluirAtividade.mutateAsync({ id: atividade.id, resultado: "Concluída" });
+      toast.success("Atividade concluída!");
+    } catch (error: any) {
+      if (isProximaAcaoObrigatoriaError(error)) {
+        setConcluindoId(atividade.id);
+        return;
+      }
+      toast.error(error.message || "Erro ao concluir atividade");
+    }
+  };
+
+  const handleConfirmarProximaAcao = async (tipoId: string, vencimentoIso: string) => {
+    if (!concluindoId) return;
+    try {
+      await concluirAtividade.mutateAsync({
+        id: concluindoId,
+        resultado: "Concluída",
+        nova_atividade_tipo_id: tipoId,
+        nova_atividade_vencimento: vencimentoIso,
+      });
+      toast.success("Atividade concluída e próxima agendada!");
+      setConcluindoId(null);
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao concluir atividade");
+    }
+  };
+
+  const pendentes = atividades.filter((a) => a.status === "pendente");
+  const outras = atividades.filter((a) => a.status !== "pendente");
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-base">Atividades</CardTitle>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" className="gap-1.5">
+              <Plus className="h-4 w-4" /> Agendar Atividade
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <form onSubmit={handleCreate}>
+              <DialogHeader>
+                <DialogTitle>Agendar Atividade</DialogTitle>
+                <DialogDescription>Crie uma atividade ligada a esta conta.</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="tipo">Tipo</Label>
+                  <Select value={form.tipo_id} onValueChange={(v) => setForm({ ...form, tipo_id: v })}>
+                    <SelectTrigger id="tipo">
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tiposAtividade.map((tipo) => (
+                        <SelectItem key={tipo.id} value={tipo.id}>
+                          {tipo.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="vencimento">Quando</Label>
+                  <Input
+                    id="vencimento"
+                    type="datetime-local"
+                    value={form.vencimento}
+                    onChange={(e) => setForm({ ...form, vencimento: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="observacoes">Observações</Label>
+                  <Input
+                    id="observacoes"
+                    value={form.observacoes}
+                    onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit" disabled={criarAtividade.isPending} className="w-full">
+                  {criarAtividade.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Agendar"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        ) : atividades.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma atividade agendada ainda.</p>
+        ) : (
+          <>
+            {pendentes.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Pendentes</p>
+                {pendentes.map((atividade) => (
+                  <div
+                    key={atividade.id}
+                    className="flex items-center justify-between rounded-lg border border-border p-3"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">{atividade.crm_tipos_atividade?.nome}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(atividade.vencimento).toLocaleString("pt-BR")}
+                        {atividade.observacoes ? ` · ${atividade.observacoes}` : ""}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => handleConcluir(atividade)}
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Concluir
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {outras.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Histórico</p>
+                {outras.map((atividade) => (
+                  <div
+                    key={atividade.id}
+                    className="flex items-center justify-between rounded-lg border border-border p-3 opacity-70"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">{atividade.crm_tipos_atividade?.nome}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(atividade.vencimento).toLocaleString("pt-BR")}
+                        {atividade.resultado ? ` · ${atividade.resultado}` : ""}
+                      </p>
+                    </div>
+                    <Badge variant="outline">{atividade.status === "concluida" ? "Concluída" : "Cancelada"}</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+
+      <NextActionRequiredDialog
+        open={!!concluindoId}
+        onOpenChange={(v) => !v && setConcluindoId(null)}
+        tiposAtividade={tiposAtividade}
+        onConfirm={handleConfirmarProximaAcao}
+        isPending={concluirAtividade.isPending}
+        title="Agende a próxima ação"
+        description="Esta é a última atividade pendente de uma oportunidade em aberto. Agende a próxima antes de concluir."
+      />
     </Card>
   );
 }
