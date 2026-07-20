@@ -44,6 +44,30 @@ export function useCrmEmpresas(search?: string, status?: CrmEmpresaStatus) {
   });
 }
 
+export interface CrmEmpresaComScore extends CrmEmpresa {
+  score: number;
+}
+
+// Lê de crm_empresas_score (view WITH security_invoker=true, Etapa 4) —
+// score calculado por crm_lead_score() em cada linha, sem IA, só regras.
+export function useCrmEmpresasComScore(search?: string, status?: CrmEmpresaStatus) {
+  return useQuery({
+    queryKey: ["crm-empresas-score", search, status],
+    queryFn: async () => {
+      let query = supabase.from("crm_empresas_score").select("*").order("razao_social");
+      if (search) {
+        query = query.or(`razao_social.ilike.%${search}%,nome_fantasia.ilike.%${search}%,cnpj.ilike.%${search}%`);
+      }
+      if (status) {
+        query = query.eq("status", status);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data ?? []) as CrmEmpresaComScore[];
+    },
+  });
+}
+
 export function useCrmEmpresa(id: string | undefined) {
   return useQuery({
     queryKey: ["crm-empresa", id],
@@ -108,6 +132,7 @@ export function useUpsertCrmEmpresa() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["crm-empresas"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-empresas-score"] });
       queryClient.invalidateQueries({ queryKey: ["crm-empresa", data.id] });
     },
   });

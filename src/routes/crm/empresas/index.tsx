@@ -27,7 +27,8 @@ import {
 import { Loader2, Plus, Search, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
-import { useCrmEmpresas, useUpsertCrmEmpresa, type CrmEmpresaStatus } from "@/hooks/useCrmEmpresas";
+import { useCrmEmpresasComScore, useUpsertCrmEmpresa, type CrmEmpresaStatus } from "@/hooks/useCrmEmpresas";
+import { CrmLeadScoreBadge } from "@/components/crm/CrmLeadScoreBadge";
 
 const STATUS_LABEL: Record<CrmEmpresaStatus, string> = {
   lead: "Lead",
@@ -50,7 +51,7 @@ function CrmEmpresasPage() {
   const navigate = useNavigate();
   const { data: profile } = useCurrentProfile();
   const [search, setSearch] = useState("");
-  const { data: contas = [], isLoading } = useCrmEmpresas(search || undefined);
+  const { data: contas = [], isLoading } = useCrmEmpresasComScore(search || undefined);
   const upsertCrmEmpresa = useUpsertCrmEmpresa();
 
   const [open, setOpen] = useState(false);
@@ -179,13 +180,14 @@ function CrmEmpresasPage() {
                       <TableHead className="font-bold">CNPJ</TableHead>
                       <TableHead className="font-bold">Cidade</TableHead>
                       <TableHead className="font-bold">Status</TableHead>
+                      <TableHead className="font-bold">Score</TableHead>
                       <TableHead className="text-right font-bold">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {contas.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                        <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                           Nenhuma conta cadastrada ainda.
                         </TableCell>
                       </TableRow>
@@ -199,6 +201,9 @@ function CrmEmpresasPage() {
                           <TableCell className="text-sm">{conta.cidade || "---"}</TableCell>
                           <TableCell>
                             <Badge variant="outline">{STATUS_LABEL[conta.status]}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <CrmLeadScoreBadge score={conta.score} />
                           </TableCell>
                           <TableCell className="text-right">
                             <Button

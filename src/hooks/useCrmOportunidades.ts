@@ -23,18 +23,29 @@ export interface CrmOportunidade {
   crm_empresas?: { razao_social: string; nome_fantasia: string | null } | null;
 }
 
+export type CrmSaude = "verde" | "amarelo" | "vermelho" | "fechada";
+
+export interface CrmOportunidadeComSaude extends CrmOportunidade {
+  saude: CrmSaude;
+  tem_atividade_vencida: boolean;
+  ultimo_evento_em: string | null;
+}
+
+// Lê de crm_oportunidades_saude (view WITH security_invoker=true, Etapa 4)
+// em vez da tabela — mesmas colunas, mais saude/tem_atividade_vencida
+// calculados em cada consulta a partir de now(), sem cron.
 export function useCrmOportunidades(pipelineId: string | undefined) {
   return useQuery({
     queryKey: ["crm-oportunidades", pipelineId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("crm_oportunidades")
+        .from("crm_oportunidades_saude")
         .select("*, crm_empresas(razao_social, nome_fantasia)")
         .eq("pipeline_id", pipelineId as string)
         .is("fechada_em", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as CrmOportunidade[];
+      return (data ?? []) as CrmOportunidadeComSaude[];
     },
     enabled: !!pipelineId,
   });

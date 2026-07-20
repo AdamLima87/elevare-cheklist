@@ -36,6 +36,7 @@ import {
   type CrmOportunidade,
 } from "@/hooks/useCrmOportunidades";
 import { NextActionRequiredDialog } from "@/components/crm/NextActionRequiredDialog";
+import { CrmSaudeBadge } from "@/components/crm/CrmSaudeBadge";
 
 export const Route = createFileRoute("/crm/pipeline")({
   head: () => ({
@@ -294,7 +295,7 @@ function CrmPipelinePage() {
                       onDragStart={(e) => handleDragStart(e, oportunidade)}
                       onDragEnd={handleDragEnd}
                     >
-                      <CardHeader className="p-3 pb-2">
+                      <CardHeader className="space-y-1.5 p-3 pb-2">
                         <CardTitle
                           className="cursor-pointer text-sm leading-snug hover:underline"
                           onClick={() =>
@@ -303,6 +304,7 @@ function CrmPipelinePage() {
                         >
                           {oportunidade.nome}
                         </CardTitle>
+                        <CrmSaudeBadge saude={oportunidade.saude} />
                       </CardHeader>
                       <CardContent className="space-y-1.5 p-3 pt-0 text-xs text-muted-foreground">
                         <div className="truncate">
