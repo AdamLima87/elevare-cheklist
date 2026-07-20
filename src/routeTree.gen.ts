@@ -34,6 +34,7 @@ import { Route as CrmIndexRouteImport } from './routes/crm/index'
 import { Route as ClientesIndexRouteImport } from './routes/clientes/index'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as CrmPipelineRouteImport } from './routes/crm/pipeline'
+import { Route as CrmDashboardRouteImport } from './routes/crm/dashboard'
 import { Route as CrmConfiguracoesRouteImport } from './routes/crm/configuracoes'
 import { Route as ClientesIdRouteImport } from './routes/clientes/$id'
 import { Route as CrmEmpresasIndexRouteImport } from './routes/crm/empresas/index'
@@ -171,6 +172,11 @@ const CrmPipelineRoute = CrmPipelineRouteImport.update({
   path: '/crm/pipeline',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CrmDashboardRoute = CrmDashboardRouteImport.update({
+  id: '/crm/dashboard',
+  path: '/crm/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CrmConfiguracoesRoute = CrmConfiguracoesRouteImport.update({
   id: '/crm/configuracoes',
   path: '/crm/configuracoes',
@@ -255,6 +261,7 @@ export interface FileRoutesByFullPath {
   '/resultado': typeof ResultadoRoute
   '/clientes/$id': typeof ClientesIdRoute
   '/crm/configuracoes': typeof CrmConfiguracoesRoute
+  '/crm/dashboard': typeof CrmDashboardRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/clientes/': typeof ClientesIndexRoute
@@ -293,6 +300,7 @@ export interface FileRoutesByTo {
   '/resultado': typeof ResultadoRoute
   '/clientes/$id': typeof ClientesIdRoute
   '/crm/configuracoes': typeof CrmConfiguracoesRoute
+  '/crm/dashboard': typeof CrmDashboardRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/clientes': typeof ClientesIndexRoute
@@ -332,6 +340,7 @@ export interface FileRoutesById {
   '/resultado': typeof ResultadoRoute
   '/clientes/$id': typeof ClientesIdRoute
   '/crm/configuracoes': typeof CrmConfiguracoesRoute
+  '/crm/dashboard': typeof CrmDashboardRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/clientes/': typeof ClientesIndexRoute
@@ -372,6 +381,7 @@ export interface FileRouteTypes {
     | '/resultado'
     | '/clientes/$id'
     | '/crm/configuracoes'
+    | '/crm/dashboard'
     | '/crm/pipeline'
     | '/email/unsubscribe'
     | '/clientes/'
@@ -410,6 +420,7 @@ export interface FileRouteTypes {
     | '/resultado'
     | '/clientes/$id'
     | '/crm/configuracoes'
+    | '/crm/dashboard'
     | '/crm/pipeline'
     | '/email/unsubscribe'
     | '/clientes'
@@ -448,6 +459,7 @@ export interface FileRouteTypes {
     | '/resultado'
     | '/clientes/$id'
     | '/crm/configuracoes'
+    | '/crm/dashboard'
     | '/crm/pipeline'
     | '/email/unsubscribe'
     | '/clientes/'
@@ -487,6 +499,7 @@ export interface RootRouteChildren {
   ResultadoRoute: typeof ResultadoRoute
   ClientesIdRoute: typeof ClientesIdRoute
   CrmConfiguracoesRoute: typeof CrmConfiguracoesRoute
+  CrmDashboardRoute: typeof CrmDashboardRoute
   CrmPipelineRoute: typeof CrmPipelineRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   ClientesIndexRoute: typeof ClientesIndexRoute
@@ -679,6 +692,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrmPipelineRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/crm/dashboard': {
+      id: '/crm/dashboard'
+      path: '/crm/dashboard'
+      fullPath: '/crm/dashboard'
+      preLoaderRoute: typeof CrmDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/crm/configuracoes': {
       id: '/crm/configuracoes'
       path: '/crm/configuracoes'
@@ -783,6 +803,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResultadoRoute: ResultadoRoute,
   ClientesIdRoute: ClientesIdRoute,
   CrmConfiguracoesRoute: CrmConfiguracoesRoute,
+  CrmDashboardRoute: CrmDashboardRoute,
   CrmPipelineRoute: CrmPipelineRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   ClientesIndexRoute: ClientesIndexRoute,
