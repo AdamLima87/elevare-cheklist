@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, Plus, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import {
   useClientes,
@@ -54,6 +55,8 @@ function ProspeccaoPage() {
 
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ nome: "", cnpj: "", origem: "" });
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverEtapa, setDragOverEtapa] = useState<string | null>(null);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,6 +97,33 @@ function ProspeccaoPage() {
     } catch (error: any) {
       toast.error(error.message || "Erro ao converter");
     }
+  };
+
+  const handleDragStart = (e: React.DragEvent, cliente: Cliente) => {
+    e.dataTransfer.setData("text/plain", cliente.id);
+    e.dataTransfer.effectAllowed = "move";
+    setDraggingId(cliente.id);
+  };
+
+  const handleDragEnd = () => {
+    setDraggingId(null);
+    setDragOverEtapa(null);
+  };
+
+  const handleDragOverColuna = (e: React.DragEvent, etapa: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverEtapa !== etapa) setDragOverEtapa(etapa);
+  };
+
+  const handleDropColuna = (e: React.DragEvent, etapa: string) => {
+    e.preventDefault();
+    const clienteId = e.dataTransfer.getData("text/plain");
+    const cliente = clientes.find((c) => c.id === clienteId);
+    setDraggingId(null);
+    setDragOverEtapa(null);
+    if (!cliente || (cliente.etapa_funil ?? "novo_lead") === etapa) return;
+    handleMoverEtapa(cliente, etapa);
   };
 
   const colunas = ETAPAS_FUNIL.map((etapa) => ({
@@ -176,16 +206,36 @@ function ProspeccaoPage() {
         ) : (
           <div className="grid grid-cols-1 gap-4 overflow-x-auto pb-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             {colunas.map((coluna) => (
-              <div key={coluna.value} className="min-w-[220px]">
+              <div
+                key={coluna.value}
+                className="min-w-[220px]"
+                onDragOver={(e) => handleDragOverColuna(e, coluna.value)}
+                onDragLeave={() => setDragOverEtapa((prev) => (prev === coluna.value ? null : prev))}
+                onDrop={(e) => handleDropColuna(e, coluna.value)}
+              >
                 <div className="mb-2 flex items-center justify-between gap-2 px-1">
                   <h3 className="truncate text-xs font-semibold uppercase text-muted-foreground">
                     {coluna.label}
                   </h3>
                   <span className="shrink-0 text-xs text-muted-foreground">{coluna.clientes.length}</span>
                 </div>
-                <div className="space-y-2">
+                <div
+                  className={cn(
+                    "space-y-2 rounded-lg min-h-[60px] p-1 -m-1 transition-colors",
+                    dragOverEtapa === coluna.value && "bg-primary/5 ring-2 ring-primary/30",
+                  )}
+                >
                   {coluna.clientes.map((cliente) => (
-                    <Card key={cliente.id} className="w-full">
+                    <Card
+                      key={cliente.id}
+                      className={cn(
+                        "w-full cursor-grab active:cursor-grabbing",
+                        draggingId === cliente.id && "opacity-40",
+                      )}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, cliente)}
+                      onDragEnd={handleDragEnd}
+                    >
                       <CardHeader className="p-3 pb-2">
                         <CardTitle
                           className="cursor-pointer text-sm leading-snug hover:underline"
