@@ -33,6 +33,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as CrmIndexRouteImport } from './routes/crm/index'
 import { Route as ClientesIndexRouteImport } from './routes/clientes/index'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
+import { Route as CrmPipelineRouteImport } from './routes/crm/pipeline'
+import { Route as CrmConfiguracoesRouteImport } from './routes/crm/configuracoes'
 import { Route as ClientesIdRouteImport } from './routes/clientes/$id'
 import { Route as CrmEmpresasIndexRouteImport } from './routes/crm/empresas/index'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
@@ -164,6 +166,16 @@ const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
   path: '/email/unsubscribe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CrmPipelineRoute = CrmPipelineRouteImport.update({
+  id: '/crm/pipeline',
+  path: '/crm/pipeline',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CrmConfiguracoesRoute = CrmConfiguracoesRouteImport.update({
+  id: '/crm/configuracoes',
+  path: '/crm/configuracoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ClientesIdRoute = ClientesIdRouteImport.update({
   id: '/clientes/$id',
   path: '/clientes/$id',
@@ -242,6 +254,8 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/resultado': typeof ResultadoRoute
   '/clientes/$id': typeof ClientesIdRoute
+  '/crm/configuracoes': typeof CrmConfiguracoesRoute
+  '/crm/pipeline': typeof CrmPipelineRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/clientes/': typeof ClientesIndexRoute
   '/crm/': typeof CrmIndexRoute
@@ -278,6 +292,8 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/resultado': typeof ResultadoRoute
   '/clientes/$id': typeof ClientesIdRoute
+  '/crm/configuracoes': typeof CrmConfiguracoesRoute
+  '/crm/pipeline': typeof CrmPipelineRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/clientes': typeof ClientesIndexRoute
   '/crm': typeof CrmIndexRoute
@@ -315,6 +331,8 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/resultado': typeof ResultadoRoute
   '/clientes/$id': typeof ClientesIdRoute
+  '/crm/configuracoes': typeof CrmConfiguracoesRoute
+  '/crm/pipeline': typeof CrmPipelineRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/clientes/': typeof ClientesIndexRoute
   '/crm/': typeof CrmIndexRoute
@@ -353,6 +371,8 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/resultado'
     | '/clientes/$id'
+    | '/crm/configuracoes'
+    | '/crm/pipeline'
     | '/email/unsubscribe'
     | '/clientes/'
     | '/crm/'
@@ -389,6 +409,8 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/resultado'
     | '/clientes/$id'
+    | '/crm/configuracoes'
+    | '/crm/pipeline'
     | '/email/unsubscribe'
     | '/clientes'
     | '/crm'
@@ -425,6 +447,8 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/resultado'
     | '/clientes/$id'
+    | '/crm/configuracoes'
+    | '/crm/pipeline'
     | '/email/unsubscribe'
     | '/clientes/'
     | '/crm/'
@@ -462,6 +486,8 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   ResultadoRoute: typeof ResultadoRoute
   ClientesIdRoute: typeof ClientesIdRoute
+  CrmConfiguracoesRoute: typeof CrmConfiguracoesRoute
+  CrmPipelineRoute: typeof CrmPipelineRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   ClientesIndexRoute: typeof ClientesIndexRoute
   CrmIndexRoute: typeof CrmIndexRoute
@@ -646,6 +672,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EmailUnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/crm/pipeline': {
+      id: '/crm/pipeline'
+      path: '/crm/pipeline'
+      fullPath: '/crm/pipeline'
+      preLoaderRoute: typeof CrmPipelineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/crm/configuracoes': {
+      id: '/crm/configuracoes'
+      path: '/crm/configuracoes'
+      fullPath: '/crm/configuracoes'
+      preLoaderRoute: typeof CrmConfiguracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/clientes/$id': {
       id: '/clientes/$id'
       path: '/clientes/$id'
@@ -742,6 +782,8 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ResultadoRoute: ResultadoRoute,
   ClientesIdRoute: ClientesIdRoute,
+  CrmConfiguracoesRoute: CrmConfiguracoesRoute,
+  CrmPipelineRoute: CrmPipelineRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   ClientesIndexRoute: ClientesIndexRoute,
   CrmIndexRoute: CrmIndexRoute,

@@ -47,6 +47,10 @@ const crmSubItems = [
   { icon: BarChart3, label: "Dashboard", to: "/crm/dashboard" },
 ];
 
+// Catálogos do CRM (motivos de perda, tipos de atividade, origens de lead)
+// só admin edita — decisão confirmada com o usuário.
+const crmSubItemsAdmin = [...crmSubItems, { icon: Settings, label: "Configurações", to: "/crm/configuracoes" }];
+
 export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: SidebarProps) {
   const location = useLocation();
   const [isMobile, setIsMobile] = useState(false);
@@ -79,7 +83,7 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
       { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
       { icon: Building2, label: "Clientes", to: "/clientes", hasFlyout: true, subItems: clientesSubItems },
       { icon: Target, label: "Prospecção", to: "/prospeccao" },
-      { icon: Briefcase, label: "CRM Comercial", to: "/crm", hasFlyout: true, subItems: crmSubItems },
+      { icon: Briefcase, label: "CRM Comercial", to: "/crm", hasFlyout: true, subItems: crmSubItemsAdmin },
       { icon: BarChart3, label: "Relatórios", to: "/relatorios" },
       { icon: Users, label: "Usuários", to: "/admin" },
       { icon: Settings, label: "Configurações", to: "/configuracoes" },
@@ -88,7 +92,7 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
       { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
       { icon: Building2, label: "Clientes", to: "/clientes", hasFlyout: true, subItems: clientesSubItems },
       { icon: Target, label: "Prospecção", to: "/prospeccao" },
-      { icon: Briefcase, label: "CRM Comercial", to: "/crm", hasFlyout: true, subItems: crmSubItems },
+      { icon: Briefcase, label: "CRM Comercial", to: "/crm", hasFlyout: true, subItems: crmSubItemsAdmin },
       { icon: BarChart3, label: "Relatórios", to: "/relatorios" },
       { icon: Users, label: "Usuários", to: "/admin" },
       { icon: Settings, label: "Configurações", to: "/configuracoes" },
