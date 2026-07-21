@@ -83,16 +83,16 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
   const menuItems = {
     admin: [
       { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
-      { icon: Building2, label: "Clientes", to: "/clientes", hasFlyout: true, subItems: clientesSubItems },
       { icon: Briefcase, label: "CRM Comercial", to: "/crm", hasFlyout: true, subItems: crmSubItemsAdmin },
+      { icon: Building2, label: "Clientes", to: "/clientes", hasFlyout: true, subItems: clientesSubItems },
       { icon: BarChart3, label: "Relatórios", to: "/relatorios" },
       { icon: Users, label: "Usuários", to: "/admin" },
       { icon: Settings, label: "Configurações", to: "/configuracoes" },
     ],
     super_admin: [
       { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
-      { icon: Building2, label: "Clientes", to: "/clientes", hasFlyout: true, subItems: clientesSubItems },
       { icon: Briefcase, label: "CRM Comercial", to: "/crm", hasFlyout: true, subItems: crmSubItemsAdmin },
+      { icon: Building2, label: "Clientes", to: "/clientes", hasFlyout: true, subItems: clientesSubItems },
       { icon: BarChart3, label: "Relatórios", to: "/relatorios" },
       { icon: Users, label: "Usuários", to: "/admin" },
       { icon: Settings, label: "Configurações", to: "/configuracoes" },
