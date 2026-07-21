@@ -9,6 +9,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -19,13 +26,16 @@ import {
 import { Loader2, Search as SearchIcon, MapPin, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
-import { useCrmPipelinePadrao, useCrmEtapas } from "@/hooks/useCrmCatalogos";
+import { useCrmPipelinePadrao, useCrmEtapas, useCrmLeadsNichos } from "@/hooks/useCrmCatalogos";
+import { UFS, useIbgeCidades } from "@/hooks/useIbgeLocalidades";
 import {
   useLeadFinderSearch,
   useLeadFinderUsage,
   useLeadFinderImport,
   type LeadFinderResultado,
 } from "@/hooks/useLeadFinder";
+
+const NICHO_OUTRO = "outro";
 
 export const Route = createFileRoute("/crm/leads")({
   head: () => ({
@@ -50,10 +60,21 @@ function CrmLeadsPage() {
   const etapaInicial = useMemo(() => etapas.find((e) => e.tipo === "aberta"), [etapas]);
 
   const { data: usage, isLoading: usageLoading } = useLeadFinderUsage();
+  const { data: nichos = [] } = useCrmLeadsNichos();
   const search = useLeadFinderSearch();
   const importLead = useLeadFinderImport();
 
-  const [textQuery, setTextQuery] = useState("");
+  const [estado, setEstado] = useState("");
+  const [cidade, setCidade] = useState("");
+  const [bairro, setBairro] = useState("");
+  const [nichoId, setNichoId] = useState("");
+  const [nichoCustom, setNichoCustom] = useState("");
+  const { data: cidades = [], isLoading: cidadesLoading } = useIbgeCidades(estado || undefined);
+
+  const nichoSelecionado = nichos.find((n) => n.id === nichoId);
+  const nichoNome = nichoId === NICHO_OUTRO ? nichoCustom.trim() : nichoSelecionado?.nome ?? "";
+  const podeBuscar = !!estado && !!cidade && !!nichoNome;
+
   const [resultados, setResultados] = useState<LeadFinderResultado[]>([]);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [batchOpen, setBatchOpen] = useState(false);
@@ -64,9 +85,11 @@ function CrmLeadsPage() {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!textQuery.trim()) return;
+    if (!podeBuscar) return;
+    const local = bairro.trim() ? `${bairro.trim()}, ${cidade}` : cidade;
+    const textQuery = `${nichoNome} em ${local} - ${estado}`;
     try {
-      const result = await search.mutateAsync({ textQuery: textQuery.trim() });
+      const result = await search.mutateAsync({ textQuery });
       setResultados(result.resultados);
       setSelecionados(new Set());
     } catch (error: any) {
@@ -99,7 +122,7 @@ function CrmLeadsPage() {
     for (const placeId of selecionados) {
       const item = resultados.find((r) => r.placeId === placeId);
       if (!item) continue;
-      forms[placeId] = { razaoSocial: item.nome, cidade: item.cidade ?? "", estado: item.estado ?? "" };
+      forms[placeId] = { razaoSocial: item.nome, cidade, estado };
       status[placeId] = "pendente";
     }
     setBatchForms(forms);
@@ -142,25 +165,81 @@ function CrmLeadsPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-semibold">Buscar Leads</h1>
           <p className="text-sm text-muted-foreground">
-            Encontre estabelecimentos por categoria e cidade (ex: "restaurantes em Campinas") e importe como Conta no CRM.
+            Escolha estado, cidade e nicho pra encontrar estabelecimentos e importar como Conta no CRM.
           </p>
         </div>
 
         <Card className="mb-4">
-          <CardContent className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <form onSubmit={handleSearch} className="flex flex-1 gap-2">
-              <Input
-                placeholder='Ex: "padarias em Moema", "hotéis em Belém"...'
-                value={textQuery}
-                onChange={(e) => setTextQuery(e.target.value)}
-              />
-              <Button type="submit" disabled={search.isPending || !textQuery.trim()} className="gap-2">
+          <CardContent className="space-y-3 pt-4">
+            <form onSubmit={handleSearch} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <Select
+                value={estado}
+                onValueChange={(v) => {
+                  setEstado(v);
+                  setCidade("");
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  {UFS.map((uf) => (
+                    <SelectItem key={uf.sigla} value={uf.sigla}>
+                      {uf.sigla} — {uf.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={cidade} onValueChange={setCidade} disabled={!estado || cidadesLoading}>
+                <SelectTrigger>
+                  <SelectValue placeholder={cidadesLoading ? "Carregando..." : "Selecione a cidade"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {cidades.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Input placeholder="Bairro (opcional)" value={bairro} onChange={(e) => setBairro(e.target.value)} />
+
+              <Select value={nichoId} onValueChange={setNichoId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o nicho" />
+                </SelectTrigger>
+                <SelectContent>
+                  {nichos.map((n) => (
+                    <SelectItem key={n.id} value={n.id}>
+                      {n.nome}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={NICHO_OUTRO}>Outro (personalizado)</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {nichoId === NICHO_OUTRO && (
+                <Input
+                  className="col-span-2 sm:col-span-4"
+                  placeholder='Termo personalizado (ex: "loja de conveniência")'
+                  value={nichoCustom}
+                  onChange={(e) => setNichoCustom(e.target.value)}
+                />
+              )}
+
+              <Button
+                type="submit"
+                disabled={search.isPending || !podeBuscar}
+                className="col-span-2 gap-2 sm:col-span-4"
+              >
                 {search.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <SearchIcon className="h-4 w-4" />}
                 Buscar
               </Button>
             </form>
 
-            <div className="text-sm text-muted-foreground whitespace-nowrap">
+            <div className="text-sm text-muted-foreground">
               {usageLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : limite?.tem_credencial_propria ? (
@@ -230,8 +309,8 @@ function CrmLeadsPage() {
           ))}
           {resultados.length === 0 && !search.isPending && (
             <p className="py-10 text-center text-sm text-muted-foreground">
-              Busque por categoria e cidade pra ver estabelecimentos aqui. Resultados vêm do Google Maps e não são
-              salvos até você confirmar a importação.
+              Selecione estado, cidade e nicho pra ver estabelecimentos aqui. Resultados vêm do Google Maps e não
+              são salvos até você confirmar a importação.
             </p>
           )}
         </div>

@@ -18,6 +18,9 @@ import {
   useCrmOrigensLead,
   useUpsertCrmOrigemLead,
   useDeleteCrmOrigemLead,
+  useCrmLeadsNichos,
+  useUpsertCrmLeadsNicho,
+  useDeleteCrmLeadsNicho,
   type CrmCatalogoItem,
 } from "@/hooks/useCrmCatalogos";
 import {
@@ -66,6 +69,13 @@ function CrmConfiguracoesPage() {
             useList={useCrmOrigensLead}
             useUpsert={useUpsertCrmOrigemLead}
             useDelete={useDeleteCrmOrigemLead}
+          />
+          <CatalogoCard
+            titulo="Nichos de Busca"
+            descricao='Categorias usadas em "Buscar Leads" (ex: Restaurante, Padaria).'
+            useList={useCrmLeadsNichos}
+            useUpsert={useUpsertCrmLeadsNicho}
+            useDelete={useDeleteCrmLeadsNicho}
           />
         </div>
 

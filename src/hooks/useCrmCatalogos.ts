@@ -64,7 +64,7 @@ export function useCrmEtapas(pipelineId: string | undefined) {
   });
 }
 
-function catalogoHooks(table: "crm_motivos_perda" | "crm_tipos_atividade" | "crm_origens_lead") {
+function catalogoHooks(table: "crm_motivos_perda" | "crm_tipos_atividade" | "crm_origens_lead" | "crm_leads_nichos") {
   function useList() {
     return useQuery({
       queryKey: [table],
@@ -116,3 +116,8 @@ const origensLead = catalogoHooks("crm_origens_lead");
 export const useCrmOrigensLead = origensLead.useList;
 export const useUpsertCrmOrigemLead = origensLead.useUpsert;
 export const useDeleteCrmOrigemLead = origensLead.useDelete;
+
+const leadsNichos = catalogoHooks("crm_leads_nichos");
+export const useCrmLeadsNichos = leadsNichos.useList;
+export const useUpsertCrmLeadsNicho = leadsNichos.useUpsert;
+export const useDeleteCrmLeadsNicho = leadsNichos.useDelete;
