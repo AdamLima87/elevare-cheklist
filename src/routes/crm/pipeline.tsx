@@ -27,16 +27,19 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { useCrmEmpresas } from "@/hooks/useCrmEmpresas";
-import { useCrmPipelinePadrao, useCrmEtapas, useCrmTiposAtividade } from "@/hooks/useCrmCatalogos";
+import { useCrmPipelinePadrao, useCrmEtapas, useCrmTiposAtividade, useCrmMotivosPerda } from "@/hooks/useCrmCatalogos";
 import {
   useCrmOportunidades,
   useUpsertCrmOportunidade,
   useMoverEtapaOportunidade,
+  useFecharOportunidadeGanha,
+  useFecharOportunidadePerdida,
   isProximaAcaoObrigatoriaError,
   type CrmOportunidade,
 } from "@/hooks/useCrmOportunidades";
 import { NextActionRequiredDialog } from "@/components/crm/NextActionRequiredDialog";
 import { CrmSaudeBadge } from "@/components/crm/CrmSaudeBadge";
+import { FecharOportunidadeDialog } from "@/components/crm/FecharOportunidadeDialog";
 
 export const Route = createFileRoute("/crm/pipeline")({
   head: () => ({
@@ -61,8 +64,11 @@ function CrmPipelinePage() {
   const { data: oportunidades = [], isLoading: loadingOportunidades } = useCrmOportunidades(pipeline?.id);
   const { data: contas = [] } = useCrmEmpresas();
   const { data: tiposAtividade = [] } = useCrmTiposAtividade();
+  const { data: motivosPerda = [] } = useCrmMotivosPerda();
   const upsertOportunidade = useUpsertCrmOportunidade();
   const moverEtapa = useMoverEtapaOportunidade();
+  const fecharGanha = useFecharOportunidadeGanha();
+  const fecharPerdida = useFecharOportunidadePerdida();
 
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ crm_empresa_id: "", nome: "", valor_estimado: "" });
@@ -72,6 +78,10 @@ function CrmPipelinePage() {
   const [proximaAcaoPendente, setProximaAcaoPendente] = useState<{
     oportunidade: CrmOportunidade;
     etapaId: string;
+  } | null>(null);
+  const [fecharPendente, setFecharPendente] = useState<{
+    oportunidade: CrmOportunidade;
+    modo: "ganha" | "perdida";
   } | null>(null);
 
   const etapasAbertas = etapas.filter((e) => e.tipo === "aberta");
@@ -103,6 +113,17 @@ function CrmPipelinePage() {
 
   const handleMoverEtapa = async (oportunidade: CrmOportunidade, etapaId: string) => {
     if (!pipeline) return;
+
+    const etapaAlvo = etapas.find((e) => e.id === etapaId);
+    if (etapaAlvo?.tipo === "ganho") {
+      setFecharPendente({ oportunidade, modo: "ganha" });
+      return;
+    }
+    if (etapaAlvo?.tipo === "perdido") {
+      setFecharPendente({ oportunidade, modo: "perdida" });
+      return;
+    }
+
     try {
       await moverEtapa.mutateAsync({ id: oportunidade.id, etapa_id: etapaId, pipeline_id: pipeline.id });
     } catch (error: any) {
@@ -111,6 +132,38 @@ function CrmPipelinePage() {
         return;
       }
       toast.error(error.message || "Erro ao mover etapa");
+    }
+  };
+
+  const handleConfirmarGanha = async () => {
+    if (!fecharPendente || !pipeline) return;
+    try {
+      const resultado = await fecharGanha.mutateAsync({
+        oportunidadeId: fecharPendente.oportunidade.id,
+        pipelineId: pipeline.id,
+      });
+      toast.success(
+        resultado.cliente_criado ? "Oportunidade ganha! Cliente criado." : "Oportunidade ganha! Cliente vinculado.",
+      );
+      setFecharPendente(null);
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao fechar oportunidade");
+    }
+  };
+
+  const handleConfirmarPerdida = async (motivoId: string, detalhe: string | null) => {
+    if (!fecharPendente || !pipeline) return;
+    try {
+      await fecharPerdida.mutateAsync({
+        oportunidadeId: fecharPendente.oportunidade.id,
+        pipelineId: pipeline.id,
+        motivoPerdaId: motivoId,
+        motivoPerdaDetalhe: detalhe,
+      });
+      toast.success("Oportunidade marcada como perdida.");
+      setFecharPendente(null);
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao fechar oportunidade");
     }
   };
 
@@ -351,6 +404,19 @@ function CrmPipelinePage() {
           onConfirm={handleConfirmarProximaAcao}
           isPending={moverEtapa.isPending}
         />
+
+        {fecharPendente && (
+          <FecharOportunidadeDialog
+            open={!!fecharPendente}
+            onOpenChange={(v) => !v && setFecharPendente(null)}
+            modo={fecharPendente.modo}
+            oportunidadeNome={fecharPendente.oportunidade.nome}
+            motivosPerda={motivosPerda}
+            onConfirmarGanha={handleConfirmarGanha}
+            onConfirmarPerdida={handleConfirmarPerdida}
+            isPending={fecharGanha.isPending || fecharPerdida.isPending}
+          />
+        )}
       </AppShell>
     </ProtectedRoute>
   );

@@ -134,3 +134,58 @@ export function isProximaAcaoObrigatoriaError(error: unknown): boolean {
   const message = (error as { message?: string } | null)?.message;
   return typeof message === "string" && message.startsWith("PROXIMA_ACAO_OBRIGATORIA");
 }
+
+export interface FecharOportunidadeGanhaResultado {
+  oportunidade_id: string;
+  cliente_id: string;
+  cliente_criado: boolean;
+}
+
+// RPC atômica (Etapa 7): move pra etapa 'ganho', cria/vincula o cliente
+// operacional (casando por CNPJ) e registra a timeline, tudo numa
+// transação só.
+export function useFecharOportunidadeGanha() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { oportunidadeId: string; pipelineId: string }) => {
+      const { data, error } = await supabase.rpc("crm_fechar_oportunidade_ganha", {
+        p_oportunidade_id: input.oportunidadeId,
+      });
+      if (error) throw error;
+      return (data as FecharOportunidadeGanhaResultado[])[0];
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["crm-oportunidades", variables.pipelineId] });
+      queryClient.invalidateQueries({ queryKey: ["crm-oportunidade", variables.oportunidadeId] });
+      queryClient.invalidateQueries({ queryKey: ["crm-timeline"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-empresas"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-empresas-score"] });
+    },
+  });
+}
+
+// RPC atômica (Etapa 7): move pra etapa 'perdido', exige motivo padronizado.
+export function useFecharOportunidadePerdida() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      oportunidadeId: string;
+      pipelineId: string;
+      motivoPerdaId: string;
+      motivoPerdaDetalhe?: string | null;
+    }) => {
+      const { data, error } = await supabase.rpc("crm_fechar_oportunidade_perdida", {
+        p_oportunidade_id: input.oportunidadeId,
+        p_motivo_perda_id: input.motivoPerdaId,
+        p_motivo_perda_detalhe: input.motivoPerdaDetalhe ?? null,
+      });
+      if (error) throw error;
+      return data as CrmOportunidade;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["crm-oportunidades", variables.pipelineId] });
+      queryClient.invalidateQueries({ queryKey: ["crm-oportunidade", variables.oportunidadeId] });
+      queryClient.invalidateQueries({ queryKey: ["crm-timeline"] });
+    },
+  });
+}
