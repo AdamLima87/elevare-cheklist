@@ -37,6 +37,7 @@ import { Route as CrmPipelineRouteImport } from './routes/crm/pipeline'
 import { Route as CrmLeadsRouteImport } from './routes/crm/leads'
 import { Route as CrmDashboardRouteImport } from './routes/crm/dashboard'
 import { Route as CrmConfiguracoesRouteImport } from './routes/crm/configuracoes'
+import { Route as CrmAtividadesRouteImport } from './routes/crm/atividades'
 import { Route as ClientesIdRouteImport } from './routes/clientes/$id'
 import { Route as CrmEmpresasIndexRouteImport } from './routes/crm/empresas/index'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
@@ -188,6 +189,11 @@ const CrmConfiguracoesRoute = CrmConfiguracoesRouteImport.update({
   path: '/crm/configuracoes',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CrmAtividadesRoute = CrmAtividadesRouteImport.update({
+  id: '/crm/atividades',
+  path: '/crm/atividades',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ClientesIdRoute = ClientesIdRouteImport.update({
   id: '/clientes/$id',
   path: '/clientes/$id',
@@ -266,6 +272,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/resultado': typeof ResultadoRoute
   '/clientes/$id': typeof ClientesIdRoute
+  '/crm/atividades': typeof CrmAtividadesRoute
   '/crm/configuracoes': typeof CrmConfiguracoesRoute
   '/crm/dashboard': typeof CrmDashboardRoute
   '/crm/leads': typeof CrmLeadsRoute
@@ -306,6 +313,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/resultado': typeof ResultadoRoute
   '/clientes/$id': typeof ClientesIdRoute
+  '/crm/atividades': typeof CrmAtividadesRoute
   '/crm/configuracoes': typeof CrmConfiguracoesRoute
   '/crm/dashboard': typeof CrmDashboardRoute
   '/crm/leads': typeof CrmLeadsRoute
@@ -347,6 +355,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/resultado': typeof ResultadoRoute
   '/clientes/$id': typeof ClientesIdRoute
+  '/crm/atividades': typeof CrmAtividadesRoute
   '/crm/configuracoes': typeof CrmConfiguracoesRoute
   '/crm/dashboard': typeof CrmDashboardRoute
   '/crm/leads': typeof CrmLeadsRoute
@@ -389,6 +398,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/resultado'
     | '/clientes/$id'
+    | '/crm/atividades'
     | '/crm/configuracoes'
     | '/crm/dashboard'
     | '/crm/leads'
@@ -429,6 +439,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/resultado'
     | '/clientes/$id'
+    | '/crm/atividades'
     | '/crm/configuracoes'
     | '/crm/dashboard'
     | '/crm/leads'
@@ -469,6 +480,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/resultado'
     | '/clientes/$id'
+    | '/crm/atividades'
     | '/crm/configuracoes'
     | '/crm/dashboard'
     | '/crm/leads'
@@ -510,6 +522,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   ResultadoRoute: typeof ResultadoRoute
   ClientesIdRoute: typeof ClientesIdRoute
+  CrmAtividadesRoute: typeof CrmAtividadesRoute
   CrmConfiguracoesRoute: typeof CrmConfiguracoesRoute
   CrmDashboardRoute: typeof CrmDashboardRoute
   CrmLeadsRoute: typeof CrmLeadsRoute
@@ -726,6 +739,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrmConfiguracoesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/crm/atividades': {
+      id: '/crm/atividades'
+      path: '/crm/atividades'
+      fullPath: '/crm/atividades'
+      preLoaderRoute: typeof CrmAtividadesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/clientes/$id': {
       id: '/clientes/$id'
       path: '/clientes/$id'
@@ -822,6 +842,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ResultadoRoute: ResultadoRoute,
   ClientesIdRoute: ClientesIdRoute,
+  CrmAtividadesRoute: CrmAtividadesRoute,
   CrmConfiguracoesRoute: CrmConfiguracoesRoute,
   CrmDashboardRoute: CrmDashboardRoute,
   CrmLeadsRoute: CrmLeadsRoute,

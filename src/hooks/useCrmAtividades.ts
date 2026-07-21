@@ -38,6 +38,22 @@ export function useCrmAtividadesPorConta(crmEmpresaId: string | undefined) {
   });
 }
 
+// Lista cross-Conta (não filtra por crm_empresa_id) — RLS já restringe ao
+// tenant, então não precisa de filtro client-side de empresa_id.
+export function useCrmAtividadesTodas() {
+  return useQuery({
+    queryKey: ["crm-atividades", "todas"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("crm_atividades")
+        .select("*, crm_tipos_atividade(nome), crm_empresas(razao_social)")
+        .order("vencimento", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as (CrmAtividade & { crm_empresas?: { razao_social: string } | null })[];
+    },
+  });
+}
+
 export function useCrmAtividadesPorOportunidade(crmOportunidadeId: string | undefined) {
   return useQuery({
     queryKey: ["crm-atividades", "oportunidade", crmOportunidadeId],
@@ -56,6 +72,7 @@ export function useCrmAtividadesPorOportunidade(crmOportunidadeId: string | unde
 
 function invalidateAtividades(queryClient: ReturnType<typeof useQueryClient>, atividade: CrmAtividade) {
   queryClient.invalidateQueries({ queryKey: ["crm-atividades", "conta", atividade.crm_empresa_id] });
+  queryClient.invalidateQueries({ queryKey: ["crm-atividades", "todas"] });
   if (atividade.crm_oportunidade_id) {
     queryClient.invalidateQueries({ queryKey: ["crm-atividades", "oportunidade", atividade.crm_oportunidade_id] });
     queryClient.invalidateQueries({ queryKey: ["crm-timeline"] });
