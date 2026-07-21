@@ -41,12 +41,12 @@ const clientesSubItems = [
 ];
 
 const crmSubItems = [
+  { icon: BarChart3, label: "Dashboard", to: "/crm/dashboard" },
+  { icon: Search, label: "Buscar Leads", to: "/crm/leads" },
+  { icon: Target, label: "Pipeline", to: "/crm/pipeline" },
   { icon: LayoutDashboard, label: "Mesa de Trabalho", to: "/crm" },
   { icon: Building2, label: "Contas", to: "/crm/empresas" },
-  { icon: Target, label: "Pipeline", to: "/crm/pipeline" },
   { icon: CalendarDays, label: "Atividades", to: "/crm/atividades" },
-  { icon: Search, label: "Buscar Leads", to: "/crm/leads" },
-  { icon: BarChart3, label: "Dashboard", to: "/crm/dashboard" },
 ];
 
 // Catálogos do CRM (motivos de perda, tipos de atividade, origens de lead)
