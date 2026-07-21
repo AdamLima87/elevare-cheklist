@@ -82,7 +82,6 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
     admin: [
       { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
       { icon: Building2, label: "Clientes", to: "/clientes", hasFlyout: true, subItems: clientesSubItems },
-      { icon: Target, label: "Prospecção", to: "/prospeccao" },
       { icon: Briefcase, label: "CRM Comercial", to: "/crm", hasFlyout: true, subItems: crmSubItemsAdmin },
       { icon: BarChart3, label: "Relatórios", to: "/relatorios" },
       { icon: Users, label: "Usuários", to: "/admin" },
@@ -91,7 +90,6 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
     super_admin: [
       { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
       { icon: Building2, label: "Clientes", to: "/clientes", hasFlyout: true, subItems: clientesSubItems },
-      { icon: Target, label: "Prospecção", to: "/prospeccao" },
       { icon: Briefcase, label: "CRM Comercial", to: "/crm", hasFlyout: true, subItems: crmSubItemsAdmin },
       { icon: BarChart3, label: "Relatórios", to: "/relatorios" },
       { icon: Users, label: "Usuários", to: "/admin" },
@@ -100,7 +98,6 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
     ],
     consultor: [
       { icon: Building2, label: "Clientes", to: "/clientes", hasFlyout: true, subItems: clientesSubItems },
-      { icon: Target, label: "Prospecção", to: "/prospeccao" },
       { icon: Briefcase, label: "CRM Comercial", to: "/crm", hasFlyout: true, subItems: crmSubItems },
       { icon: BarChart3, label: "Meus Relatórios", to: "/relatorios" },
     ],
