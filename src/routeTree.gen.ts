@@ -34,6 +34,7 @@ import { Route as CrmIndexRouteImport } from './routes/crm/index'
 import { Route as ClientesIndexRouteImport } from './routes/clientes/index'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as CrmPipelineRouteImport } from './routes/crm/pipeline'
+import { Route as CrmLeadsRouteImport } from './routes/crm/leads'
 import { Route as CrmDashboardRouteImport } from './routes/crm/dashboard'
 import { Route as CrmConfiguracoesRouteImport } from './routes/crm/configuracoes'
 import { Route as ClientesIdRouteImport } from './routes/clientes/$id'
@@ -172,6 +173,11 @@ const CrmPipelineRoute = CrmPipelineRouteImport.update({
   path: '/crm/pipeline',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CrmLeadsRoute = CrmLeadsRouteImport.update({
+  id: '/crm/leads',
+  path: '/crm/leads',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CrmDashboardRoute = CrmDashboardRouteImport.update({
   id: '/crm/dashboard',
   path: '/crm/dashboard',
@@ -262,6 +268,7 @@ export interface FileRoutesByFullPath {
   '/clientes/$id': typeof ClientesIdRoute
   '/crm/configuracoes': typeof CrmConfiguracoesRoute
   '/crm/dashboard': typeof CrmDashboardRoute
+  '/crm/leads': typeof CrmLeadsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/clientes/': typeof ClientesIndexRoute
@@ -301,6 +308,7 @@ export interface FileRoutesByTo {
   '/clientes/$id': typeof ClientesIdRoute
   '/crm/configuracoes': typeof CrmConfiguracoesRoute
   '/crm/dashboard': typeof CrmDashboardRoute
+  '/crm/leads': typeof CrmLeadsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/clientes': typeof ClientesIndexRoute
@@ -341,6 +349,7 @@ export interface FileRoutesById {
   '/clientes/$id': typeof ClientesIdRoute
   '/crm/configuracoes': typeof CrmConfiguracoesRoute
   '/crm/dashboard': typeof CrmDashboardRoute
+  '/crm/leads': typeof CrmLeadsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/clientes/': typeof ClientesIndexRoute
@@ -382,6 +391,7 @@ export interface FileRouteTypes {
     | '/clientes/$id'
     | '/crm/configuracoes'
     | '/crm/dashboard'
+    | '/crm/leads'
     | '/crm/pipeline'
     | '/email/unsubscribe'
     | '/clientes/'
@@ -421,6 +431,7 @@ export interface FileRouteTypes {
     | '/clientes/$id'
     | '/crm/configuracoes'
     | '/crm/dashboard'
+    | '/crm/leads'
     | '/crm/pipeline'
     | '/email/unsubscribe'
     | '/clientes'
@@ -460,6 +471,7 @@ export interface FileRouteTypes {
     | '/clientes/$id'
     | '/crm/configuracoes'
     | '/crm/dashboard'
+    | '/crm/leads'
     | '/crm/pipeline'
     | '/email/unsubscribe'
     | '/clientes/'
@@ -500,6 +512,7 @@ export interface RootRouteChildren {
   ClientesIdRoute: typeof ClientesIdRoute
   CrmConfiguracoesRoute: typeof CrmConfiguracoesRoute
   CrmDashboardRoute: typeof CrmDashboardRoute
+  CrmLeadsRoute: typeof CrmLeadsRoute
   CrmPipelineRoute: typeof CrmPipelineRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   ClientesIndexRoute: typeof ClientesIndexRoute
@@ -692,6 +705,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrmPipelineRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/crm/leads': {
+      id: '/crm/leads'
+      path: '/crm/leads'
+      fullPath: '/crm/leads'
+      preLoaderRoute: typeof CrmLeadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/crm/dashboard': {
       id: '/crm/dashboard'
       path: '/crm/dashboard'
@@ -804,6 +824,7 @@ const rootRouteChildren: RootRouteChildren = {
   ClientesIdRoute: ClientesIdRoute,
   CrmConfiguracoesRoute: CrmConfiguracoesRoute,
   CrmDashboardRoute: CrmDashboardRoute,
+  CrmLeadsRoute: CrmLeadsRoute,
   CrmPipelineRoute: CrmPipelineRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   ClientesIndexRoute: ClientesIndexRoute,

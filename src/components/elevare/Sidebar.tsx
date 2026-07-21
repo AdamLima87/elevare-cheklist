@@ -16,7 +16,8 @@ import {
   UserPlus,
   ClipboardCheck,
   CalendarDays,
-  ChevronRight
+  ChevronRight,
+  Search
 } from "lucide-react";
 import { Logo } from "./Logo";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +45,7 @@ const crmSubItems = [
   { icon: Building2, label: "Contas", to: "/crm/empresas" },
   { icon: Target, label: "Pipeline", to: "/crm/pipeline" },
   { icon: CalendarDays, label: "Atividades", to: "/crm/atividades" },
+  { icon: Search, label: "Buscar Leads", to: "/crm/leads" },
   { icon: BarChart3, label: "Dashboard", to: "/crm/dashboard" },
 ];
 
