@@ -35,7 +35,7 @@ serve(async (req) => {
     } = await admin.auth.getUser(token);
     if (userError || !user) return jsonError("Sessão inválida.", 401);
 
-    const { data: intencao, error: intencaoError } = await admin
+    let { data: intencao, error: intencaoError } = await admin
       .from("saas_checkout_intencoes")
       .select("id, plano_codigo, periodicidade, provider_checkout_id, checkout_url, status, updated_at, origem")
       .eq("auth_user_id", user.id)
@@ -43,9 +43,49 @@ serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+    if (intencaoError) return jsonError("Erro ao buscar contratação pendente.", 500);
 
-    if (intencaoError || !intencao) {
-      return jsonError("Nenhuma contratação pendente encontrada para esta conta.", 404);
+    // Upgrade de trial: sem intenção pendente (nunca passou pelo /cadastro
+    // com plano pago), mas com plano/periodicidade explícitos no corpo —
+    // usado pela tela de trial expirado. Cria a intenção agora, com os
+    // dados do tenant já existente (não do formulário público).
+    if (!intencao) {
+      let body: { periodicidade?: string } = {};
+      try {
+        body = await req.json();
+      } catch {
+        // corpo vazio é válido pro fluxo normal (sem upgrade)
+      }
+      const periodicidade = body.periodicidade === "mensal" || body.periodicidade === "anual" ? body.periodicidade : null;
+      if (!periodicidade) {
+        return jsonError("Nenhuma contratação pendente encontrada para esta conta.", 404);
+      }
+
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("empresa_id, nome, telefone, empresas(nome)")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!profile?.empresa_id) return jsonError("Conta sem empresa associada.", 400);
+
+      const { data: novaIntencao, error: novaIntencaoError } = await admin
+        .from("saas_checkout_intencoes")
+        .insert({
+          auth_user_id: user.id,
+          email: user.email ?? "",
+          plano_codigo: "pro",
+          periodicidade,
+          origem: {
+            upgrade_de_trial: true,
+            empresa_nome: (profile as any).empresas?.nome ?? "",
+            owner_nome: profile.nome ?? "",
+            whatsapp: profile.telefone ?? "",
+          },
+        })
+        .select("id, plano_codigo, periodicidade, provider_checkout_id, checkout_url, status, updated_at, origem")
+        .single();
+      if (novaIntencaoError || !novaIntencao) return jsonError("Não foi possível iniciar a contratação.", 500);
+      intencao = novaIntencao;
     }
 
     // Reaproveita a sessão de checkout existente enquanto ainda estiver
@@ -116,6 +156,6 @@ serve(async (req) => {
     });
   } catch (err) {
     console.error("Erro inesperado em criar-checkout", err);
-    return jsonError(`DEBUG: ${err instanceof Error ? err.message : String(err)}`, 500);
+    return jsonError("Não foi possível iniciar o pagamento. Tente novamente.", 500);
   }
 });

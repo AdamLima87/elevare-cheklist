@@ -47,12 +47,24 @@ import {
   useTestLeadFinderCredential,
   useRemoveLeadFinderCredential,
 } from "@/hooks/useLeadFinder";
+import { useTenantAccessStatus } from "@/hooks/useTenantAccessStatus";
+import { useQuery } from "@tanstack/react-query";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { CreditCard, ExternalLink } from "lucide-react";
 
 // Só configuração do TENANT (empresa/consultoria) mora aqui. Gestão global
 // de tenants ("Empresas") migrou pra Administração da Plataforma
 // (/plataforma/empresas, só super_admin) — não é uma configuração de
 // empresa, é gestão do SaaS.
-const ABAS = ["geral", "crm", "usuarios"] as const;
+const ABAS = ["geral", "crm", "usuarios", "cobranca"] as const;
 type Aba = (typeof ABAS)[number];
 
 export const Route = createFileRoute("/configuracoes")({
@@ -88,6 +100,7 @@ function ConfiguracoesPage() {
             <TabsTrigger value="geral">Geral</TabsTrigger>
             <TabsTrigger value="crm">CRM Comercial</TabsTrigger>
             <TabsTrigger value="usuarios">Usuários</TabsTrigger>
+            <TabsTrigger value="cobranca">Plano e Cobrança</TabsTrigger>
           </TabsList>
 
           <TabsContent value="geral" className="mt-6">
@@ -98,6 +111,9 @@ function ConfiguracoesPage() {
           </TabsContent>
           <TabsContent value="usuarios" className="mt-6">
             <UserManagement />
+          </TabsContent>
+          <TabsContent value="cobranca" className="mt-6">
+            <CobrancaTab />
           </TabsContent>
         </Tabs>
       </AppShell>
@@ -483,6 +499,221 @@ function GooglePlacesIntegrationCard() {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+const STATUS_LABEL: Record<string, { label: string; variant: "default" | "outline" | "destructive" }> = {
+  active: { label: "Ativo", variant: "default" },
+  trialing: { label: "Em demonstração", variant: "outline" },
+  trial_expired: { label: "Demonstração encerrada", variant: "destructive" },
+  past_due_warning: { label: "Pagamento em atraso", variant: "destructive" },
+  blocked: { label: "Bloqueado", variant: "destructive" },
+  canceled: { label: "Cancelado", variant: "outline" },
+  no_subscription: { label: "Sem assinatura", variant: "outline" },
+};
+
+function fmtDataHora(iso: string | null) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("pt-BR");
+}
+
+interface PagamentoHistorico {
+  id: string;
+  valor_cobrado: number;
+  forma_pagamento: string | null;
+  status: string;
+  paid_at: string | null;
+  invoice_url: string | null;
+  created_at: string;
+}
+
+function usePagamentosHistorico(empresaId: string | undefined) {
+  return useQuery({
+    queryKey: ["saas-pagamentos-historico", empresaId],
+    enabled: !!empresaId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("saas_pagamentos")
+        .select("id, valor_cobrado, forma_pagamento, status, paid_at, invoice_url, created_at")
+        .eq("empresa_id", empresaId!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as PagamentoHistorico[];
+    },
+  });
+}
+
+function CobrancaTab() {
+  const { data: profile } = useCurrentProfile();
+  const { data: status, isLoading: statusLoading } = useTenantAccessStatus();
+  const { data: pagamentos = [], isLoading: pagamentosLoading } = usePagamentosHistorico(profile?.empresa_id);
+  const [iniciandoCheckout, setIniciandoCheckout] = useState<"mensal" | "anual" | null>(null);
+
+  const handleAssinar = async (periodicidade: "mensal" | "anual") => {
+    setIniciandoCheckout(periodicidade);
+    try {
+      const { data, error } = await supabase.functions.invoke("criar-checkout", {
+        body: { periodicidade },
+      });
+      if (error || !data?.checkoutUrl) throw error || new Error("Sem URL de checkout");
+      window.location.href = data.checkoutUrl;
+    } catch (err: any) {
+      toast.error(err.message || "Não foi possível iniciar o pagamento. Tente novamente.");
+      setIniciandoCheckout(null);
+    }
+  };
+
+  const ultimaFaturaAberta = pagamentos.find((p) => ["pendente", "atrasado"].includes(p.status));
+
+  if (statusLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[30vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const badge = STATUS_LABEL[status?.status ?? "no_subscription"];
+  const precisaContratar = status?.status === "trialing" || status?.status === "trial_expired" || status?.status === "no_subscription";
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-primary" />
+            <CardTitle className="text-lg">Plano atual</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Badge variant={badge.variant}>{badge.label}</Badge>
+            {status?.plano_codigo && (
+              <span className="text-sm text-muted-foreground">
+                {status.plano_codigo === "trial" ? "Demonstração" : "Plano pago"}
+                {status.periodicidade ? ` · ${status.periodicidade === "mensal" ? "Mensal" : "Anual"}` : ""}
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+            {status?.trial_ends_at && (
+              <div>
+                <span className="font-medium">Fim da demonstração: </span>
+                {fmtDataHora(status.trial_ends_at)}
+              </div>
+            )}
+            {status?.current_period_end && (
+              <div>
+                <span className="font-medium">Próxima cobrança: </span>
+                {fmtDataHora(status.current_period_end)}
+              </div>
+            )}
+            {typeof status?.dias_atraso === "number" && status.dias_atraso > 0 && (
+              <div className="text-destructive">
+                <span className="font-medium">Dias em atraso: </span>
+                {status.dias_atraso}
+              </div>
+            )}
+            {typeof status?.dias_para_bloqueio === "number" && status.status === "past_due_warning" && (
+              <div className="text-destructive">
+                <span className="font-medium">Bloqueio em: </span>
+                {status.dias_para_bloqueio} dia{status.dias_para_bloqueio === 1 ? "" : "s"}
+              </div>
+            )}
+          </div>
+
+          {(status?.status === "past_due_warning" || status?.status === "blocked") && ultimaFaturaAberta?.invoice_url && (
+            <Button asChild variant="outline" className="gap-2">
+              <a href={ultimaFaturaAberta.invoice_url} target="_blank" rel="noreferrer">
+                <ExternalLink className="h-4 w-4" /> Ver fatura em aberto
+              </a>
+            </Button>
+          )}
+
+          {precisaContratar && (
+            <div className="space-y-2 rounded-md border border-border p-4">
+              <p className="text-sm font-medium">
+                {status?.status === "trial_expired" ? "Sua demonstração acabou — escolha um plano para continuar." : "Contratar um plano pago"}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={() => handleAssinar("mensal")} disabled={iniciandoCheckout !== null}>
+                  {iniciandoCheckout === "mensal" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Assinar mensal — R$ 120/mês"}
+                </Button>
+                <Button variant="outline" onClick={() => handleAssinar("anual")} disabled={iniciandoCheckout !== null}>
+                  {iniciandoCheckout === "anual" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Assinar anual — R$ 1.250"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Histórico de pagamentos</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {pagamentosLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="font-bold">Data</TableHead>
+                    <TableHead className="font-bold">Valor</TableHead>
+                    <TableHead className="font-bold">Forma</TableHead>
+                    <TableHead className="font-bold">Status</TableHead>
+                    <TableHead className="font-bold text-right">Fatura</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pagamentos.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-20 text-center text-muted-foreground">
+                        Nenhum pagamento registrado ainda.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    pagamentos.map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="text-xs text-muted-foreground">{fmtDataHora(p.paid_at ?? p.created_at)}</TableCell>
+                        <TableCell className="text-sm">
+                          {p.valor_cobrado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </TableCell>
+                        <TableCell className="text-sm">{p.forma_pagamento ?? "—"}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="capitalize">
+                            {p.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {p.invoice_url ? (
+                            <a
+                              href={p.invoice_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-primary hover:underline"
+                            >
+                              Ver
+                            </a>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

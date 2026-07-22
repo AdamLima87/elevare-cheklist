@@ -89,6 +89,20 @@ export function ProtectedRoute({ children, allowedProfiles }: ProtectedRouteProp
         }
       }
 
+      // Bloqueio por trial expirado / inadimplência (dia 15+) — nunca pra
+      // super_admin (não tem tenant "de casa" nesse sentido) nem quando já
+      // está na própria tela de cobrança/configurações, senão o usuário
+      // nunca conseguiria chegar lá pra pagar e sair do bloqueio.
+      if (profile.perfil !== "super_admin" && location.pathname !== "/plano-bloqueado" && location.pathname !== "/configuracoes") {
+        const { data: acesso } = (await supabase.rpc("get_tenant_access_status").single()) as {
+          data: { status: string } | null;
+        };
+        if (acesso && (acesso.status === "blocked" || acesso.status === "trial_expired")) {
+          navigate({ to: "/plano-bloqueado" });
+          return;
+        }
+      }
+
       setAuthorized(true);
       setLoading(false);
     }

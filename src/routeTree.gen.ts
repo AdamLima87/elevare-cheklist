@@ -13,6 +13,7 @@ import { Route as ResultadoRouteImport } from './routes/resultado'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
 import { Route as ProspeccaoRouteImport } from './routes/prospeccao'
+import { Route as PlanoBloqueadoRouteImport } from './routes/plano-bloqueado'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as NovaInspecaoRouteImport } from './routes/nova-inspecao'
@@ -81,6 +82,11 @@ const RelatoriosRoute = RelatoriosRouteImport.update({
 const ProspeccaoRoute = ProspeccaoRouteImport.update({
   id: '/prospeccao',
   path: '/prospeccao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlanoBloqueadoRoute = PlanoBloqueadoRouteImport.update({
+  id: '/plano-bloqueado',
+  path: '/plano-bloqueado',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PerfilRoute = PerfilRouteImport.update({
@@ -352,6 +358,7 @@ export interface FileRoutesByFullPath {
   '/nova-inspecao': typeof NovaInspecaoRoute
   '/onboarding': typeof OnboardingRoute
   '/perfil': typeof PerfilRoute
+  '/plano-bloqueado': typeof PlanoBloqueadoRoute
   '/prospeccao': typeof ProspeccaoRoute
   '/relatorios': typeof RelatoriosRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -407,6 +414,7 @@ export interface FileRoutesByTo {
   '/nova-inspecao': typeof NovaInspecaoRoute
   '/onboarding': typeof OnboardingRoute
   '/perfil': typeof PerfilRoute
+  '/plano-bloqueado': typeof PlanoBloqueadoRoute
   '/prospeccao': typeof ProspeccaoRoute
   '/relatorios': typeof RelatoriosRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -463,6 +471,7 @@ export interface FileRoutesById {
   '/nova-inspecao': typeof NovaInspecaoRoute
   '/onboarding': typeof OnboardingRoute
   '/perfil': typeof PerfilRoute
+  '/plano-bloqueado': typeof PlanoBloqueadoRoute
   '/prospeccao': typeof ProspeccaoRoute
   '/relatorios': typeof RelatoriosRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -520,6 +529,7 @@ export interface FileRouteTypes {
     | '/nova-inspecao'
     | '/onboarding'
     | '/perfil'
+    | '/plano-bloqueado'
     | '/prospeccao'
     | '/relatorios'
     | '/reset-password'
@@ -575,6 +585,7 @@ export interface FileRouteTypes {
     | '/nova-inspecao'
     | '/onboarding'
     | '/perfil'
+    | '/plano-bloqueado'
     | '/prospeccao'
     | '/relatorios'
     | '/reset-password'
@@ -630,6 +641,7 @@ export interface FileRouteTypes {
     | '/nova-inspecao'
     | '/onboarding'
     | '/perfil'
+    | '/plano-bloqueado'
     | '/prospeccao'
     | '/relatorios'
     | '/reset-password'
@@ -686,6 +698,7 @@ export interface RootRouteChildren {
   NovaInspecaoRoute: typeof NovaInspecaoRoute
   OnboardingRoute: typeof OnboardingRoute
   PerfilRoute: typeof PerfilRoute
+  PlanoBloqueadoRoute: typeof PlanoBloqueadoRoute
   ProspeccaoRoute: typeof ProspeccaoRoute
   RelatoriosRoute: typeof RelatoriosRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -751,6 +764,13 @@ declare module '@tanstack/react-router' {
       path: '/prospeccao'
       fullPath: '/prospeccao'
       preLoaderRoute: typeof ProspeccaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plano-bloqueado': {
+      id: '/plano-bloqueado'
+      path: '/plano-bloqueado'
+      fullPath: '/plano-bloqueado'
+      preLoaderRoute: typeof PlanoBloqueadoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/perfil': {
@@ -1118,6 +1138,7 @@ const rootRouteChildren: RootRouteChildren = {
   NovaInspecaoRoute: NovaInspecaoRoute,
   OnboardingRoute: OnboardingRoute,
   PerfilRoute: PerfilRoute,
+  PlanoBloqueadoRoute: PlanoBloqueadoRoute,
   ProspeccaoRoute: ProspeccaoRoute,
   RelatoriosRoute: RelatoriosRoute,
   ResetPasswordRoute: ResetPasswordRoute,

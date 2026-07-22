@@ -88,26 +88,49 @@ async function enqueuePagamentoConfirmadoEmail(admin: AdminClient, email: string
   }
 }
 
-// Núcleo da Fase 4: correlaciona o pagamento à intenção de checkout via
-// externalReference (campo que definimos na criação do Checkout — Asaas
-// documenta como referência livre do lojista, propagada pro pagamento/
-// assinatura gerados). Nunca confia cegamente: sempre busca a intenção
-// local antes de agir, e todo o resto (empresa, plano, valores) vem do
-// banco, não do payload.
-async function ativarPagamento(admin: AdminClient, payment: AsaasPayment) {
-  const checkoutIntencaoId = payment.externalReference;
-  if (!checkoutIntencaoId) {
-    throw new Error(`Pagamento ${payment.id} sem externalReference — não é possível correlacionar com nenhuma intenção de checkout.`);
+// Correlaciona o pagamento com uma intenção de checkout local. Primeiro
+// via externalReference (campo que definimos na criação do Checkout —
+// Asaas documenta como a referência recomendada pra reconciliar o evento
+// com o pedido original, e a usamos assim). Se não bater (ex: cobrança
+// de renovação mensal gerada pela assinatura, que pode não repetir o
+// externalReference original), cai pro fallback via provider_subscription_id,
+// que aponta direto pra assinatura local já criada no primeiro pagamento.
+async function resolverIntencao(admin: AdminClient, payment: AsaasPayment) {
+  if (payment.externalReference) {
+    const { data } = await admin
+      .from("saas_checkout_intencoes")
+      .select("*")
+      .eq("id", payment.externalReference)
+      .maybeSingle();
+    if (data) return data;
   }
+  if (payment.subscription) {
+    const { data } = await admin
+      .from("saas_assinaturas")
+      .select("checkout_intencao_id")
+      .eq("provider_subscription_id", payment.subscription)
+      .maybeSingle();
+    if (data?.checkout_intencao_id) {
+      const { data: intencao } = await admin
+        .from("saas_checkout_intencoes")
+        .select("*")
+        .eq("id", data.checkout_intencao_id)
+        .maybeSingle();
+      if (intencao) return intencao;
+    }
+  }
+  return null;
+}
 
-  const { data: intencao, error: intencaoErr } = await admin
-    .from("saas_checkout_intencoes")
-    .select("*")
-    .eq("id", checkoutIntencaoId)
-    .maybeSingle();
-  if (intencaoErr) throw intencaoErr;
+// Núcleo da Fase 4/6: nunca confia cegamente no payload — sempre resolve
+// a intenção local antes de agir, e todo o resto (empresa, plano,
+// valores) vem do banco, não do payload.
+async function ativarPagamento(admin: AdminClient, payment: AsaasPayment) {
+  const intencao = await resolverIntencao(admin, payment);
   if (!intencao) {
-    throw new Error(`Intenção de checkout ${checkoutIntencaoId} não encontrada — referência do payload não corresponde a nenhum registro local.`);
+    throw new Error(
+      `Pagamento ${payment.id} sem correlação possível (externalReference=${payment.externalReference}, subscription=${payment.subscription}).`,
+    );
   }
 
   // Idempotência: se este pagamento específico já foi processado, só
@@ -122,15 +145,16 @@ async function ativarPagamento(admin: AdminClient, payment: AsaasPayment) {
 
   const origem = (intencao.origem ?? {}) as Record<string, unknown>;
 
-  // Empresa: reaproveita se já existe uma assinatura pra esta intenção
-  // (reprocessamento/segundo evento), senão provisiona agora.
-  const { data: assinaturaExistente } = await admin
-    .from("saas_assinaturas")
-    .select("id, empresa_id")
-    .eq("checkout_intencao_id", intencao.id)
+  // Resolve o tenant: reaproveita se o profile já existe (upgrade de
+  // trial, ou reprocessamento) — nunca provisiona um novo tenant pra
+  // quem já tem um.
+  const { data: profileExistente } = await admin
+    .from("profiles")
+    .select("empresa_id")
+    .eq("id", intencao.auth_user_id)
     .maybeSingle();
 
-  let empresaId = assinaturaExistente?.empresa_id ?? null;
+  let empresaId: string | null = profileExistente?.empresa_id ?? null;
 
   if (!empresaId) {
     const provisioned = await provisionPaidTenant(admin, {
@@ -145,6 +169,14 @@ async function ativarPagamento(admin: AdminClient, payment: AsaasPayment) {
       throw new Error(`provision_tenant retornou inconsistent_state pra intenção ${intencao.id}`);
     }
     empresaId = provisioned.empresaId;
+  } else {
+    // Upgrade de trial (ou qualquer mudança de plano associada a esta
+    // intenção): tenant já existe, só muda de plano/status.
+    const { error: empresaUpdateErr } = await admin
+      .from("empresas")
+      .update({ plano: "pro", status: "ativo" })
+      .eq("id", empresaId);
+    if (empresaUpdateErr) throw empresaUpdateErr;
   }
   if (!empresaId) throw new Error("Falha ao resolver empresa_id após provisionamento.");
 
@@ -152,22 +184,39 @@ async function ativarPagamento(admin: AdminClient, payment: AsaasPayment) {
   const periodoInicio = agora;
   const periodoFimData = periodoFim(intencao.periodicidade, agora);
 
-  // Upsert de saas_assinaturas por checkout_intencao_id (chave natural
-  // desta intenção — no máximo uma assinatura por intenção).
-  if (assinaturaExistente) {
-    await admin
+  // Upsert de saas_assinaturas por EMPRESA (não por checkout_intencao_id):
+  // uma empresa só pode ter uma linha "viva" por vez (índice único parcial
+  // em saas_assinaturas_ativa_por_empresa_idx) — reaproveitar a linha
+  // existente (seja a trial expirando num upgrade, seja a mensal/anual
+  // numa renovação) evita colidir com esse índice e violar silenciosamente
+  // a constraint numa segunda linha nunca seria criada mesmo.
+  const { data: assinaturaAtual } = await admin
+    .from("saas_assinaturas")
+    .select("id")
+    .eq("empresa_id", empresaId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (assinaturaAtual) {
+    const { error: assinaturaUpdateErr } = await admin
       .from("saas_assinaturas")
       .update({
+        checkout_intencao_id: intencao.id,
+        plano_codigo: intencao.plano_codigo,
+        periodicidade: intencao.periodicidade,
         status: "active",
         current_period_start: periodoInicio.toISOString(),
         current_period_end: periodoFimData.toISOString(),
         provider_subscription_id: payment.subscription ?? undefined,
         past_due_since: null,
         blocked_at: null,
+        canceled_at: null,
       })
-      .eq("id", assinaturaExistente.id);
+      .eq("id", assinaturaAtual.id);
+    if (assinaturaUpdateErr) throw assinaturaUpdateErr;
   } else {
-    await admin.from("saas_assinaturas").insert({
+    const { error: assinaturaInsertErr } = await admin.from("saas_assinaturas").insert({
       empresa_id: empresaId,
       owner_id: intencao.auth_user_id,
       checkout_intencao_id: intencao.id,
@@ -179,6 +228,7 @@ async function ativarPagamento(admin: AdminClient, payment: AsaasPayment) {
       current_period_start: periodoInicio.toISOString(),
       current_period_end: periodoFimData.toISOString(),
     });
+    if (assinaturaInsertErr) throw assinaturaInsertErr;
   }
 
   // valor_base = preço de tabela do plano (referência); valor_cobrado =
@@ -210,13 +260,16 @@ async function ativarPagamento(admin: AdminClient, payment: AsaasPayment) {
     invoice_url: payment.invoiceUrl,
   };
   if (pagamentoExistente) {
-    await admin.from("saas_pagamentos").update(pagamentoRow).eq("id", pagamentoExistente.id);
+    const { error } = await admin.from("saas_pagamentos").update(pagamentoRow).eq("id", pagamentoExistente.id);
+    if (error) throw error;
   } else {
-    await admin.from("saas_pagamentos").insert(pagamentoRow);
+    const { error } = await admin.from("saas_pagamentos").insert(pagamentoRow);
+    if (error) throw error;
   }
 
   if (intencao.status !== "pago") {
-    await admin.from("saas_checkout_intencoes").update({ status: "pago" }).eq("id", intencao.id);
+    const { error } = await admin.from("saas_checkout_intencoes").update({ status: "pago" }).eq("id", intencao.id);
+    if (error) throw error;
   }
 
   if (!jaProcessado) {
@@ -240,6 +293,35 @@ async function marcarPagamentoStatus(admin: AdminClient, payment: AsaasPayment, 
     .update({ status })
     .eq("provider", "asaas")
     .eq("provider_payment_id", payment.id);
+}
+
+// Dispara a contagem de inadimplência (Fase 6). Só marca past_due_since
+// na primeira vez que uma cobrança desta assinatura vence sem pagar — o
+// cron (20260802100000) é quem observa essa data e move status adiante
+// nos dias 7/15. Se não achar a assinatura (evento não correlacionável),
+// só loga o pagamento como atrasado — não é motivo pra falhar o webhook.
+async function marcarAtrasado(admin: AdminClient, payment: AsaasPayment) {
+  await marcarPagamentoStatus(admin, payment, "atrasado");
+
+  const intencao = await resolverIntencao(admin, payment);
+  if (!intencao) return;
+
+  const { data: assinatura } = await admin
+    .from("saas_assinaturas")
+    .select("id, past_due_since")
+    .eq("checkout_intencao_id", intencao.id)
+    .maybeSingle();
+  if (assinatura && !assinatura.past_due_since) {
+    await admin.from("saas_assinaturas").update({ past_due_since: new Date().toISOString() }).eq("id", assinatura.id);
+  }
+}
+
+async function marcarAssinaturaCancelada(admin: AdminClient, subscriptionId: string) {
+  await admin
+    .from("saas_assinaturas")
+    .update({ status: "canceled", canceled_at: new Date().toISOString() })
+    .eq("provider_subscription_id", subscriptionId)
+    .neq("status", "canceled");
 }
 
 serve(async (req) => {
@@ -313,7 +395,7 @@ serve(async (req) => {
         await ativarPagamento(admin, body.payment);
         break;
       case "PAYMENT_OVERDUE":
-        if (body.payment) await marcarPagamentoStatus(admin, body.payment, "atrasado");
+        if (body.payment) await marcarAtrasado(admin, body.payment);
         break;
       case "PAYMENT_REFUNDED":
       case "PAYMENT_PARTIALLY_REFUNDED":
@@ -324,6 +406,9 @@ serve(async (req) => {
         break;
       case "PAYMENT_DELETED":
         if (body.payment) await marcarPagamentoStatus(admin, body.payment, "cancelado");
+        break;
+      case "SUBSCRIPTION_DELETED":
+        if (body.subscription?.id) await marcarAssinaturaCancelada(admin, body.subscription.id);
         break;
       default:
         // Evento reconhecido pelo Asaas mas sem ação mapeada nesta fase

@@ -40,7 +40,7 @@ async function provisionTenant(admin: SupabaseClient, params: ProvisionParams): 
 // esses valores. trialEndsAt é calculado aqui (não omitido), porque a RPC
 // só aplica seu DEFAULT quando o parâmetro é OMITIDO da chamada, não
 // quando é passado como null.
-export function provisionTrialTenant(
+export async function provisionTrialTenant(
   admin: SupabaseClient,
   params: {
     ownerId: string;
@@ -52,13 +52,37 @@ export function provisionTrialTenant(
   },
 ): Promise<ProvisionResult> {
   const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
-  return provisionTenant(admin, {
+  const result = await provisionTenant(admin, {
     ...params,
     plano: "trial",
     status: "ativo",
     trialEndsAt,
     origem: { ...params.origem, provisioning_source: "public_signup" },
   });
+
+  // Assinatura local trialing — get_tenant_access_status() e a tela de
+  // Plano e Cobrança dependem dela existir, não só de empresas.trial_ends_at.
+  // "created" ou "already_provisioned" (corrida benigna) podem chegar aqui
+  // sem essa linha ainda existir; nunca duplica (checa antes de inserir).
+  if (result.empresaId && (result.status === "created" || result.status === "already_provisioned")) {
+    const { data: existente } = await admin
+      .from("saas_assinaturas")
+      .select("id")
+      .eq("empresa_id", result.empresaId)
+      .maybeSingle();
+    if (!existente) {
+      await admin.from("saas_assinaturas").insert({
+        empresa_id: result.empresaId,
+        owner_id: params.ownerId,
+        plano_codigo: "trial",
+        periodicidade: null,
+        status: "trialing",
+        trial_ends_at: trialEndsAt,
+      });
+    }
+  }
+
+  return result;
 }
 
 // Ativação pós-pagamento (webhook Asaas): plano pago, sem trial. Só é

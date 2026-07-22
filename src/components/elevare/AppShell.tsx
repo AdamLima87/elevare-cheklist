@@ -6,7 +6,9 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useUpcomingVisitas } from "@/hooks/useVisitas";
 import { useExpiringDocumentos } from "@/hooks/useDocumentos";
-import { CalendarClock, FileWarning } from "lucide-react";
+import { useTenantAccessStatus } from "@/hooks/useTenantAccessStatus";
+import { CalendarClock, FileWarning, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const VISITAS_ALERT_KEY = "elevare_visitas_alert_shown";
 const DOCUMENTOS_ALERT_KEY = "elevare_documentos_alert_shown";
@@ -100,6 +102,12 @@ export function AppShell({ children }: { children: ReactNode }) {
     navigate({ to: "/login" });
   };
 
+  // Banner de inadimplência (dias 7-14) — só pra quem gerencia cobrança;
+  // consultor/cliente não veem (e nem acessariam /configuracoes mesmo).
+  const podeGerenciarCobranca = !!profile && (profile.perfil === "admin" || profile.perfil === "super_admin");
+  const { data: acessoStatus } = useTenantAccessStatus() as { data?: { status: string; dias_para_bloqueio: number | null } };
+  const mostrarAvisoAtraso = podeGerenciarCobranca && acessoStatus?.status === "past_due_warning";
+
   // Skip sidebar for login and splash
   const isAuthPage = location.pathname === "/login" || location.pathname === "/reset-password";
 
@@ -122,6 +130,28 @@ export function AppShell({ children }: { children: ReactNode }) {
           isMobile ? "pt-16 px-4" : "ml-[64px]"
         )}
       >
+        {mostrarAvisoAtraso && (
+          <div className="flex items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span>
+                Sua fatura está em atraso
+                {typeof acessoStatus?.dias_para_bloqueio === "number"
+                  ? ` — o acesso será bloqueado em ${acessoStatus.dias_para_bloqueio} dia${acessoStatus.dias_para_bloqueio === 1 ? "" : "s"} se não for regularizada.`
+                  : "."}
+              </span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="shrink-0 border-amber-300 bg-white hover:bg-amber-100"
+              onClick={() => navigate({ to: "/configuracoes", search: { tab: "cobranca" } })}
+            >
+              Regularizar
+            </Button>
+          </div>
+        )}
+
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 flex-1 w-full">
           {children}
         </div>
