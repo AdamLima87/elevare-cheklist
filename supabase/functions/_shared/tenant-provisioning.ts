@@ -61,6 +61,28 @@ export function provisionTrialTenant(
   });
 }
 
+// Ativação pós-pagamento (webhook Asaas): plano pago, sem trial. Só é
+// chamada depois que o webhook confirma o pagamento — nunca antes.
+export function provisionPaidTenant(
+  admin: SupabaseClient,
+  params: {
+    ownerId: string;
+    ownerEmail: string;
+    empresaNome: string;
+    ownerNome: string;
+    whatsapp: string;
+    origem: Record<string, unknown>;
+  },
+): Promise<ProvisionResult> {
+  return provisionTenant(admin, {
+    ...params,
+    plano: "pro",
+    status: "ativo",
+    trialEndsAt: null,
+    origem: { ...params.origem, provisioning_source: "asaas_webhook" },
+  });
+}
+
 // create_empresa (super admin): plano/status/trial vêm do formulário
 // administrativo, não de um valor fixo — a mesma função SQL, chamada com
 // parâmetros diferentes.
