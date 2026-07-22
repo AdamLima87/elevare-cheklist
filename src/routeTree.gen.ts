@@ -43,7 +43,9 @@ import { Route as PlataformaEmpresasRouteImport } from './routes/plataforma/empr
 import { Route as PlataformaConsumoRouteImport } from './routes/plataforma/consumo'
 import { Route as PlataformaConfiguracoesRouteImport } from './routes/plataforma/configuracoes'
 import { Route as PlataformaCobrancasRouteImport } from './routes/plataforma/cobrancas'
+import { Route as PagamentoSucessoRouteImport } from './routes/pagamento/sucesso'
 import { Route as PagamentoPendenteRouteImport } from './routes/pagamento/pendente'
+import { Route as PagamentoFalhouRouteImport } from './routes/pagamento/falhou'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as CrmPipelineRouteImport } from './routes/crm/pipeline'
 import { Route as CrmLeadsRouteImport } from './routes/crm/leads'
@@ -231,9 +233,19 @@ const PlataformaCobrancasRoute = PlataformaCobrancasRouteImport.update({
   path: '/plataforma/cobrancas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PagamentoSucessoRoute = PagamentoSucessoRouteImport.update({
+  id: '/pagamento/sucesso',
+  path: '/pagamento/sucesso',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PagamentoPendenteRoute = PagamentoPendenteRouteImport.update({
   id: '/pagamento/pendente',
   path: '/pagamento/pendente',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PagamentoFalhouRoute = PagamentoFalhouRouteImport.update({
+  id: '/pagamento/falhou',
+  path: '/pagamento/falhou',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
@@ -351,7 +363,9 @@ export interface FileRoutesByFullPath {
   '/crm/leads': typeof CrmLeadsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/pagamento/falhou': typeof PagamentoFalhouRoute
   '/pagamento/pendente': typeof PagamentoPendenteRoute
+  '/pagamento/sucesso': typeof PagamentoSucessoRoute
   '/plataforma/cobrancas': typeof PlataformaCobrancasRoute
   '/plataforma/configuracoes': typeof PlataformaConfiguracoesRoute
   '/plataforma/consumo': typeof PlataformaConsumoRoute
@@ -404,7 +418,9 @@ export interface FileRoutesByTo {
   '/crm/leads': typeof CrmLeadsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/pagamento/falhou': typeof PagamentoFalhouRoute
   '/pagamento/pendente': typeof PagamentoPendenteRoute
+  '/pagamento/sucesso': typeof PagamentoSucessoRoute
   '/plataforma/cobrancas': typeof PlataformaCobrancasRoute
   '/plataforma/configuracoes': typeof PlataformaConfiguracoesRoute
   '/plataforma/consumo': typeof PlataformaConsumoRoute
@@ -458,7 +474,9 @@ export interface FileRoutesById {
   '/crm/leads': typeof CrmLeadsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/pagamento/falhou': typeof PagamentoFalhouRoute
   '/pagamento/pendente': typeof PagamentoPendenteRoute
+  '/pagamento/sucesso': typeof PagamentoSucessoRoute
   '/plataforma/cobrancas': typeof PlataformaCobrancasRoute
   '/plataforma/configuracoes': typeof PlataformaConfiguracoesRoute
   '/plataforma/consumo': typeof PlataformaConsumoRoute
@@ -513,7 +531,9 @@ export interface FileRouteTypes {
     | '/crm/leads'
     | '/crm/pipeline'
     | '/email/unsubscribe'
+    | '/pagamento/falhou'
     | '/pagamento/pendente'
+    | '/pagamento/sucesso'
     | '/plataforma/cobrancas'
     | '/plataforma/configuracoes'
     | '/plataforma/consumo'
@@ -566,7 +586,9 @@ export interface FileRouteTypes {
     | '/crm/leads'
     | '/crm/pipeline'
     | '/email/unsubscribe'
+    | '/pagamento/falhou'
     | '/pagamento/pendente'
+    | '/pagamento/sucesso'
     | '/plataforma/cobrancas'
     | '/plataforma/configuracoes'
     | '/plataforma/consumo'
@@ -619,7 +641,9 @@ export interface FileRouteTypes {
     | '/crm/leads'
     | '/crm/pipeline'
     | '/email/unsubscribe'
+    | '/pagamento/falhou'
     | '/pagamento/pendente'
+    | '/pagamento/sucesso'
     | '/plataforma/cobrancas'
     | '/plataforma/configuracoes'
     | '/plataforma/consumo'
@@ -673,7 +697,9 @@ export interface RootRouteChildren {
   CrmLeadsRoute: typeof CrmLeadsRoute
   CrmPipelineRoute: typeof CrmPipelineRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
+  PagamentoFalhouRoute: typeof PagamentoFalhouRoute
   PagamentoPendenteRoute: typeof PagamentoPendenteRoute
+  PagamentoSucessoRoute: typeof PagamentoSucessoRoute
   PlataformaCobrancasRoute: typeof PlataformaCobrancasRoute
   PlataformaConfiguracoesRoute: typeof PlataformaConfiguracoesRoute
   PlataformaConsumoRoute: typeof PlataformaConsumoRoute
@@ -937,11 +963,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlataformaCobrancasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pagamento/sucesso': {
+      id: '/pagamento/sucesso'
+      path: '/pagamento/sucesso'
+      fullPath: '/pagamento/sucesso'
+      preLoaderRoute: typeof PagamentoSucessoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pagamento/pendente': {
       id: '/pagamento/pendente'
       path: '/pagamento/pendente'
       fullPath: '/pagamento/pendente'
       preLoaderRoute: typeof PagamentoPendenteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pagamento/falhou': {
+      id: '/pagamento/falhou'
+      path: '/pagamento/falhou'
+      fullPath: '/pagamento/falhou'
+      preLoaderRoute: typeof PagamentoFalhouRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/email/unsubscribe': {
@@ -1089,7 +1129,9 @@ const rootRouteChildren: RootRouteChildren = {
   CrmLeadsRoute: CrmLeadsRoute,
   CrmPipelineRoute: CrmPipelineRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
+  PagamentoFalhouRoute: PagamentoFalhouRoute,
   PagamentoPendenteRoute: PagamentoPendenteRoute,
+  PagamentoSucessoRoute: PagamentoSucessoRoute,
   PlataformaCobrancasRoute: PlataformaCobrancasRoute,
   PlataformaConfiguracoesRoute: PlataformaConfiguracoesRoute,
   PlataformaConsumoRoute: PlataformaConsumoRoute,

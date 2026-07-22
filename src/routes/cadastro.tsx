@@ -25,7 +25,7 @@ const PLANO_CONTEUDO: Record<PlanoCadastro, { titulo: string; descricao: string;
   },
   anual: {
     titulo: "Plano Anual",
-    descricao: "R$ 1.150 — à vista ou em até 10x no cartão.",
+    descricao: "R$ 1.250 — à vista ou em até 10x no cartão.",
     botao: "Continuar para pagamento",
   },
 };

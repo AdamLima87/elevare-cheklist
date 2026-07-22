@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Logo } from "@/components/elevare/Logo";
+import { toast } from "sonner";
 import { Loader2, Clock } from "lucide-react";
 
 export const Route = createFileRoute("/pagamento/pendente")({
@@ -24,12 +25,13 @@ interface IntencaoAberta {
 
 const PERIODICIDADE_LABEL: Record<string, string> = {
   mensal: "Plano Mensal — R$ 120/mês",
-  anual: "Plano Anual — R$ 1.150",
+  anual: "Plano Anual — R$ 1.250 (à vista ou em até 10x)",
 };
 
 function PagamentoPendentePage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [redirecting, setRedirecting] = useState(false);
   const [intencao, setIntencao] = useState<IntencaoAberta | null>(null);
 
   useEffect(() => {
@@ -56,6 +58,21 @@ function PagamentoPendentePage() {
     }
     loadIntencao();
   }, [navigate]);
+
+  const handleIrParaPagamento = async () => {
+    setRedirecting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("criar-checkout", { body: {} });
+      if (error || !data?.checkoutUrl) {
+        throw error || new Error("Sem URL de checkout");
+      }
+      window.location.href = data.checkoutUrl;
+    } catch (err) {
+      console.error("Erro ao criar checkout:", err);
+      toast.error("Não foi possível iniciar o pagamento. Tente novamente.");
+      setRedirecting(false);
+    }
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -90,9 +107,15 @@ function PagamentoPendentePage() {
               <p className="text-center text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-md p-3">
                 {PERIODICIDADE_LABEL[intencao.periodicidade] ?? "Plano selecionado"}
               </p>
-              <p className="text-center text-sm text-slate-500">
-                Estamos preparando o checkout de pagamento. Em breve você poderá concluir sua contratação aqui
-                mesmo.
+              <Button
+                onClick={handleIrParaPagamento}
+                disabled={redirecting}
+                className="w-full bg-[#184878] hover:bg-[#184878]/90 text-white font-semibold py-6 h-auto"
+              >
+                {redirecting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ir para o pagamento"}
+              </Button>
+              <p className="text-center text-xs text-slate-400">
+                Você será redirecionado para o ambiente seguro de pagamento do Asaas.
               </p>
             </>
           ) : (
