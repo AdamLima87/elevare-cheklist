@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   BarChart3,
-  Users,
   Settings,
   UserCircle,
   LogOut,
@@ -49,10 +48,6 @@ const crmSubItems = [
   { icon: CalendarDays, label: "Atividades", to: "/crm/atividades" },
 ];
 
-// Catálogos do CRM (motivos de perda, tipos de atividade, origens de lead)
-// só admin edita — decisão confirmada com o usuário.
-const crmSubItemsAdmin = [...crmSubItems, { icon: Settings, label: "Configurações", to: "/crm/configuracoes" }];
-
 export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: SidebarProps) {
   const location = useLocation();
   const [isMobile, setIsMobile] = useState(false);
@@ -83,20 +78,17 @@ export function Sidebar({ profile, onLogout, isExpanded, setIsExpanded }: Sideba
   const menuItems = {
     admin: [
       { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
-      { icon: Briefcase, label: "CRM Comercial", to: "/crm", hasFlyout: true, subItems: crmSubItemsAdmin },
+      { icon: Briefcase, label: "CRM Comercial", to: "/crm", hasFlyout: true, subItems: crmSubItems },
       { icon: Building2, label: "Clientes", to: "/clientes", hasFlyout: true, subItems: clientesSubItems },
       { icon: BarChart3, label: "Relatórios", to: "/relatorios" },
-      { icon: Users, label: "Usuários", to: "/admin" },
       { icon: Settings, label: "Configurações", to: "/configuracoes" },
     ],
     super_admin: [
       { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
-      { icon: Briefcase, label: "CRM Comercial", to: "/crm", hasFlyout: true, subItems: crmSubItemsAdmin },
+      { icon: Briefcase, label: "CRM Comercial", to: "/crm", hasFlyout: true, subItems: crmSubItems },
       { icon: Building2, label: "Clientes", to: "/clientes", hasFlyout: true, subItems: clientesSubItems },
       { icon: BarChart3, label: "Relatórios", to: "/relatorios" },
-      { icon: Users, label: "Usuários", to: "/admin" },
       { icon: Settings, label: "Configurações", to: "/configuracoes" },
-      { icon: Briefcase, label: "Empresas", to: "/empresas" },
     ],
     consultor: [
       { icon: Building2, label: "Clientes", to: "/clientes", hasFlyout: true, subItems: clientesSubItems },

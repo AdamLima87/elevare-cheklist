@@ -1,25 +1,17 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { AppShell } from "@/components/elevare/AppShell";
-import { UserManagement } from "@/components/admin/UserManagement";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 
+// Gestão de usuários foi unificada na tela geral de Configurações
+// (src/routes/configuracoes.tsx, aba "usuarios"). Rota mantida só como
+// redirect stub pra não quebrar links/favoritos antigos.
 export const Route = createFileRoute("/admin")({
-  component: AdminPage,
+  component: AdminRedirect,
 });
 
-function AdminPage() {
-  return (
-    <ProtectedRoute allowedProfiles={["admin"]}>
-      <AppShell>
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">Painel Administrativo</h1>
-          <p className="text-muted-foreground">Gerencie usuários e permissões do sistema.</p>
-        </div>
-
-        <div className="space-y-6">
-          <UserManagement />
-        </div>
-      </AppShell>
-    </ProtectedRoute>
-  );
+function AdminRedirect() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    navigate({ to: "/configuracoes", search: { tab: "usuarios" }, replace: true });
+  }, [navigate]);
+  return null;
 }
