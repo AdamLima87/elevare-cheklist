@@ -1,10 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 
-// Gestão de empresas (tenants) foi unificada na tela geral de
-// Configurações (src/routes/configuracoes.tsx, aba "empresas", só
-// super_admin). Rota mantida só como redirect stub pra não quebrar
-// links/favoritos antigos.
+// Gestão de empresas (tenants) é Administração da Plataforma, não
+// configuração de tenant — mora em /plataforma/empresas (só super_admin).
+// Rota mantida só como redirect stub pra não quebrar links/favoritos
+// antigos (inclusive o antigo /configuracoes?tab=empresas).
 export const Route = createFileRoute("/empresas")({
   component: EmpresasRedirect,
 });
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/empresas")({
 function EmpresasRedirect() {
   const navigate = useNavigate();
   useEffect(() => {
-    navigate({ to: "/configuracoes", search: { tab: "empresas" }, replace: true });
+    navigate({ to: "/plataforma/empresas", replace: true });
   }, [navigate]);
   return null;
 }

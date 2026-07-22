@@ -11,23 +11,6 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
   Loader2,
   Save,
   Download,
@@ -42,9 +25,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
-import { useEmpresas, useCreateEmpresa } from "@/hooks/useEmpresas";
 import {
   useCrmMotivosPerda,
   useUpsertCrmMotivoPerda,
@@ -67,7 +48,11 @@ import {
   useRemoveLeadFinderCredential,
 } from "@/hooks/useLeadFinder";
 
-const ABAS = ["geral", "crm", "usuarios", "empresas"] as const;
+// Só configuração do TENANT (empresa/consultoria) mora aqui. Gestão global
+// de tenants ("Empresas") migrou pra Administração da Plataforma
+// (/plataforma/empresas, só super_admin) — não é uma configuração de
+// empresa, é gestão do SaaS.
+const ABAS = ["geral", "crm", "usuarios"] as const;
 type Aba = (typeof ABAS)[number];
 
 export const Route = createFileRoute("/configuracoes")({
@@ -77,7 +62,7 @@ export const Route = createFileRoute("/configuracoes")({
   head: () => ({
     meta: [
       { title: "Configurações · RDCheck" },
-      { name: "description", content: "Configurações do sistema, CRM, usuários e empresas." },
+      { name: "description", content: "Configurações do sistema, CRM e usuários." },
     ],
   }),
   component: ConfiguracoesPage,
@@ -86,17 +71,13 @@ export const Route = createFileRoute("/configuracoes")({
 function ConfiguracoesPage() {
   const navigate = useNavigate();
   const { tab } = Route.useSearch();
-  const { data: profile } = useCurrentProfile();
-  const isSuperAdmin = profile?.perfil === "super_admin";
 
   return (
     <ProtectedRoute allowedProfiles={["admin", "super_admin"]}>
       <AppShell>
         <div className="mb-6">
           <h1 className="text-2xl font-bold">Configurações</h1>
-          <p className="text-muted-foreground text-sm">
-            Gerencie os dados da empresa, o CRM Comercial, usuários{isSuperAdmin ? " e empresas" : ""}.
-          </p>
+          <p className="text-muted-foreground text-sm">Gerencie os dados da empresa, o CRM Comercial e usuários.</p>
         </div>
 
         <Tabs
@@ -107,7 +88,6 @@ function ConfiguracoesPage() {
             <TabsTrigger value="geral">Geral</TabsTrigger>
             <TabsTrigger value="crm">CRM Comercial</TabsTrigger>
             <TabsTrigger value="usuarios">Usuários</TabsTrigger>
-            {isSuperAdmin && <TabsTrigger value="empresas">Empresas</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="geral" className="mt-6">
@@ -119,11 +99,6 @@ function ConfiguracoesPage() {
           <TabsContent value="usuarios" className="mt-6">
             <UserManagement />
           </TabsContent>
-          {isSuperAdmin && (
-            <TabsContent value="empresas" className="mt-6">
-              <EmpresasTab />
-            </TabsContent>
-          )}
         </Tabs>
       </AppShell>
     </ProtectedRoute>
@@ -599,150 +574,3 @@ function CatalogoCard({
   );
 }
 
-function EmpresasTab() {
-  const { data: empresas = [], isLoading } = useEmpresas();
-  const createEmpresa = useCreateEmpresa();
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({
-    empresaNome: "",
-    empresaCnpj: "",
-    plano: "trial",
-    adminNome: "",
-    adminEmail: "",
-  });
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const result = await createEmpresa.mutateAsync(form);
-      toast.success(`Empresa "${form.empresaNome}" criada! Senha provisória do admin: ${result.tempPassword}`, {
-        duration: 15000,
-      });
-      setOpen(false);
-      setForm({ empresaNome: "", empresaCnpj: "", plano: "trial", adminNome: "", adminEmail: "" });
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao criar empresa");
-    }
-  };
-
-  return (
-    <div>
-      <div className="mb-4 flex flex-col sm:flex-row gap-4 justify-between sm:items-center">
-        <p className="text-sm text-muted-foreground">Consultorias que usam a plataforma (multi-tenant).</p>
-
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" /> Nova Empresa
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <form onSubmit={handleCreate}>
-              <DialogHeader>
-                <DialogTitle>Cadastrar Nova Empresa</DialogTitle>
-                <DialogDescription>
-                  Cria a empresa e o primeiro usuário admin dela. A senha provisória é enviada por e-mail e obriga a
-                  troca no primeiro acesso.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="empresaNome">Nome da Empresa</Label>
-                  <Input
-                    id="empresaNome"
-                    value={form.empresaNome}
-                    onChange={(e) => setForm({ ...form, empresaNome: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="empresaCnpj">CNPJ (opcional)</Label>
-                  <Input
-                    id="empresaCnpj"
-                    value={form.empresaCnpj}
-                    onChange={(e) => setForm({ ...form, empresaCnpj: e.target.value })}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="adminNome">Nome do Admin</Label>
-                  <Input
-                    id="adminNome"
-                    value={form.adminNome}
-                    onChange={(e) => setForm({ ...form, adminNome: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="adminEmail">E-mail do Admin</Label>
-                  <Input
-                    id="adminEmail"
-                    type="email"
-                    value={form.adminEmail}
-                    onChange={(e) => setForm({ ...form, adminEmail: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="submit" disabled={createEmpresa.isPending} className="w-full">
-                  {createEmpresa.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Cadastrar Empresa"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <Card>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead className="font-bold">Nome</TableHead>
-                    <TableHead className="font-bold">CNPJ</TableHead>
-                    <TableHead className="font-bold">Plano</TableHead>
-                    <TableHead className="font-bold">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {empresas.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                        Nenhuma empresa cadastrada.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    empresas.map((empresa) => (
-                      <TableRow key={empresa.id}>
-                        <TableCell className="font-medium py-4">{empresa.nome}</TableCell>
-                        <TableCell className="text-sm font-mono">{empresa.cnpj || "---"}</TableCell>
-                        <TableCell className="text-sm capitalize">{empresa.plano}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={cn(
-                                "h-2 w-2 rounded-full",
-                                empresa.status === "ativo" ? "bg-green-500" : "bg-red-500",
-                              )}
-                            />
-                            <span className="text-xs font-medium capitalize">{empresa.status}</span>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
