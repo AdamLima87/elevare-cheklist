@@ -139,3 +139,53 @@ export async function listPlanos(): Promise<PlatformSaasPlano[]> {
   if (error) throw error;
   return (data ?? []) as PlatformSaasPlano[];
 }
+
+export interface PlatformPlanoLimite {
+  id: string;
+  plano_id: string;
+  limite_key: string;
+  valor: number;
+}
+
+export interface PlatformPlanoComLimites extends PlatformSaasPlano {
+  saas_plano_limites: PlatformPlanoLimite[];
+}
+
+export async function listPlanosComLimites(): Promise<PlatformPlanoComLimites[]> {
+  const { data, error } = await supabase
+    .from("saas_planos")
+    .select("*, saas_plano_limites(*)")
+    .order("ordem");
+  if (error) throw error;
+  return (data ?? []) as unknown as PlatformPlanoComLimites[];
+}
+
+export async function criarPlano(input: { codigo: string; nome: string; ordem: number }): Promise<void> {
+  const { error } = await supabase.from("saas_planos").insert({
+    codigo: input.codigo,
+    nome: input.nome,
+    ordem: input.ordem,
+  });
+  if (error) throw error;
+}
+
+export async function atualizarPlanoAtivo(planoId: string, ativo: boolean): Promise<void> {
+  const { error } = await supabase.from("saas_planos").update({ ativo }).eq("id", planoId);
+  if (error) throw error;
+}
+
+export async function definirPlanoLimite(input: {
+  planoId: string;
+  limiteKey: string;
+  valor: number;
+}): Promise<void> {
+  const { error } = await supabase
+    .from("saas_plano_limites")
+    .upsert({ plano_id: input.planoId, limite_key: input.limiteKey, valor: input.valor }, { onConflict: "plano_id,limite_key" });
+  if (error) throw error;
+}
+
+export async function removerPlanoLimite(limiteId: string): Promise<void> {
+  const { error } = await supabase.from("saas_plano_limites").delete().eq("id", limiteId);
+  if (error) throw error;
+}

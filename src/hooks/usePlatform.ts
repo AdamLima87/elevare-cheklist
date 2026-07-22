@@ -7,6 +7,11 @@ import {
   estenderTrial,
   definirOverrideLimite,
   listPlanos,
+  listPlanosComLimites,
+  criarPlano,
+  atualizarPlanoAtivo,
+  definirPlanoLimite,
+  removerPlanoLimite,
   getGooglePlacesConsumo,
   getAuditLog,
 } from "@/lib/platform/platformService";
@@ -29,6 +34,53 @@ export function usePlatformPlanos() {
   return useQuery({
     queryKey: ["platform", "planos"],
     queryFn: listPlanos,
+  });
+}
+
+export function usePlatformPlanosComLimites() {
+  return useQuery({
+    queryKey: ["platform", "planos-com-limites"],
+    queryFn: listPlanosComLimites,
+  });
+}
+
+function useInvalidatePlatformPlanos() {
+  const queryClient = useQueryClient();
+  return () => {
+    queryClient.invalidateQueries({ queryKey: ["platform", "planos-com-limites"] });
+    queryClient.invalidateQueries({ queryKey: ["platform", "planos"] });
+  };
+}
+
+export function useCriarPlano() {
+  const invalidate = useInvalidatePlatformPlanos();
+  return useMutation({
+    mutationFn: criarPlano,
+    onSuccess: invalidate,
+  });
+}
+
+export function useAtualizarPlanoAtivo() {
+  const invalidate = useInvalidatePlatformPlanos();
+  return useMutation({
+    mutationFn: (input: { planoId: string; ativo: boolean }) => atualizarPlanoAtivo(input.planoId, input.ativo),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDefinirPlanoLimite() {
+  const invalidate = useInvalidatePlatformPlanos();
+  return useMutation({
+    mutationFn: definirPlanoLimite,
+    onSuccess: invalidate,
+  });
+}
+
+export function useRemoverPlanoLimite() {
+  const invalidate = useInvalidatePlatformPlanos();
+  return useMutation({
+    mutationFn: removerPlanoLimite,
+    onSuccess: invalidate,
   });
 }
 
