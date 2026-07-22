@@ -19,6 +19,7 @@ import { Route as NovaInspecaoRouteImport } from './routes/nova-inspecao'
 import { Route as MeuResultadoRouteImport } from './routes/meu-resultado'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as EstabelecimentoRouteImport } from './routes/estabelecimento'
+import { Route as EscolhaAcessoRouteImport } from './routes/escolha-acesso'
 import { Route as EmpresasRouteImport } from './routes/empresas'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ConfirmeEmailRouteImport } from './routes/confirme-email'
@@ -30,8 +31,18 @@ import { Route as AgendaRouteImport } from './routes/agenda'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AcessoNegadoRouteImport } from './routes/acesso-negado'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PlataformaIndexRouteImport } from './routes/plataforma/index'
 import { Route as CrmIndexRouteImport } from './routes/crm/index'
 import { Route as ClientesIndexRouteImport } from './routes/clientes/index'
+import { Route as PlataformaUsuariosRouteImport } from './routes/plataforma/usuarios'
+import { Route as PlataformaSuporteRouteImport } from './routes/plataforma/suporte'
+import { Route as PlataformaPlanosRouteImport } from './routes/plataforma/planos'
+import { Route as PlataformaLogsRouteImport } from './routes/plataforma/logs'
+import { Route as PlataformaIntegracoesRouteImport } from './routes/plataforma/integracoes'
+import { Route as PlataformaEmpresasRouteImport } from './routes/plataforma/empresas'
+import { Route as PlataformaConsumoRouteImport } from './routes/plataforma/consumo'
+import { Route as PlataformaConfiguracoesRouteImport } from './routes/plataforma/configuracoes'
+import { Route as PlataformaCobrancasRouteImport } from './routes/plataforma/cobrancas'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as CrmPipelineRouteImport } from './routes/crm/pipeline'
 import { Route as CrmLeadsRouteImport } from './routes/crm/leads'
@@ -99,6 +110,11 @@ const EstabelecimentoRoute = EstabelecimentoRouteImport.update({
   path: '/estabelecimento',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EscolhaAcessoRoute = EscolhaAcessoRouteImport.update({
+  id: '/escolha-acesso',
+  path: '/escolha-acesso',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EmpresasRoute = EmpresasRouteImport.update({
   id: '/empresas',
   path: '/empresas',
@@ -154,6 +170,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlataformaIndexRoute = PlataformaIndexRouteImport.update({
+  id: '/plataforma/',
+  path: '/plataforma/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CrmIndexRoute = CrmIndexRouteImport.update({
   id: '/crm/',
   path: '/crm/',
@@ -162,6 +183,51 @@ const CrmIndexRoute = CrmIndexRouteImport.update({
 const ClientesIndexRoute = ClientesIndexRouteImport.update({
   id: '/clientes/',
   path: '/clientes/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlataformaUsuariosRoute = PlataformaUsuariosRouteImport.update({
+  id: '/plataforma/usuarios',
+  path: '/plataforma/usuarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlataformaSuporteRoute = PlataformaSuporteRouteImport.update({
+  id: '/plataforma/suporte',
+  path: '/plataforma/suporte',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlataformaPlanosRoute = PlataformaPlanosRouteImport.update({
+  id: '/plataforma/planos',
+  path: '/plataforma/planos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlataformaLogsRoute = PlataformaLogsRouteImport.update({
+  id: '/plataforma/logs',
+  path: '/plataforma/logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlataformaIntegracoesRoute = PlataformaIntegracoesRouteImport.update({
+  id: '/plataforma/integracoes',
+  path: '/plataforma/integracoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlataformaEmpresasRoute = PlataformaEmpresasRouteImport.update({
+  id: '/plataforma/empresas',
+  path: '/plataforma/empresas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlataformaConsumoRoute = PlataformaConsumoRouteImport.update({
+  id: '/plataforma/consumo',
+  path: '/plataforma/consumo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlataformaConfiguracoesRoute = PlataformaConfiguracoesRouteImport.update({
+  id: '/plataforma/configuracoes',
+  path: '/plataforma/configuracoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlataformaCobrancasRoute = PlataformaCobrancasRouteImport.update({
+  id: '/plataforma/cobrancas',
+  path: '/plataforma/cobrancas',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
@@ -261,6 +327,7 @@ export interface FileRoutesByFullPath {
   '/confirme-email': typeof ConfirmeEmailRoute
   '/dashboard': typeof DashboardRoute
   '/empresas': typeof EmpresasRoute
+  '/escolha-acesso': typeof EscolhaAcessoRoute
   '/estabelecimento': typeof EstabelecimentoRoute
   '/login': typeof LoginRoute
   '/meu-resultado': typeof MeuResultadoRoute
@@ -278,8 +345,18 @@ export interface FileRoutesByFullPath {
   '/crm/leads': typeof CrmLeadsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/plataforma/cobrancas': typeof PlataformaCobrancasRoute
+  '/plataforma/configuracoes': typeof PlataformaConfiguracoesRoute
+  '/plataforma/consumo': typeof PlataformaConsumoRoute
+  '/plataforma/empresas': typeof PlataformaEmpresasRoute
+  '/plataforma/integracoes': typeof PlataformaIntegracoesRoute
+  '/plataforma/logs': typeof PlataformaLogsRoute
+  '/plataforma/planos': typeof PlataformaPlanosRoute
+  '/plataforma/suporte': typeof PlataformaSuporteRoute
+  '/plataforma/usuarios': typeof PlataformaUsuariosRoute
   '/clientes/': typeof ClientesIndexRoute
   '/crm/': typeof CrmIndexRoute
+  '/plataforma/': typeof PlataformaIndexRoute
   '/crm/empresas/$id': typeof CrmEmpresasIdRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/crm/empresas/': typeof CrmEmpresasIndexRoute
@@ -302,6 +379,7 @@ export interface FileRoutesByTo {
   '/confirme-email': typeof ConfirmeEmailRoute
   '/dashboard': typeof DashboardRoute
   '/empresas': typeof EmpresasRoute
+  '/escolha-acesso': typeof EscolhaAcessoRoute
   '/estabelecimento': typeof EstabelecimentoRoute
   '/login': typeof LoginRoute
   '/meu-resultado': typeof MeuResultadoRoute
@@ -319,8 +397,18 @@ export interface FileRoutesByTo {
   '/crm/leads': typeof CrmLeadsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/plataforma/cobrancas': typeof PlataformaCobrancasRoute
+  '/plataforma/configuracoes': typeof PlataformaConfiguracoesRoute
+  '/plataforma/consumo': typeof PlataformaConsumoRoute
+  '/plataforma/empresas': typeof PlataformaEmpresasRoute
+  '/plataforma/integracoes': typeof PlataformaIntegracoesRoute
+  '/plataforma/logs': typeof PlataformaLogsRoute
+  '/plataforma/planos': typeof PlataformaPlanosRoute
+  '/plataforma/suporte': typeof PlataformaSuporteRoute
+  '/plataforma/usuarios': typeof PlataformaUsuariosRoute
   '/clientes': typeof ClientesIndexRoute
   '/crm': typeof CrmIndexRoute
+  '/plataforma': typeof PlataformaIndexRoute
   '/crm/empresas/$id': typeof CrmEmpresasIdRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/crm/empresas': typeof CrmEmpresasIndexRoute
@@ -344,6 +432,7 @@ export interface FileRoutesById {
   '/confirme-email': typeof ConfirmeEmailRoute
   '/dashboard': typeof DashboardRoute
   '/empresas': typeof EmpresasRoute
+  '/escolha-acesso': typeof EscolhaAcessoRoute
   '/estabelecimento': typeof EstabelecimentoRoute
   '/login': typeof LoginRoute
   '/meu-resultado': typeof MeuResultadoRoute
@@ -361,8 +450,18 @@ export interface FileRoutesById {
   '/crm/leads': typeof CrmLeadsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/plataforma/cobrancas': typeof PlataformaCobrancasRoute
+  '/plataforma/configuracoes': typeof PlataformaConfiguracoesRoute
+  '/plataforma/consumo': typeof PlataformaConsumoRoute
+  '/plataforma/empresas': typeof PlataformaEmpresasRoute
+  '/plataforma/integracoes': typeof PlataformaIntegracoesRoute
+  '/plataforma/logs': typeof PlataformaLogsRoute
+  '/plataforma/planos': typeof PlataformaPlanosRoute
+  '/plataforma/suporte': typeof PlataformaSuporteRoute
+  '/plataforma/usuarios': typeof PlataformaUsuariosRoute
   '/clientes/': typeof ClientesIndexRoute
   '/crm/': typeof CrmIndexRoute
+  '/plataforma/': typeof PlataformaIndexRoute
   '/crm/empresas/$id': typeof CrmEmpresasIdRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/crm/empresas/': typeof CrmEmpresasIndexRoute
@@ -387,6 +486,7 @@ export interface FileRouteTypes {
     | '/confirme-email'
     | '/dashboard'
     | '/empresas'
+    | '/escolha-acesso'
     | '/estabelecimento'
     | '/login'
     | '/meu-resultado'
@@ -404,8 +504,18 @@ export interface FileRouteTypes {
     | '/crm/leads'
     | '/crm/pipeline'
     | '/email/unsubscribe'
+    | '/plataforma/cobrancas'
+    | '/plataforma/configuracoes'
+    | '/plataforma/consumo'
+    | '/plataforma/empresas'
+    | '/plataforma/integracoes'
+    | '/plataforma/logs'
+    | '/plataforma/planos'
+    | '/plataforma/suporte'
+    | '/plataforma/usuarios'
     | '/clientes/'
     | '/crm/'
+    | '/plataforma/'
     | '/crm/empresas/$id'
     | '/lovable/email/suppression'
     | '/crm/empresas/'
@@ -428,6 +538,7 @@ export interface FileRouteTypes {
     | '/confirme-email'
     | '/dashboard'
     | '/empresas'
+    | '/escolha-acesso'
     | '/estabelecimento'
     | '/login'
     | '/meu-resultado'
@@ -445,8 +556,18 @@ export interface FileRouteTypes {
     | '/crm/leads'
     | '/crm/pipeline'
     | '/email/unsubscribe'
+    | '/plataforma/cobrancas'
+    | '/plataforma/configuracoes'
+    | '/plataforma/consumo'
+    | '/plataforma/empresas'
+    | '/plataforma/integracoes'
+    | '/plataforma/logs'
+    | '/plataforma/planos'
+    | '/plataforma/suporte'
+    | '/plataforma/usuarios'
     | '/clientes'
     | '/crm'
+    | '/plataforma'
     | '/crm/empresas/$id'
     | '/lovable/email/suppression'
     | '/crm/empresas'
@@ -469,6 +590,7 @@ export interface FileRouteTypes {
     | '/confirme-email'
     | '/dashboard'
     | '/empresas'
+    | '/escolha-acesso'
     | '/estabelecimento'
     | '/login'
     | '/meu-resultado'
@@ -486,8 +608,18 @@ export interface FileRouteTypes {
     | '/crm/leads'
     | '/crm/pipeline'
     | '/email/unsubscribe'
+    | '/plataforma/cobrancas'
+    | '/plataforma/configuracoes'
+    | '/plataforma/consumo'
+    | '/plataforma/empresas'
+    | '/plataforma/integracoes'
+    | '/plataforma/logs'
+    | '/plataforma/planos'
+    | '/plataforma/suporte'
+    | '/plataforma/usuarios'
     | '/clientes/'
     | '/crm/'
+    | '/plataforma/'
     | '/crm/empresas/$id'
     | '/lovable/email/suppression'
     | '/crm/empresas/'
@@ -511,6 +643,7 @@ export interface RootRouteChildren {
   ConfirmeEmailRoute: typeof ConfirmeEmailRoute
   DashboardRoute: typeof DashboardRoute
   EmpresasRoute: typeof EmpresasRoute
+  EscolhaAcessoRoute: typeof EscolhaAcessoRoute
   EstabelecimentoRoute: typeof EstabelecimentoRoute
   LoginRoute: typeof LoginRoute
   MeuResultadoRoute: typeof MeuResultadoRoute
@@ -528,8 +661,18 @@ export interface RootRouteChildren {
   CrmLeadsRoute: typeof CrmLeadsRoute
   CrmPipelineRoute: typeof CrmPipelineRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
+  PlataformaCobrancasRoute: typeof PlataformaCobrancasRoute
+  PlataformaConfiguracoesRoute: typeof PlataformaConfiguracoesRoute
+  PlataformaConsumoRoute: typeof PlataformaConsumoRoute
+  PlataformaEmpresasRoute: typeof PlataformaEmpresasRoute
+  PlataformaIntegracoesRoute: typeof PlataformaIntegracoesRoute
+  PlataformaLogsRoute: typeof PlataformaLogsRoute
+  PlataformaPlanosRoute: typeof PlataformaPlanosRoute
+  PlataformaSuporteRoute: typeof PlataformaSuporteRoute
+  PlataformaUsuariosRoute: typeof PlataformaUsuariosRoute
   ClientesIndexRoute: typeof ClientesIndexRoute
   CrmIndexRoute: typeof CrmIndexRoute
+  PlataformaIndexRoute: typeof PlataformaIndexRoute
   CrmEmpresasIdRoute: typeof CrmEmpresasIdRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   CrmEmpresasIndexRoute: typeof CrmEmpresasIndexRoute
@@ -613,6 +756,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EstabelecimentoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/escolha-acesso': {
+      id: '/escolha-acesso'
+      path: '/escolha-acesso'
+      fullPath: '/escolha-acesso'
+      preLoaderRoute: typeof EscolhaAcessoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/empresas': {
       id: '/empresas'
       path: '/empresas'
@@ -690,6 +840,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/plataforma/': {
+      id: '/plataforma/'
+      path: '/plataforma'
+      fullPath: '/plataforma/'
+      preLoaderRoute: typeof PlataformaIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/crm/': {
       id: '/crm/'
       path: '/crm'
@@ -702,6 +859,69 @@ declare module '@tanstack/react-router' {
       path: '/clientes'
       fullPath: '/clientes/'
       preLoaderRoute: typeof ClientesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plataforma/usuarios': {
+      id: '/plataforma/usuarios'
+      path: '/plataforma/usuarios'
+      fullPath: '/plataforma/usuarios'
+      preLoaderRoute: typeof PlataformaUsuariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plataforma/suporte': {
+      id: '/plataforma/suporte'
+      path: '/plataforma/suporte'
+      fullPath: '/plataforma/suporte'
+      preLoaderRoute: typeof PlataformaSuporteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plataforma/planos': {
+      id: '/plataforma/planos'
+      path: '/plataforma/planos'
+      fullPath: '/plataforma/planos'
+      preLoaderRoute: typeof PlataformaPlanosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plataforma/logs': {
+      id: '/plataforma/logs'
+      path: '/plataforma/logs'
+      fullPath: '/plataforma/logs'
+      preLoaderRoute: typeof PlataformaLogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plataforma/integracoes': {
+      id: '/plataforma/integracoes'
+      path: '/plataforma/integracoes'
+      fullPath: '/plataforma/integracoes'
+      preLoaderRoute: typeof PlataformaIntegracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plataforma/empresas': {
+      id: '/plataforma/empresas'
+      path: '/plataforma/empresas'
+      fullPath: '/plataforma/empresas'
+      preLoaderRoute: typeof PlataformaEmpresasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plataforma/consumo': {
+      id: '/plataforma/consumo'
+      path: '/plataforma/consumo'
+      fullPath: '/plataforma/consumo'
+      preLoaderRoute: typeof PlataformaConsumoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plataforma/configuracoes': {
+      id: '/plataforma/configuracoes'
+      path: '/plataforma/configuracoes'
+      fullPath: '/plataforma/configuracoes'
+      preLoaderRoute: typeof PlataformaConfiguracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plataforma/cobrancas': {
+      id: '/plataforma/cobrancas'
+      path: '/plataforma/cobrancas'
+      fullPath: '/plataforma/cobrancas'
+      preLoaderRoute: typeof PlataformaCobrancasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/email/unsubscribe': {
@@ -831,6 +1051,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConfirmeEmailRoute: ConfirmeEmailRoute,
   DashboardRoute: DashboardRoute,
   EmpresasRoute: EmpresasRoute,
+  EscolhaAcessoRoute: EscolhaAcessoRoute,
   EstabelecimentoRoute: EstabelecimentoRoute,
   LoginRoute: LoginRoute,
   MeuResultadoRoute: MeuResultadoRoute,
@@ -848,8 +1069,18 @@ const rootRouteChildren: RootRouteChildren = {
   CrmLeadsRoute: CrmLeadsRoute,
   CrmPipelineRoute: CrmPipelineRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
+  PlataformaCobrancasRoute: PlataformaCobrancasRoute,
+  PlataformaConfiguracoesRoute: PlataformaConfiguracoesRoute,
+  PlataformaConsumoRoute: PlataformaConsumoRoute,
+  PlataformaEmpresasRoute: PlataformaEmpresasRoute,
+  PlataformaIntegracoesRoute: PlataformaIntegracoesRoute,
+  PlataformaLogsRoute: PlataformaLogsRoute,
+  PlataformaPlanosRoute: PlataformaPlanosRoute,
+  PlataformaSuporteRoute: PlataformaSuporteRoute,
+  PlataformaUsuariosRoute: PlataformaUsuariosRoute,
   ClientesIndexRoute: ClientesIndexRoute,
   CrmIndexRoute: CrmIndexRoute,
+  PlataformaIndexRoute: PlataformaIndexRoute,
   CrmEmpresasIdRoute: CrmEmpresasIdRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   CrmEmpresasIndexRoute: CrmEmpresasIndexRoute,
