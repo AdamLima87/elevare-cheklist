@@ -43,6 +43,7 @@ import { Route as PlataformaEmpresasRouteImport } from './routes/plataforma/empr
 import { Route as PlataformaConsumoRouteImport } from './routes/plataforma/consumo'
 import { Route as PlataformaConfiguracoesRouteImport } from './routes/plataforma/configuracoes'
 import { Route as PlataformaCobrancasRouteImport } from './routes/plataforma/cobrancas'
+import { Route as PagamentoPendenteRouteImport } from './routes/pagamento/pendente'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as CrmPipelineRouteImport } from './routes/crm/pipeline'
 import { Route as CrmLeadsRouteImport } from './routes/crm/leads'
@@ -230,6 +231,11 @@ const PlataformaCobrancasRoute = PlataformaCobrancasRouteImport.update({
   path: '/plataforma/cobrancas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PagamentoPendenteRoute = PagamentoPendenteRouteImport.update({
+  id: '/pagamento/pendente',
+  path: '/pagamento/pendente',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
   id: '/email/unsubscribe',
   path: '/email/unsubscribe',
@@ -345,6 +351,7 @@ export interface FileRoutesByFullPath {
   '/crm/leads': typeof CrmLeadsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/pagamento/pendente': typeof PagamentoPendenteRoute
   '/plataforma/cobrancas': typeof PlataformaCobrancasRoute
   '/plataforma/configuracoes': typeof PlataformaConfiguracoesRoute
   '/plataforma/consumo': typeof PlataformaConsumoRoute
@@ -397,6 +404,7 @@ export interface FileRoutesByTo {
   '/crm/leads': typeof CrmLeadsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/pagamento/pendente': typeof PagamentoPendenteRoute
   '/plataforma/cobrancas': typeof PlataformaCobrancasRoute
   '/plataforma/configuracoes': typeof PlataformaConfiguracoesRoute
   '/plataforma/consumo': typeof PlataformaConsumoRoute
@@ -450,6 +458,7 @@ export interface FileRoutesById {
   '/crm/leads': typeof CrmLeadsRoute
   '/crm/pipeline': typeof CrmPipelineRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/pagamento/pendente': typeof PagamentoPendenteRoute
   '/plataforma/cobrancas': typeof PlataformaCobrancasRoute
   '/plataforma/configuracoes': typeof PlataformaConfiguracoesRoute
   '/plataforma/consumo': typeof PlataformaConsumoRoute
@@ -504,6 +513,7 @@ export interface FileRouteTypes {
     | '/crm/leads'
     | '/crm/pipeline'
     | '/email/unsubscribe'
+    | '/pagamento/pendente'
     | '/plataforma/cobrancas'
     | '/plataforma/configuracoes'
     | '/plataforma/consumo'
@@ -556,6 +566,7 @@ export interface FileRouteTypes {
     | '/crm/leads'
     | '/crm/pipeline'
     | '/email/unsubscribe'
+    | '/pagamento/pendente'
     | '/plataforma/cobrancas'
     | '/plataforma/configuracoes'
     | '/plataforma/consumo'
@@ -608,6 +619,7 @@ export interface FileRouteTypes {
     | '/crm/leads'
     | '/crm/pipeline'
     | '/email/unsubscribe'
+    | '/pagamento/pendente'
     | '/plataforma/cobrancas'
     | '/plataforma/configuracoes'
     | '/plataforma/consumo'
@@ -661,6 +673,7 @@ export interface RootRouteChildren {
   CrmLeadsRoute: typeof CrmLeadsRoute
   CrmPipelineRoute: typeof CrmPipelineRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
+  PagamentoPendenteRoute: typeof PagamentoPendenteRoute
   PlataformaCobrancasRoute: typeof PlataformaCobrancasRoute
   PlataformaConfiguracoesRoute: typeof PlataformaConfiguracoesRoute
   PlataformaConsumoRoute: typeof PlataformaConsumoRoute
@@ -924,6 +937,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlataformaCobrancasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pagamento/pendente': {
+      id: '/pagamento/pendente'
+      path: '/pagamento/pendente'
+      fullPath: '/pagamento/pendente'
+      preLoaderRoute: typeof PagamentoPendenteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/email/unsubscribe': {
       id: '/email/unsubscribe'
       path: '/email/unsubscribe'
@@ -1069,6 +1089,7 @@ const rootRouteChildren: RootRouteChildren = {
   CrmLeadsRoute: CrmLeadsRoute,
   CrmPipelineRoute: CrmPipelineRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
+  PagamentoPendenteRoute: PagamentoPendenteRoute,
   PlataformaCobrancasRoute: PlataformaCobrancasRoute,
   PlataformaConfiguracoesRoute: PlataformaConfiguracoesRoute,
   PlataformaConsumoRoute: PlataformaConsumoRoute,
