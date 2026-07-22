@@ -10,8 +10,29 @@ import { toast } from "sonner";
 import { Logo } from "@/components/elevare/Logo";
 import { Loader2 } from "lucide-react";
 
+type PlanoCadastro = "trial" | "mensal" | "anual";
+
+const PLANO_CONTEUDO: Record<PlanoCadastro, { titulo: string; descricao: string; botao: string }> = {
+  trial: {
+    titulo: "Experimente grátis",
+    descricao: "Crie sua conta e comece a usar o RDCheck agora mesmo.",
+    botao: "Iniciar demonstração",
+  },
+  mensal: {
+    titulo: "Plano Mensal",
+    descricao: "R$ 120/mês — cobrança recorrente no cartão.",
+    botao: "Continuar para pagamento",
+  },
+  anual: {
+    titulo: "Plano Anual",
+    descricao: "R$ 1.150 — à vista ou em até 10x no cartão.",
+    botao: "Continuar para pagamento",
+  },
+};
+
 export const Route = createFileRoute("/cadastro")({
   validateSearch: (search: Record<string, unknown>) => ({
+    plano: (search.plano === "mensal" || search.plano === "anual" ? search.plano : "trial") as PlanoCadastro,
     utm_source: (search.utm_source as string) || undefined,
     utm_medium: (search.utm_medium as string) || undefined,
     utm_campaign: (search.utm_campaign as string) || undefined,
@@ -30,6 +51,7 @@ export const Route = createFileRoute("/cadastro")({
 function CadastroPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
+  const conteudo = PLANO_CONTEUDO[search.plano];
 
   const [nomeCompleto, setNomeCompleto] = useState("");
   const [email, setEmail] = useState("");
@@ -68,6 +90,7 @@ function CadastroPage() {
           empresaNome,
           password,
           website,
+          plano: search.plano,
           utm: {
             utm_source: search.utm_source,
             utm_medium: search.utm_medium,
@@ -106,10 +129,8 @@ function CadastroPage() {
             <Logo />
           </div>
           <div className="text-center space-y-1">
-            <CardTitle className="text-2xl font-bold text-slate-800">Experimente grátis</CardTitle>
-            <CardDescription className="text-slate-500">
-              Crie sua conta e comece a usar o RDCheck agora mesmo.
-            </CardDescription>
+            <CardTitle className="text-2xl font-bold text-slate-800">{conteudo.titulo}</CardTitle>
+            <CardDescription className="text-slate-500">{conteudo.descricao}</CardDescription>
           </div>
         </CardHeader>
         <CardContent>
@@ -165,7 +186,7 @@ function CadastroPage() {
             </div>
 
             <Button type="submit" disabled={loading} className="w-full bg-[#184878] hover:bg-[#184878]/90 text-white font-semibold py-6 h-auto">
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar minha conta"}
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : conteudo.botao}
             </Button>
 
             <p className="text-center text-sm text-slate-500">

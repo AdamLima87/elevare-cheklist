@@ -6,6 +6,7 @@ import { checkSignupRateLimit, getClientIp, logSignupAttempt } from "../_shared/
 import { lookupSignupState, type SignupState } from "../_shared/signup-lookup.ts";
 import { provisionTrialTenant } from "../_shared/tenant-provisioning.ts";
 import { resendSignupConfirmation } from "../_shared/resend-confirmation.ts";
+import { upsertCheckoutIntent, findOpenCheckoutIntent, type Periodicidade } from "../_shared/checkout-intent.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -155,6 +156,11 @@ serve(async (req) => {
     const empresaNome = typeof body.empresaNome === "string" ? body.empresaNome.trim() : "";
     const password = typeof body.password === "string" ? body.password : "";
     const utm = typeof body.utm === "object" && body.utm !== null ? body.utm : {};
+    // Identificador de produto, nunca preço: plano/periodicidade só dizem
+    // O QUE a pessoa quer contratar. O valor em R$ é sempre resolvido no
+    // backend (Fase 3), nunca confiado a partir daqui.
+    const rawPlano = typeof body.plano === "string" ? body.plano : "trial";
+    const plano: "trial" | Periodicidade = rawPlano === "mensal" || rawPlano === "anual" ? rawPlano : "trial";
 
     if (!normalizedEmail) return genericError("E-mail inválido.");
     email = normalizedEmail;
@@ -199,10 +205,16 @@ serve(async (req) => {
     // sucesso dos outros ramos, para não revelar que a conta já existe e
     // está incompleta.
     if (lookup.state === "confirmed_no_profile" && lookup.userId) {
+      // Mensal/anual não tem passo de "completar cadastro" — os dados já
+      // foram coletados no formulário original e vivem na intenção de
+      // checkout. Decide o redirect pelo que existe no banco, nunca pelo
+      // `plano` desta requisição (um resend não reenvia isso).
+      const openIntent = await findOpenCheckoutIntent(admin, lookup.userId);
+      const redirectPath = openIntent ? "/pagamento/pendente" : "/concluir-cadastro";
       const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
         type: "magiclink",
         email,
-        options: { redirectTo: `${appUrl}/concluir-cadastro` },
+        options: { redirectTo: `${appUrl}${redirectPath}` },
       });
       const actionLink = linkData?.properties?.action_link;
       if (linkError || !actionLink) {
@@ -235,11 +247,12 @@ serve(async (req) => {
     let needsProvisioning = lookup.state === "unconfirmed_no_profile";
 
     if (lookup.state === "new") {
+      const redirectPath = plano === "trial" ? "/onboarding" : "/pagamento/pendente";
       const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
         type: "signup",
         email,
         password,
-        options: { redirectTo: `${appUrl}/onboarding` },
+        options: { redirectTo: `${appUrl}${redirectPath}` },
       });
 
       if (linkError) {
@@ -256,31 +269,47 @@ serve(async (req) => {
         // Cai para o bloco de reenvio abaixo (fora deste if).
       } else if (linkData?.user?.id) {
         ownerId = linkData.user.id;
-        const provisioned = await provisionTrialTenant(admin, {
-          ownerId,
-          ownerEmail: email,
-          empresaNome,
-          ownerNome: nomeCompleto,
-          whatsapp,
-          origem: { utm, ip },
-        });
 
-        if (provisioned.status === "inconsistent_state") {
-          await admin.from("audit_log").insert({
-            empresa_id: provisioned.empresaId,
-            actor_id: ownerId,
-            event_type: "signup_inconsistent_state",
-            metadata: { email },
+        if (plano === "trial") {
+          const provisioned = await provisionTrialTenant(admin, {
+            ownerId,
+            ownerEmail: email,
+            empresaNome,
+            ownerNome: nomeCompleto,
+            whatsapp,
+            origem: { utm, ip },
           });
-          await logSignupAttempt(admin, { ip, email, success: false, reason: "inconsistent_state" });
-          return genericError(
-            "Não foi possível concluir seu cadastro. Nossa equipe foi notificada — tente novamente em alguns minutos ou fale com o suporte.",
-            500,
-          );
-        }
-        if (provisioned.status !== "created" && provisioned.status !== "already_provisioned") {
-          await logSignupAttempt(admin, { ip, email, success: false, reason: "unexpected_provision_status" });
-          return genericError("Não foi possível concluir o cadastro. Tente novamente.", 500);
+
+          if (provisioned.status === "inconsistent_state") {
+            await admin.from("audit_log").insert({
+              empresa_id: provisioned.empresaId,
+              actor_id: ownerId,
+              event_type: "signup_inconsistent_state",
+              metadata: { email },
+            });
+            await logSignupAttempt(admin, { ip, email, success: false, reason: "inconsistent_state" });
+            return genericError(
+              "Não foi possível concluir seu cadastro. Nossa equipe foi notificada — tente novamente em alguns minutos ou fale com o suporte.",
+              500,
+            );
+          }
+          if (provisioned.status !== "created" && provisioned.status !== "already_provisioned") {
+            await logSignupAttempt(admin, { ip, email, success: false, reason: "unexpected_provision_status" });
+            return genericError("Não foi possível concluir o cadastro. Tente novamente.", 500);
+          }
+        } else {
+          // Mensal/anual: nenhum tenant/empresa é criado aqui. Só a
+          // intenção de checkout, que carrega os dados do formulário pra
+          // provision_tenant usar quando o webhook confirmar o pagamento.
+          await upsertCheckoutIntent(admin, {
+            authUserId: ownerId,
+            email,
+            periodicidade: plano,
+            empresaNome,
+            ownerNome: nomeCompleto,
+            whatsapp,
+            origem: { utm, ip },
+          });
         }
 
         const actionLink = linkData.properties?.action_link;
@@ -322,25 +351,39 @@ serve(async (req) => {
     }
 
     if (needsProvisioning) {
-      const provisioned = await provisionTrialTenant(admin, {
-        ownerId,
-        ownerEmail: email,
-        empresaNome,
-        ownerNome: nomeCompleto,
-        whatsapp,
-        origem: { utm, ip },
-      });
-      if (provisioned.status === "inconsistent_state") {
-        await logSignupAttempt(admin, { ip, email, success: false, reason: "inconsistent_state" });
-        return genericError(
-          "Não foi possível concluir seu cadastro. Nossa equipe foi notificada — tente novamente em alguns minutos ou fale com o suporte.",
-          500,
-        );
+      if (plano === "trial") {
+        const provisioned = await provisionTrialTenant(admin, {
+          ownerId,
+          ownerEmail: email,
+          empresaNome,
+          ownerNome: nomeCompleto,
+          whatsapp,
+          origem: { utm, ip },
+        });
+        if (provisioned.status === "inconsistent_state") {
+          await logSignupAttempt(admin, { ip, email, success: false, reason: "inconsistent_state" });
+          return genericError(
+            "Não foi possível concluir seu cadastro. Nossa equipe foi notificada — tente novamente em alguns minutos ou fale com o suporte.",
+            500,
+          );
+        }
+      } else {
+        await upsertCheckoutIntent(admin, {
+          authUserId: ownerId,
+          email,
+          periodicidade: plano,
+          empresaNome,
+          ownerNome: nomeCompleto,
+          whatsapp,
+          origem: { utm, ip },
+        });
       }
     }
-    // unconfirmed_with_profile: tenant já provisionado, só reenvia.
+    // unconfirmed_with_profile: tenant já provisionado (só acontece pra
+    // trial — pago nunca provisiona antes do pagamento), só reenvia.
+    const redirectPath = needsProvisioning && plano !== "trial" ? "/pagamento/pendente" : "/onboarding";
 
-    const resent = await resendSignupConfirmation(admin, email, ownerId, `${appUrl}/onboarding`);
+    const resent = await resendSignupConfirmation(admin, email, ownerId, `${appUrl}${redirectPath}`);
     if (!resent.ok) {
       console.error("Falha ao reenviar confirmação", resent.reason);
       await logSignupAttempt(admin, { ip, email, success: true, reason: "resend_failed" });
