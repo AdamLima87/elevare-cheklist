@@ -7,6 +7,8 @@ import {
   estenderTrial,
   definirOverrideLimite,
   listPlanos,
+  getGooglePlacesConsumo,
+  getAuditLog,
 } from "@/lib/platform/platformService";
 
 export function usePlatformDashboardMetrics() {
@@ -27,6 +29,20 @@ export function usePlatformPlanos() {
   return useQuery({
     queryKey: ["platform", "planos"],
     queryFn: listPlanos,
+  });
+}
+
+export function usePlatformGooglePlacesConsumo() {
+  return useQuery({
+    queryKey: ["platform", "google-places-consumo"],
+    queryFn: getGooglePlacesConsumo,
+  });
+}
+
+export function usePlatformAuditLog() {
+  return useQuery({
+    queryKey: ["platform", "audit-log"],
+    queryFn: getAuditLog,
   });
 }
 

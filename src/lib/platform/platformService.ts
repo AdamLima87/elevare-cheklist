@@ -87,6 +87,45 @@ export async function definirOverrideLimite(input: {
   if (error) throw error;
 }
 
+export interface PlatformGooglePlacesConsumo {
+  empresa_id: string;
+  empresa_nome: string;
+  plano: string;
+  credencial_origem: "tenant" | "rdcheck";
+  credencial_status: "nao_configurado" | "conectado" | "invalido";
+  trial_leads_usados: number;
+  trial_leads_limite: number;
+  mes_atual_leads_importados: number;
+  buscas_ultima_hora: number;
+  total_leads_importados: number;
+}
+
+export async function getGooglePlacesConsumo(): Promise<PlatformGooglePlacesConsumo[]> {
+  const { data, error } = await supabase.rpc("platform_google_places_consumo");
+  if (error) throw error;
+  return (data ?? []) as PlatformGooglePlacesConsumo[];
+}
+
+export interface PlatformAuditLogEntry {
+  id: string;
+  empresa_id: string | null;
+  actor_id: string | null;
+  event_type: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  empresas: { nome: string } | null;
+}
+
+export async function getAuditLog(): Promise<PlatformAuditLogEntry[]> {
+  const { data, error } = await supabase
+    .from("audit_log")
+    .select("id, empresa_id, actor_id, event_type, metadata, created_at, empresas(nome)")
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (error) throw error;
+  return (data ?? []) as unknown as PlatformAuditLogEntry[];
+}
+
 export interface PlatformSaasPlano {
   id: string;
   codigo: string;
