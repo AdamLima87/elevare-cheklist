@@ -147,15 +147,88 @@ async function seedCliente(tenant, nome) {
   return data.id;
 }
 
+// Cria uma Conta + Oportunidade reais no CRM do tenant, usando o pipeline/etapa
+// padrão já semeados por provision_tenant (crm_seed_catalogos_padrao) — nenhum
+// catálogo novo é criado, só uma Conta e uma Oportunidade sobre o que já existe.
+async function seedOportunidade(tenant, nome) {
+  const { data: pipeline, error: pipelineErr } = await admin
+    .from("crm_pipelines")
+    .select("id")
+    .eq("empresa_id", tenant.empresaId)
+    .eq("padrao", true)
+    .single();
+  if (pipelineErr) throw new Error(`pipeline padrão não encontrado para ${tenant.label}: ${pipelineErr.message}`);
+
+  const { data: etapa, error: etapaErr } = await admin
+    .from("crm_etapas")
+    .select("id")
+    .eq("pipeline_id", pipeline.id)
+    .order("ordem")
+    .limit(1)
+    .single();
+  if (etapaErr) throw new Error(`etapa inicial não encontrada para ${tenant.label}: ${etapaErr.message}`);
+
+  const { data: crmEmpresa, error: crmEmpresaErr } = await tenant.client
+    .from("crm_empresas")
+    .insert({ empresa_id: tenant.empresaId, razao_social: nome, responsavel_id: tenant.userId })
+    .select("id")
+    .single();
+  if (crmEmpresaErr) throw new Error(`seed de crm_empresas falhou para ${tenant.label}: ${crmEmpresaErr.message}`);
+
+  const { data: oportunidade, error: oportunidadeErr } = await tenant.client
+    .from("crm_oportunidades")
+    .insert({
+      empresa_id: tenant.empresaId,
+      crm_empresa_id: crmEmpresa.id,
+      pipeline_id: pipeline.id,
+      etapa_id: etapa.id,
+      nome,
+      responsavel_id: tenant.userId,
+    })
+    .select("id")
+    .single();
+  if (oportunidadeErr) throw new Error(`seed de crm_oportunidades falhou para ${tenant.label}: ${oportunidadeErr.message}`);
+  return oportunidade.id;
+}
+
+// Ordem importa por causa de FKs (nenhuma tabela abaixo tem ON DELETE CASCADE
+// pra empresas — todas são NO ACTION por desenho, ver Fase 2). "inspecoes"
+// precisa ser limpa antes de "crm_oportunidades" por causa da FK nova
+// inspecoes_crm_oportunidade_empresa_fkey (NO ACTION): apagar uma oportunidade
+// enquanto uma inspeção ainda a referencia é proibido pelo banco.
+const CLEANUP_TABLES_IN_ORDER = [
+  "crm_timeline",
+  "crm_atividades",
+  "documentos",
+  "visitas",
+  "cliente_interacoes",
+  "inspecoes",
+  "crm_oportunidades",
+  "crm_contatos",
+  "crm_empresas",
+  "clientes",
+  "crm_etapas",
+  "crm_pipelines",
+  "crm_motivos_perda",
+  "crm_tipos_atividade",
+  "crm_origens_lead",
+  "crm_leads_nichos",
+  "crm_leads_config",
+  "configuracoes",
+  "numeracao_inspecoes",
+];
+
 async function cleanupTenant(tenant) {
   const empresaId = tenant.empresaId;
-  for (const table of ["documentos", "visitas", "cliente_interacoes", "inspecoes", "clientes", "configuracoes", "numeracao_inspecoes"]) {
-    await admin.from(table).delete().eq("empresa_id", empresaId);
+  for (const table of CLEANUP_TABLES_IN_ORDER) {
+    const { error } = await admin.from(table).delete().eq("empresa_id", empresaId);
+    if (error) console.error(`  aviso: limpeza de ${table} para ${tenant.label} falhou: ${error.message}`);
   }
   for (const userId of tenant.userIds) {
     await admin.auth.admin.deleteUser(userId).catch(() => {});
   }
-  await admin.from("empresas").delete().eq("id", empresaId);
+  const { error: empresaErr } = await admin.from("empresas").delete().eq("id", empresaId);
+  if (empresaErr) console.error(`  aviso: DELETE de empresas para ${tenant.label} falhou: ${empresaErr.message}`);
 }
 
 async function main() {
@@ -173,6 +246,8 @@ async function main() {
 
     const clienteA = await seedCliente(A, "Cliente da Empresa A");
     const clienteB = await seedCliente(B, "Cliente da Empresa B");
+    const oportunidadeA = await seedOportunidade(A, "Oportunidade da Empresa A");
+    const oportunidadeB = await seedOportunidade(B, "Oportunidade da Empresa B");
 
     console.log("\nIsolamento cross-tenant (Empresa A tentando acessar dados da Empresa B):");
 
@@ -218,6 +293,59 @@ async function main() {
         email: "intruso@rdcheck-test.internal",
       });
       assert(error !== null, "INSERT em profiles deveria ter falhado (INSERT revogado), mas foi aceito");
+    });
+
+    console.log("\nFase 2 — schema aditivo em inspecoes (crm_oportunidade_id / tipo_execucao):");
+
+    let inspecaoIdA;
+    await test("Setup: cria inspeção da Empresa A vinculada ao cliente A", async () => {
+      const { data: numero, error: numeroErr } = await A.client.rpc("get_next_numero_inspecao");
+      if (numeroErr) throw numeroErr;
+      const { data, error } = await A.client
+        .from("inspecoes")
+        .insert({ empresa_id: A.empresaId, cliente_id: clienteA, numero_sequencial: numero })
+        .select("id")
+        .single();
+      if (error) throw error;
+      inspecaoIdA = data.id;
+    });
+
+    await test("UPDATE crm_oportunidade_id p/ oportunidade de outra empresa falha pela FK composta, não por RLS", async () => {
+      // A é 'admin' — a policy inspecoes_admin já autoriza acesso tenant-wide à
+      // própria linha (mesma empresa), então RLS não é o que pode barrar este
+      // UPDATE. Isso isola o teste: se falhar, só pode ser a FK composta.
+      const { error } = await A.client.from("inspecoes").update({ crm_oportunidade_id: oportunidadeB }).eq("id", inspecaoIdA);
+      assert(error !== null, "UPDATE deveria ter falhado, mas foi aceito (a operação chegou ao banco e não foi rejeitada)");
+      assert(
+        error.code === "23503",
+        `esperava violação de FK (code 23503), recebeu code=${error.code} message=${error.message} — ` +
+          `se o code for 42501, foi RLS que bloqueou, não a FK; investigar antes de aceitar o teste como bom`
+      );
+      assert(
+        JSON.stringify(error).includes("inspecoes_crm_oportunidade_empresa_fkey"),
+        `erro não referencia especificamente a constraint esperada: ${JSON.stringify(error)}`
+      );
+      const { data: check } = await admin.from("inspecoes").select("crm_oportunidade_id").eq("id", inspecaoIdA).single();
+      assert(check.crm_oportunidade_id === null, "crm_oportunidade_id foi alterado indevidamente apesar do erro reportado");
+    });
+
+    await test("UPDATE crm_oportunidade_id p/ oportunidade da própria empresa é aceito", async () => {
+      const { error } = await A.client.from("inspecoes").update({ crm_oportunidade_id: oportunidadeA }).eq("id", inspecaoIdA);
+      if (error) throw error;
+      const { data: check } = await admin.from("inspecoes").select("crm_oportunidade_id").eq("id", inspecaoIdA).single();
+      assert(check.crm_oportunidade_id === oportunidadeA, "crm_oportunidade_id não foi atualizado para a oportunidade correta");
+    });
+
+    await test("tipo_execucao com valor fora do CHECK é rejeitado", async () => {
+      const { error } = await A.client.from("inspecoes").update({ tipo_execucao: "valor_invalido" }).eq("id", inspecaoIdA);
+      assert(error !== null, "UPDATE deveria ter falhado por CHECK, mas foi aceito");
+      assert(error.code === "23514", `esperava violação de CHECK (code 23514), recebeu code=${error.code} message=${error.message}`);
+    });
+
+    await test("Inspeções criadas pelo fluxo atual continuam com tipo_execucao='inspecao_legada' por padrão", async () => {
+      const { data, error } = await admin.from("inspecoes").select("tipo_execucao").eq("id", inspecaoIdA).single();
+      if (error) throw error;
+      assert(data.tipo_execucao === "inspecao_legada", `esperava 'inspecao_legada' (via DEFAULT), recebeu '${data.tipo_execucao}'`);
     });
 
     console.log("\nNumeração de inspeções (concorrência):");
@@ -303,6 +431,16 @@ async function main() {
       const { data, error } = await consultorSession.client.from("clientes").select("id").eq("id", clienteA);
       if (error) throw error;
       assert(data.length === 1, `esperava 1 linha, recebeu ${data.length}`);
+    });
+
+    await test("Regressão Fase 2: policy inspecoes_consultor continua igual (consultor só vê inspeção que ele mesmo é dono)", async () => {
+      // A inspeção "inspecaoIdA" foi criada pelo client de A (admin), sem
+      // consultor_id preenchido — inspecoes_consultor exige consultor_id =
+      // auth.uid(), então este consultor não deveria enxergá-la, exatamente
+      // como já seria o caso antes da Fase 2 (nenhuma policy foi alterada).
+      const { data, error } = await consultorSession.client.from("inspecoes").select("id").eq("id", inspecaoIdA);
+      if (error) throw error;
+      assert(data.length === 0, `esperava 0 linhas (sem policy nova pra CRM ainda), recebeu ${data.length}`);
     });
 
     console.log("\nUsuário removido — sessão antiga não deve continuar funcionando:");

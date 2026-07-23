@@ -22,6 +22,8 @@ export interface CrmEtapa {
   tipo: CrmEtapaTipo;
   cor: string | null;
   created_at: string;
+  /** Fase 2: flag independente de `tipo` — não altera comportamento até a Fase 5 (toggle de configuração). */
+  gera_diagnostico: boolean;
 }
 
 export interface CrmCatalogoItem {
