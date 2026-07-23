@@ -252,6 +252,101 @@ export function loadHistorico(): Inspecao[] {
   }
 }
 
+/** `Inspecao` como fica salva em `HISTORICO_KEY` — o campo `_context` é
+ * metadado local (nunca vai ao Supabase), usado por `sync.ts` para nunca
+ * precisar inferir o contexto de um item pela ausência de linha remota. */
+export type StoredHistoricoItem = Inspecao & { _context?: InspectionContext };
+
+/** Monta e envia o upsert de `inspecoes` para um contexto já resolvido.
+ * Único lugar que decide `cliente_id`/`crm_oportunidade_id`/`tipo_execucao`
+ * — usado tanto por `saveToHistorico` quanto por `sync.ts`, eliminando a
+ * duplicação de lógica que existia entre os dois. */
+export async function pushInspecaoToCloud(
+  insp: Inspecao,
+  context: InspectionContext,
+  session: { user: { id: string } },
+  empresaId: string,
+): Promise<{ updated_at: string } | null> {
+  const cnpj = insp.dados?.estabelecimento?.cnpj || null;
+  const cleanCnpj = cnpj ? cnpj.replace(/\D/g, "") : null;
+
+  let clienteId: string | null = null;
+  // Diagnósticos pré-venda (context.kind === "diagnostico_crm") NUNCA
+  // buscam/criam cliente — cliente_id fica null incondicionalmente até a
+  // conversão da oportunidade (Fase 3, crm_fechar_oportunidade_ganha).
+  if (context.kind === "cliente" && insp.estabelecimento) {
+    try {
+      const cliente = await findOrCreateCliente({
+        empresa_id: empresaId,
+        nome: insp.estabelecimento,
+        cnpj: cleanCnpj,
+      });
+      clienteId = cliente.id;
+    } catch (err) {
+      console.error("Failed to find/create cliente:", err);
+    }
+  }
+
+  const { data: upserted, error } = await supabase
+    .from("inspecoes")
+    .upsert({
+      id: insp.id,
+      empresa_id: empresaId,
+      cliente_id: clienteId,
+      crm_oportunidade_id: context.kind === "diagnostico_crm" ? context.crmOportunidadeId : null,
+      tipo_execucao: tipoExecucaoFor(context),
+      consultor_id: session.user.id,
+      numero_sequencial: insp.numero_sequencial,
+      status: insp.status,
+      estabelecimento_nome: insp.estabelecimento,
+      cnpj: cleanCnpj,
+      data_inicio: insp.dataInicio,
+      data_conclusao: insp.dataConclusao,
+      progresso: insp.progresso,
+      conformidade: insp.conformidade,
+      dados: insp.dados as any,
+      respostas: insp.respostas as any,
+    })
+    .select("updated_at")
+    .single();
+  if (error) throw error;
+
+  // Efeito colateral pós-conclusão (login de cliente + acesso ao portal) só
+  // no fluxo operacional. Diagnósticos pré-venda nunca ganham isso aqui —
+  // não existe cliente_id ainda nesse contexto.
+  if (insp.status === "concluida" && context.kind === "cliente") {
+    const legalEmail =
+      insp.dados?.estabelecimento?.respLegalEmail || insp.dados?.estabelecimento?.email;
+    const legalName = insp.dados?.estabelecimento?.respLegalNome;
+
+    if (legalEmail && cleanCnpj) {
+      supabase.functions
+        .invoke("admin-manage-users", {
+          body: {
+            action: "create_client",
+            userData: {
+              email: legalEmail,
+              password: cleanCnpj, // CNPJ only numbers as password
+              nome: legalName || insp.estabelecimento,
+              perfil: "cliente",
+              cnpj: cleanCnpj,
+            },
+          },
+        })
+        .then(({ data }) => {
+          if (data && !data.error) {
+            console.log("Acesso do cliente garantido na conclusão");
+          }
+        })
+        .catch((err: unknown) => {
+          console.error("Failed to ensure client access:", err);
+        });
+    }
+  }
+
+  return upserted;
+}
+
 export async function saveToHistorico(
   insp: Inspecao,
   context: InspectionContext,
@@ -265,8 +360,9 @@ export async function saveToHistorico(
       insp.dados.estabelecimento.nomeFantasia || insp.dados.estabelecimento.razaoSocial || "";
   }
 
-  if (idx >= 0) list[idx] = insp;
-  else list.unshift(insp);
+  const stored: StoredHistoricoItem = { ...insp, _context: context };
+  if (idx >= 0) list[idx] = stored;
+  else list.unshift(stored);
 
   localStorage.setItem(HISTORICO_KEY, JSON.stringify(list));
 
@@ -301,49 +397,7 @@ export async function saveToHistorico(
         return undefined;
       }
 
-      const cnpj = insp.dados?.estabelecimento?.cnpj || null;
-      const cleanCnpj = cnpj ? cnpj.replace(/\D/g, "") : null;
-
-      let clienteId: string | null = null;
-      // Diagnósticos pré-venda (context.kind === "diagnostico_crm") NUNCA
-      // buscam/criam cliente — cliente_id fica null incondicionalmente até a
-      // conversão da oportunidade (Fase 3, crm_fechar_oportunidade_ganha).
-      if (context.kind === "cliente" && insp.estabelecimento) {
-        try {
-          const cliente = await findOrCreateCliente({
-            empresa_id: empresaId,
-            nome: insp.estabelecimento,
-            cnpj: cleanCnpj,
-          });
-          clienteId = cliente.id;
-        } catch (err) {
-          console.error("Failed to find/create cliente:", err);
-        }
-      }
-
-      const { data: upserted, error } = await supabase
-        .from("inspecoes")
-        .upsert({
-          id: insp.id,
-          empresa_id: empresaId,
-          cliente_id: clienteId,
-          crm_oportunidade_id: context.kind === "diagnostico_crm" ? context.crmOportunidadeId : null,
-          tipo_execucao: tipoExecucaoFor(context),
-          consultor_id: session.user.id,
-          numero_sequencial: insp.numero_sequencial,
-          status: insp.status,
-          estabelecimento_nome: insp.estabelecimento,
-          cnpj: cleanCnpj,
-          data_inicio: insp.dataInicio,
-          data_conclusao: insp.dataConclusao,
-          progresso: insp.progresso,
-          conformidade: insp.conformidade,
-          dados: insp.dados as any,
-          respostas: insp.respostas as any,
-        })
-        .select("updated_at")
-        .single();
-      if (error) throw error;
+      const upserted = await pushInspecaoToCloud(insp, context, session, empresaId);
 
       if (upserted) {
         const freshList = loadHistorico();
@@ -363,41 +417,6 @@ export async function saveToHistorico(
         if (currentRascunho && currentRascunho.id === insp.id) {
           currentRascunho.cloudUpdatedAt = upserted.updated_at;
           localStorage.setItem(RASCUNHO_KEY, JSON.stringify(currentRascunho));
-        }
-      }
-
-      // If status changed to concluded, check for client creation — só no
-      // fluxo operacional. Diagnósticos pré-venda nunca ganham login de
-      // cliente/portal aqui (não existe cliente_id ainda nesse contexto).
-      if (insp.status === "concluida" && context.kind === "cliente") {
-        const legalEmail =
-          insp.dados?.estabelecimento?.respLegalEmail || insp.dados?.estabelecimento?.email;
-        const legalName = insp.dados?.estabelecimento?.respLegalNome;
-
-        if (legalEmail && cleanCnpj) {
-          // Call Edge Function to create client
-          supabase.functions
-            .invoke("admin-manage-users", {
-              body: {
-                action: "create_client",
-                userData: {
-                  email: legalEmail,
-                  password: cleanCnpj, // CNPJ only numbers as password
-                  nome: legalName || insp.estabelecimento,
-                  perfil: "cliente",
-                  cnpj: cleanCnpj,
-                },
-              },
-            })
-            .then(({ data }) => {
-              if (data && !data.error) {
-                // Custom event to be caught by toast if UI is listening, or just silent
-                console.log("Acesso do cliente garantido na conclusão");
-              }
-            })
-            .catch((err: unknown) => {
-              console.error("Failed to ensure client access:", err);
-            });
         }
       }
 

@@ -1,7 +1,65 @@
 import { supabase } from "@/integrations/supabase/client";
-import { Inspecao, loadHistorico, HISTORICO_KEY } from "./storage";
+import { Inspecao, loadHistorico, HISTORICO_KEY, pushInspecaoToCloud, type StoredHistoricoItem } from "./storage";
 import { useSyncStore } from "@/hooks/useSyncStore";
-import { findOrCreateCliente } from "@/hooks/useClientes";
+import type { InspectionContext } from "./inspection-context";
+
+/** Resolve o contexto de um item local para sincronização, nesta ordem
+ * estrita — nunca cai em `{kind:"cliente"}` como fallback genérico:
+ *
+ * 1. Contexto explícito persistido localmente (`_context`, gravado por
+ *    `saveToHistorico`/`saveRascunho` desde a introdução de `InspectionContext`).
+ * 2. Contexto confirmado pela linha remota já existente (`tipo_execucao`/
+ *    `crm_oportunidade_id`), usado como reconciliação quando (1) concorda
+ *    ou está ausente.
+ * 3. Compatibilidade legada: só quando (1) e (2) concordam em "nenhum
+ *    indício de diagnóstico" — nem contexto local, nem linha remota, ou
+ *    linha remota com tipo_execucao≠'diagnostico'.
+ * 4. Se permanecer ambíguo (item local sem `_context`, sem linha remota, e
+ *    portanto sem forma de provar que não é um diagnóstico), não sincroniza
+ *    automaticamente — devolve null, e o chamador registra como conflito.
+ */
+async function resolveSyncContext(
+  insp: StoredHistoricoItem,
+): Promise<InspectionContext | null> {
+  const { data: remote } = await supabase
+    .from("inspecoes")
+    .select("tipo_execucao, crm_oportunidade_id")
+    .eq("id", insp.id)
+    .maybeSingle();
+
+  if (insp._context) {
+    // Contexto local explícito é a fonte primária. Se a linha remota já
+    // existe e diverge de forma incompatível (ex.: remoto diz diagnóstico
+    // de outra oportunidade), não decidimos por conta própria — melhor
+    // reportar como conflito do que arriscar sobrescrever incorretamente.
+    if (
+      remote &&
+      insp._context.kind === "diagnostico_crm" &&
+      remote.tipo_execucao === "diagnostico" &&
+      remote.crm_oportunidade_id &&
+      remote.crm_oportunidade_id !== insp._context.crmOportunidadeId
+    ) {
+      return null;
+    }
+    return insp._context;
+  }
+
+  if (remote) {
+    if (remote.tipo_execucao === "diagnostico" && remote.crm_oportunidade_id) {
+      return { kind: "diagnostico_crm", crmOportunidadeId: remote.crm_oportunidade_id };
+    }
+    // Linha remota existe e comprovadamente não é diagnóstico — compatibilidade legada.
+    return { kind: "cliente" };
+  }
+
+  // Sem contexto local, sem linha remota: não há como provar que este item
+  // nunca passou por um fluxo de diagnóstico. Item legado (anterior à Fase 4)
+  // sem linha remota ainda é o caso normal aqui — mas como não dá pra
+  // distinguir com segurança de um diagnóstico offline sem `_context`
+  // (nunca deveria acontecer, já que saveToHistorico sempre grava `_context`
+  // a partir desta fase), tratamos como ambíguo em vez de assumir.
+  return null;
+}
 
 export async function syncFromCloud(silent = false) {
   const setStatus = useSyncStore.getState().setStatus;
@@ -35,42 +93,15 @@ export async function syncFromCloud(silent = false) {
     // If consultant, push any local data that might not be in cloud
     if (isConsultant && profile?.empresa_id) {
       const empresaId = profile.empresa_id;
-      const localList = loadHistorico();
+      const localList = loadHistorico() as StoredHistoricoItem[];
       for (const insp of localList) {
         try {
-          const cnpj = insp.dados?.estabelecimento?.cnpj || null;
-          const cleanCnpj = cnpj ? cnpj.replace(/\D/g, "") : null;
-
-          let clienteId: string | null = null;
-          if (insp.estabelecimento) {
-            try {
-              const cliente = await findOrCreateCliente({
-                empresa_id: empresaId,
-                nome: insp.estabelecimento,
-                cnpj: cleanCnpj,
-              });
-              clienteId = cliente.id;
-            } catch (err) {
-              console.error("Failed to find/create cliente during sync:", err);
-            }
+          const context = await resolveSyncContext(insp);
+          if (!context) {
+            useSyncStore.getState().addConflict(insp.id);
+            continue;
           }
-
-          await supabase.from("inspecoes").upsert({
-            id: insp.id,
-            empresa_id: empresaId,
-            cliente_id: clienteId,
-            consultor_id: session.user.id,
-            numero_sequencial: insp.numero_sequencial,
-            status: insp.status,
-            estabelecimento_nome: insp.estabelecimento,
-            cnpj: cleanCnpj,
-            data_inicio: insp.dataInicio,
-            data_conclusao: insp.dataConclusao,
-            progresso: insp.progresso,
-            conformidade: insp.conformidade,
-            dados: insp.dados as any,
-            respostas: insp.respostas as any,
-          });
+          await pushInspecaoToCloud(insp, context, session, empresaId);
         } catch (err) {
           console.error("Failed to push local inspection to cloud:", err);
         }
