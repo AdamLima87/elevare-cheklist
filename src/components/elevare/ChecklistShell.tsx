@@ -73,7 +73,7 @@ export function ChecklistShell({ onBackToIdentificacao, onFinalizar }: Checklist
 
       // Persist after state update is defined
       if (nextInsp) {
-        const newCloudUpdatedAt = await saveToHistorico(nextInsp);
+        const newCloudUpdatedAt = await saveToHistorico(nextInsp, { kind: "cliente" });
         // saveToHistorico compares insp.cloudUpdatedAt against the cloud row to
         // detect concurrent edits. Without feeding the fresh timestamp back into
         // state here, every save after the first one in this session would look

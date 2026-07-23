@@ -3,6 +3,7 @@ import { useSyncStore } from "@/hooks/useSyncStore";
 import { isCloudNewer } from "./conflict";
 import { findOrCreateCliente } from "@/hooks/useClientes";
 import { checklistSections } from "./checklist-data";
+import { tipoExecucaoFor, type InspectionContext } from "./inspection-context";
 
 export type Resposta = "S" | "N" | "NA" | null;
 
@@ -251,7 +252,10 @@ export function loadHistorico(): Inspecao[] {
   }
 }
 
-export async function saveToHistorico(insp: Inspecao): Promise<string | undefined> {
+export async function saveToHistorico(
+  insp: Inspecao,
+  context: InspectionContext,
+): Promise<string | undefined> {
   if (typeof localStorage === "undefined") return undefined;
   const list = loadHistorico();
   const idx = list.findIndex((i) => i.id === insp.id);
@@ -301,7 +305,10 @@ export async function saveToHistorico(insp: Inspecao): Promise<string | undefine
       const cleanCnpj = cnpj ? cnpj.replace(/\D/g, "") : null;
 
       let clienteId: string | null = null;
-      if (insp.estabelecimento) {
+      // Diagnósticos pré-venda (context.kind === "diagnostico_crm") NUNCA
+      // buscam/criam cliente — cliente_id fica null incondicionalmente até a
+      // conversão da oportunidade (Fase 3, crm_fechar_oportunidade_ganha).
+      if (context.kind === "cliente" && insp.estabelecimento) {
         try {
           const cliente = await findOrCreateCliente({
             empresa_id: empresaId,
@@ -320,6 +327,8 @@ export async function saveToHistorico(insp: Inspecao): Promise<string | undefine
           id: insp.id,
           empresa_id: empresaId,
           cliente_id: clienteId,
+          crm_oportunidade_id: context.kind === "diagnostico_crm" ? context.crmOportunidadeId : null,
+          tipo_execucao: tipoExecucaoFor(context),
           consultor_id: session.user.id,
           numero_sequencial: insp.numero_sequencial,
           status: insp.status,
@@ -357,8 +366,10 @@ export async function saveToHistorico(insp: Inspecao): Promise<string | undefine
         }
       }
 
-      // If status changed to concluded, check for client creation
-      if (insp.status === "concluida") {
+      // If status changed to concluded, check for client creation — só no
+      // fluxo operacional. Diagnósticos pré-venda nunca ganham login de
+      // cliente/portal aqui (não existe cliente_id ainda nesse contexto).
+      if (insp.status === "concluida" && context.kind === "cliente") {
         const legalEmail =
           insp.dados?.estabelecimento?.respLegalEmail || insp.dados?.estabelecimento?.email;
         const legalName = insp.dados?.estabelecimento?.respLegalNome;

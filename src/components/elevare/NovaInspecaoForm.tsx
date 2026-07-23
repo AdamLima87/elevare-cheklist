@@ -292,7 +292,7 @@ export function NovaInspecaoForm({ clienteId, prefill, editFromUrl = false }: No
       }
 
       await saveRascunho(insp);
-      await saveToHistorico(insp);
+      await saveToHistorico(insp, { kind: "cliente", clienteId });
 
       // Auto-create client if email is present
       if (emailResponsavel && estab.cnpj) {

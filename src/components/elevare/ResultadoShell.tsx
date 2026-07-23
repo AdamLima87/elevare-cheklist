@@ -211,7 +211,7 @@ export function ResultadoShell({ search, onVoltarChecklist, onNovaInspecao }: Re
         dados: { ...finalInsp.dados, planoAcao },
       };
 
-      const newCloudUpdatedAt = await saveToHistorico(updatedInsp);
+      const newCloudUpdatedAt = await saveToHistorico(updatedInsp, { kind: "cliente" });
       setInsp(newCloudUpdatedAt ? { ...updatedInsp, cloudUpdatedAt: newCloudUpdatedAt } : updatedInsp);
 
       if (!newCloudUpdatedAt) {
