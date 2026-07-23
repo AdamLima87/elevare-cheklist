@@ -46,6 +46,9 @@ export const Route = createFileRoute("/lovable/email/reminders/check-reinspectio
           .from("inspecoes")
           .select("id, cnpj, data_conclusao, consultor_id, estabelecimento_nome, dados")
           .eq("status", "concluida")
+          // Fase 3: diagnósticos pré-venda não entram no lembrete de reinspeção
+          // operacional — inerte hoje, nenhuma linha real tem esse valor ainda.
+          .neq("tipo_execucao", "diagnostico")
           .not("cnpj", "is", null)
           .not("data_conclusao", "is", null)
           .order("data_conclusao", { ascending: false });

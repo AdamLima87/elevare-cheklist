@@ -157,6 +157,9 @@ function ResultadoPage() {
           .select("id, data_conclusao, respostas")
           .eq("cnpj", cnpj)
           .eq("status", "concluida")
+          // Fase 3: diagnósticos pré-venda não contam pra reincidência
+          // operacional — inerte hoje, nenhuma linha real tem esse valor ainda.
+          .neq("tipo_execucao", "diagnostico")
           .neq("id", insp.id)
           .order("data_conclusao", { ascending: false })
           .limit(10);

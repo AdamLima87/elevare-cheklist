@@ -1,4 +1,4 @@
-// Fase 2 (Diagnóstico no CRM) — pré-validação read-only, roda contra staging.
+// Fase 2/3 (Diagnóstico no CRM) — pré-validação read-only, roda contra staging.
 // Não escreve nada. Aborta se a connection string apontar para produção.
 import pg from "pg";
 
@@ -27,6 +27,12 @@ const NEW_CONSTRAINT_NAMES = [
   "inspecoes_empresa_crm_oportunidade_idx",
   "inspecoes_empresa_cliente_tipo_idx",
   "crm_etapas_gera_diagnostico",
+  // Fase 3
+  "can_access_crm",
+  "inspecoes_diagnostico_select",
+  "inspecoes_diagnostico_insert",
+  "inspecoes_diagnostico_update",
+  "inspecoes_diagnostico_tem_oportunidade_check",
 ];
 
 function section(title) {
@@ -119,12 +125,19 @@ async function main() {
   );
   console.table(indices.rows.map((r) => ({ tabela: r.tablename, indice: r.indexname })));
 
-  section("12. Registros que ficariam com ambos os campos nulos (crítico p/ CHECK)");
+  section("12. Registros que violariam inspecoes_tem_origem_check (cliente_id E crm_oportunidade_id nulos)");
   const semOrigem = await client.query(
-    `SELECT id, empresa_id FROM inspecoes WHERE cliente_id IS NULL`
+    `SELECT id, empresa_id FROM inspecoes WHERE cliente_id IS NULL AND crm_oportunidade_id IS NULL`
   );
-  console.log(`Encontrados: ${semOrigem.rowCount} (hoje crm_oportunidade_id nem existe, então isso é o proxy exato)`);
+  console.log(`Encontrados: ${semOrigem.rowCount}`);
   if (semOrigem.rowCount > 0) console.table(semOrigem.rows);
+
+  section("13. Registros que violariam inspecoes_diagnostico_tem_oportunidade_check (diagnostico sem oportunidade)");
+  const diagnosticoSemOportunidade = await client.query(
+    `SELECT id, empresa_id, cliente_id FROM inspecoes WHERE tipo_execucao = 'diagnostico' AND crm_oportunidade_id IS NULL`
+  );
+  console.log(`Encontrados: ${diagnosticoSemOportunidade.rowCount}`);
+  if (diagnosticoSemOportunidade.rowCount > 0) console.table(diagnosticoSemOportunidade.rows);
 
   section("RESUMO / CRITÉRIO DE PARADA");
   const bloqueadores = [];
@@ -137,19 +150,15 @@ async function main() {
     bloqueadores.forEach((b) => console.log(" - " + b));
     process.exitCode = 1;
   } else {
-    console.log("Nenhum bloqueador crítico encontrado. Seguro prosseguir para a Etapa 2.1.");
-    if (semOrigem.rowCount > 0) {
-      console.log(
-        `Nota: ${semOrigem.rowCount} registro(s) com cliente_id NULL — a constraint inspecoes_tem_origem_check ` +
-          `ficará NOT VALID e não será validada nesta fase; revisar antes de validar na Fase 3.`
-      );
-    } else {
-      console.log(
-        "Nota: 0 registros com cliente_id NULL — a constraint passaria em VALIDATE hoje, mas a validação " +
-          "continua fora do escopo desta fase por decisão explícita."
-      );
-    }
+    console.log("Nenhum bloqueador crítico encontrado.");
   }
+
+  console.log(
+    `\ninspecoes_tem_origem_check: ${semOrigem.rowCount === 0 ? "SEGURO VALIDAR (0 violações)" : `NÃO VALIDAR (${semOrigem.rowCount} violação(ões))`}`
+  );
+  console.log(
+    `inspecoes_diagnostico_tem_oportunidade_check: ${diagnosticoSemOportunidade.rowCount === 0 ? "SEGURO VALIDAR (0 violações)" : `NÃO VALIDAR (${diagnosticoSemOportunidade.rowCount} violação(ões))`}`
+  );
 }
 
 main()

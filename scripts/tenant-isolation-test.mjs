@@ -191,6 +191,26 @@ async function seedOportunidade(tenant, nome) {
   return oportunidade.id;
 }
 
+// Fase 3: cria um diagnóstico pré-venda real (tipo_execucao='diagnostico',
+// vinculado a uma oportunidade, sem cliente_id) via inspecoes_diagnostico_insert.
+async function seedDiagnostico(tenant, oportunidadeId, extra = {}) {
+  const { data: numero, error: numeroErr } = await tenant.client.rpc("get_next_numero_inspecao");
+  if (numeroErr) throw numeroErr;
+  const { data, error } = await tenant.client
+    .from("inspecoes")
+    .insert({
+      empresa_id: tenant.empresaId,
+      crm_oportunidade_id: oportunidadeId,
+      tipo_execucao: "diagnostico",
+      numero_sequencial: numero,
+      ...extra,
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(`seed de diagnóstico falhou para ${tenant.label}: ${error.message}`);
+  return data.id;
+}
+
 // Ordem importa por causa de FKs (nenhuma tabela abaixo tem ON DELETE CASCADE
 // pra empresas — todas são NO ACTION por desenho, ver Fase 2). "inspecoes"
 // precisa ser limpa antes de "crm_oportunidades" por causa da FK nova
@@ -441,6 +461,289 @@ async function main() {
       const { data, error } = await consultorSession.client.from("inspecoes").select("id").eq("id", inspecaoIdA);
       if (error) throw error;
       assert(data.length === 0, `esperava 0 linhas (sem policy nova pra CRM ainda), recebeu ${data.length}`);
+    });
+
+    console.log("\nFase 3 — RLS de Diagnóstico pré-venda em inspecoes:");
+
+    const diagnosticoA1 = await seedDiagnostico(A, oportunidadeA);
+    const diagnosticoB1 = await seedDiagnostico(B, oportunidadeB);
+
+    // Segundo consultor da Empresa A — não-dono de nada, prova acesso tenant-wide.
+    const consultorA2Email = uniqueEmail("consultor-a2");
+    const consultorA2Password = "senhaDeTeste123!";
+    const { data: consultorA2User, error: consultorA2Err } = await admin.auth.admin.createUser({
+      email: consultorA2Email,
+      password: consultorA2Password,
+      email_confirm: true,
+    });
+    if (consultorA2Err) throw new Error(`criação do consultor A2 falhou: ${consultorA2Err.message}`);
+    A.userIds.push(consultorA2User.user.id);
+    await admin.from("profiles").insert({
+      id: consultorA2User.user.id,
+      empresa_id: A.empresaId,
+      perfil: "consultor",
+      nome: "Consultor A2",
+      email: consultorA2Email,
+    });
+    const consultorA2Session = await signIn(consultorA2Email, consultorA2Password);
+
+    // Perfil cliente da Empresa A, com CNPJ batendo com o do diagnóstico —
+    // prova direta de que o vazamento (achado durante a Fase 3) foi fechado.
+    const CNPJ_DIAGNOSTICO = "12345678000199";
+    await admin.from("inspecoes").update({ cnpj: CNPJ_DIAGNOSTICO, status: "concluida" }).eq("id", diagnosticoA1);
+    const clienteUserEmail = uniqueEmail("cliente-a");
+    const clienteUserPassword = "senhaDeTeste123!";
+    const { data: clienteUser, error: clienteUserErr } = await admin.auth.admin.createUser({
+      email: clienteUserEmail,
+      password: clienteUserPassword,
+      email_confirm: true,
+    });
+    if (clienteUserErr) throw new Error(`criação do usuário cliente falhou: ${clienteUserErr.message}`);
+    A.userIds.push(clienteUser.user.id);
+    await admin.from("profiles").insert({
+      id: clienteUser.user.id,
+      empresa_id: A.empresaId,
+      perfil: "cliente",
+      nome: "Cliente A",
+      email: clienteUserEmail,
+      cnpj: CNPJ_DIAGNOSTICO,
+    });
+    const clienteSession = await signIn(clienteUserEmail, clienteUserPassword);
+
+    await test("Consultor não-dono vê diagnóstico da própria empresa (tenant-wide, sem exigir consultor_id)", async () => {
+      const { data, error } = await consultorA2Session.client.from("inspecoes").select("id").eq("id", diagnosticoA1);
+      if (error) throw error;
+      assert(data.length === 1, `esperava 1 linha, recebeu ${data.length}`);
+    });
+
+    await test("Consultor não vê diagnóstico de outra empresa", async () => {
+      const { data, error } = await consultorA2Session.client.from("inspecoes").select("id").eq("id", diagnosticoB1);
+      if (error) throw error;
+      assert(data.length === 0, `esperava 0 linhas, recebeu ${data.length}`);
+    });
+
+    await test("Admin acessa diagnóstico de qualquer consultor da própria empresa", async () => {
+      const { data, error } = await A.client.from("inspecoes").select("id").eq("id", diagnosticoA1);
+      if (error) throw error;
+      assert(data.length === 1, `esperava 1 linha, recebeu ${data.length}`);
+    });
+
+    await test("Perfil cliente NÃO acessa diagnóstico mesmo com CNPJ batendo (vazamento corrigido)", async () => {
+      const { data, error } = await clienteSession.client.from("inspecoes").select("id").eq("id", diagnosticoA1);
+      if (error) throw error;
+      assert(data.length === 0, `esperava 0 linhas (vazamento deveria estar corrigido), recebeu ${data.length}`);
+    });
+
+    await test("Usuário inativo não acessa diagnóstico", async () => {
+      await admin.from("profiles").update({ ativo: false }).eq("id", consultorA2User.user.id);
+      const { data, error } = await consultorA2Session.client.from("inspecoes").select("id").eq("id", diagnosticoA1);
+      if (error) throw error;
+      assert(data.length === 0, `esperava 0 linhas (usuário inativo), recebeu ${data.length}`);
+      await admin.from("profiles").update({ ativo: true }).eq("id", consultorA2User.user.id);
+    });
+
+    await test("INSERT de diagnóstico com crm_oportunidade_id de outro tenant falha por FK (23503)", async () => {
+      const { data: numero } = await A.client.rpc("get_next_numero_inspecao");
+      const { error } = await A.client.from("inspecoes").insert({
+        empresa_id: A.empresaId, crm_oportunidade_id: oportunidadeB, tipo_execucao: "diagnostico", numero_sequencial: numero,
+      });
+      assert(error !== null, "INSERT deveria ter falhado");
+      assert(error.code === "23503", `esperava 23503, recebeu ${error.code}: ${error.message}`);
+    });
+
+    await test("INSERT de diagnóstico sem crm_oportunidade_id é bloqueado pela policy", async () => {
+      const { data: numero } = await A.client.rpc("get_next_numero_inspecao");
+      const { error } = await A.client.from("inspecoes").insert({
+        empresa_id: A.empresaId, tipo_execucao: "diagnostico", numero_sequencial: numero,
+      });
+      assert(error !== null, "INSERT deveria ter falhado (crm_oportunidade_id é obrigatório pra diagnóstico)");
+    });
+
+    await test("INSERT de diagnóstico com cliente_id de outro tenant é bloqueado", async () => {
+      const { data: numero } = await A.client.rpc("get_next_numero_inspecao");
+      const { error } = await A.client.from("inspecoes").insert({
+        empresa_id: A.empresaId, crm_oportunidade_id: oportunidadeA, cliente_id: clienteB, tipo_execucao: "diagnostico", numero_sequencial: numero,
+      });
+      assert(error !== null, "INSERT deveria ter falhado (cliente_id de outro tenant)");
+    });
+
+    await test("UPDATE que tenta limpar crm_oportunidade_id de diagnóstico é bloqueado pela policy", async () => {
+      const { error } = await A.client.from("inspecoes").update({ crm_oportunidade_id: null }).eq("id", diagnosticoA1);
+      assert(error !== null, "UPDATE deveria ter falhado (policy exige crm_oportunidade_id preenchido)");
+    });
+
+    await test("Nem admin via service_role consegue limpar crm_oportunidade_id de diagnóstico (constraint estrutural, não só policy)", async () => {
+      const { error } = await admin.from("inspecoes").update({ crm_oportunidade_id: null }).eq("id", diagnosticoA1);
+      assert(error !== null, "UPDATE deveria ter falhado mesmo via service_role (que bypassa RLS)");
+      assert(error.code === "23514", `esperava violação de CHECK (23514), recebeu ${error.code}: ${error.message}`);
+    });
+
+    await test("UPDATE em linha tipo_execucao≠'diagnostico' não é afetado pelas policies novas (regressão)", async () => {
+      const { data, error } = await consultorA2Session.client.from("inspecoes").update({ conformidade: 50 }).eq("id", inspecaoIdA).select("id");
+      if (error) throw error;
+      assert(data.length === 0, `esperava 0 linhas afetadas (consultor não-dono de inspeção legada), recebeu ${data.length}`);
+    });
+
+    console.log("\nFase 3 — Constraint inspecoes_tem_origem_check (comportamento pós-VALIDATE):");
+
+    await test("INSERT com cliente_id e crm_oportunidade_id ambos nulos falha (23514)", async () => {
+      const { data: numero } = await A.client.rpc("get_next_numero_inspecao");
+      const { error } = await A.client.from("inspecoes").insert({
+        empresa_id: A.empresaId, tipo_execucao: "inspecao_legada", numero_sequencial: numero,
+      });
+      assert(error !== null, "INSERT deveria ter falhado");
+      assert(error.code === "23514", `esperava 23514, recebeu ${error.code}: ${error.message}`);
+    });
+
+    console.log("\nFase 3 — Conversão (crm_fechar_oportunidade_ganha):");
+
+    const oportunidadeConv = await seedOportunidade(A, "Oportunidade Conversão");
+    const diagConv1 = await seedDiagnostico(A, oportunidadeConv);
+    const diagConv2 = await seedDiagnostico(A, oportunidadeConv);
+
+    let clienteConvId;
+    await test("Fechamento normal: cria cliente e vincula os 2 diagnósticos da oportunidade", async () => {
+      const { data, error } = await A.client.rpc("crm_fechar_oportunidade_ganha", { p_oportunidade_id: oportunidadeConv });
+      if (error) throw error;
+      const r = data[0];
+      assert(r.cliente_criado === true, "esperava cliente_criado=true");
+      assert(r.already_converted === false, "esperava already_converted=false na 1ª chamada");
+      assert(r.diagnosticos_vinculados === 2, `esperava 2 diagnósticos vinculados, recebeu ${r.diagnosticos_vinculados}`);
+      clienteConvId = r.cliente_id;
+      const { data: d1 } = await admin.from("inspecoes").select("cliente_id, crm_oportunidade_id").eq("id", diagConv1).single();
+      assert(d1.cliente_id === clienteConvId, "diagnóstico 1 não foi vinculado ao cliente certo");
+      assert(d1.crm_oportunidade_id === oportunidadeConv, "diagnóstico 1 perdeu crm_oportunidade_id na conversão");
+      const { data: d2 } = await admin.from("inspecoes").select("cliente_id").eq("id", diagConv2).single();
+      assert(d2.cliente_id === clienteConvId, "diagnóstico 2 não foi vinculado ao cliente certo");
+    });
+
+    await test("Segunda chamada é idempotente: already_converted=true, sem nova escrita", async () => {
+      const before = await admin.from("clientes").select("id", { count: "exact", head: true }).eq("empresa_id", A.empresaId);
+      const { data, error } = await A.client.rpc("crm_fechar_oportunidade_ganha", { p_oportunidade_id: oportunidadeConv });
+      if (error) throw error;
+      const r = data[0];
+      assert(r.already_converted === true, "esperava already_converted=true na 2ª chamada");
+      assert(r.cliente_criado === false, "esperava cliente_criado=false na 2ª chamada");
+      assert(r.cliente_id === clienteConvId, "cliente_id mudou entre chamadas");
+      assert(r.diagnosticos_vinculados === 2, `esperava 2, recebeu ${r.diagnosticos_vinculados}`);
+      const after = await admin.from("clientes").select("id", { count: "exact", head: true }).eq("empresa_id", A.empresaId);
+      assert(before.count === after.count, "número de clientes da empresa mudou na chamada idempotente");
+    });
+
+    await test("Consultor ativo converte oportunidade da própria empresa mesmo sem ser responsavel_id", async () => {
+      const oportunidadeConv2 = await seedOportunidade(A, "Oportunidade Conversão 2");
+      const { data, error } = await consultorA2Session.client.rpc("crm_fechar_oportunidade_ganha", { p_oportunidade_id: oportunidadeConv2 });
+      if (error) throw error;
+      assert(!!data[0].cliente_id, "conversão por consultor não-dono deveria ter retornado um cliente_id");
+    });
+
+    await test("Consultor do Tenant A não converte oportunidade do Tenant B", async () => {
+      const { error } = await consultorA2Session.client.rpc("crm_fechar_oportunidade_ganha", { p_oportunidade_id: oportunidadeB });
+      assert(error !== null, "conversão de oportunidade de outro tenant deveria ter falhado");
+    });
+
+    await test("Perfil cliente não consegue chamar a conversão", async () => {
+      const oportunidadeConv3 = await seedOportunidade(A, "Oportunidade Conversão 3");
+      const { error } = await clienteSession.client.rpc("crm_fechar_oportunidade_ganha", { p_oportunidade_id: oportunidadeConv3 });
+      assert(error !== null, "cliente não deveria conseguir chamar a conversão");
+    });
+
+    await test("Consultor inativo não consegue chamar a conversão", async () => {
+      await admin.from("profiles").update({ ativo: false }).eq("id", consultorA2User.user.id);
+      const oportunidadeConv4 = await seedOportunidade(A, "Oportunidade Conversão 4");
+      const { error } = await consultorA2Session.client.rpc("crm_fechar_oportunidade_ganha", { p_oportunidade_id: oportunidadeConv4 });
+      assert(error !== null, "consultor inativo não deveria conseguir converter");
+      await admin.from("profiles").update({ ativo: true }).eq("id", consultorA2User.user.id);
+    });
+
+    await test("Conflito: diagnóstico já vinculado a cliente diferente aborta a transação inteira", async () => {
+      const oportunidadeConflito = await seedOportunidade(A, "Oportunidade Conflito");
+      const diagConflito = await seedDiagnostico(A, oportunidadeConflito);
+      await admin.from("inspecoes").update({ cliente_id: clienteA }).eq("id", diagConflito);
+      const before = await admin.from("clientes").select("id", { count: "exact", head: true }).eq("empresa_id", A.empresaId);
+      const { error } = await A.client.rpc("crm_fechar_oportunidade_ganha", { p_oportunidade_id: oportunidadeConflito });
+      assert(error !== null, "deveria ter abortado por conflito de cliente_id");
+      const after = await admin.from("clientes").select("id", { count: "exact", head: true }).eq("empresa_id", A.empresaId);
+      assert(before.count === after.count, "um cliente foi criado apesar do conflito (rollback falhou)");
+      const { data: op } = await admin.from("crm_oportunidades").select("fechada_em").eq("id", oportunidadeConflito).single();
+      assert(op.fechada_em === null, "oportunidade foi fechada apesar do conflito (rollback falhou)");
+    });
+
+    await test("Oportunidade fechada como perdida não é tratada como convertida (2ª chamada lança erro, não sucesso)", async () => {
+      const oportunidadePerdida = await seedOportunidade(A, "Oportunidade Perdida");
+      const { data: motivo, error: motivoErr } = await admin.from("crm_motivos_perda").select("id").eq("empresa_id", A.empresaId).limit(1).single();
+      if (motivoErr) throw motivoErr;
+      const { error: perdaErr } = await A.client.rpc("crm_fechar_oportunidade_perdida", {
+        p_oportunidade_id: oportunidadePerdida, p_motivo_perda_id: motivo.id, p_motivo_perda_detalhe: null,
+      });
+      if (perdaErr) throw perdaErr;
+      const { error } = await A.client.rpc("crm_fechar_oportunidade_ganha", { p_oportunidade_id: oportunidadePerdida });
+      assert(error !== null, "deveria ter lançado erro (fechada, mas não como ganha)");
+      assert(/não como ganha/.test(error.message), `mensagem de erro inesperada: ${error.message}`);
+    });
+
+    await test("Conflito CNPJ duplicado: vínculo direto da Conta é sempre prioritário sobre CNPJ (documentado, não corrigido)", async () => {
+      const cnpjDup = "98765432000188";
+      const { data: clienteDupPrioritario } = await admin.from("clientes").insert({ empresa_id: A.empresaId, nome: "Cliente Prioritário", cnpj: cnpjDup }).select("id").single();
+      const { data: clienteDupSecundario } = await admin.from("clientes").insert({ empresa_id: A.empresaId, nome: "Cliente Duplicado CNPJ", cnpj: cnpjDup }).select("id").single();
+      const oportunidadeDup = await seedOportunidade(A, "Oportunidade CNPJ Duplicado");
+      const { data: opRow } = await admin.from("crm_oportunidades").select("crm_empresa_id").eq("id", oportunidadeDup).single();
+      await admin.from("crm_empresas").update({ cliente_id: clienteDupPrioritario.id, cnpj: cnpjDup }).eq("id", opRow.crm_empresa_id);
+      const { data, error } = await A.client.rpc("crm_fechar_oportunidade_ganha", { p_oportunidade_id: oportunidadeDup });
+      if (error) throw error;
+      assert(data[0].cliente_id === clienteDupPrioritario.id, "deveria ter priorizado o vínculo direto da Conta, não reconsiderado por CNPJ");
+      await admin.from("clientes").delete().in("id", [clienteDupPrioritario.id, clienteDupSecundario.id]);
+    });
+
+    console.log("\nFase 3 — Reincidência exclui diagnóstico pré-venda:");
+
+    const cnpjReincidencia = "11122233000144";
+    const { data: numeroLegado } = await A.client.rpc("get_next_numero_inspecao");
+    const { data: legadoAntigo } = await admin
+      .from("inspecoes")
+      .insert({
+        empresa_id: A.empresaId, cliente_id: clienteA, cnpj: cnpjReincidencia, status: "concluida",
+        data_conclusao: "2026-01-01T00:00:00Z", tipo_execucao: "inspecao_legada", numero_sequencial: numeroLegado,
+      })
+      .select("id")
+      .single();
+    const oportunidadeReinc = await seedOportunidade(A, "Oportunidade Reincidência");
+    await seedDiagnostico(A, oportunidadeReinc, {
+      cnpj: cnpjReincidencia, status: "concluida", data_conclusao: "2026-06-01T00:00:00Z",
+    });
+
+    await test("Query de reincidência (padrão resultado.tsx/check-reinspection.ts) exclui diagnóstico do mesmo CNPJ", async () => {
+      const { data, error } = await admin
+        .from("inspecoes")
+        .select("id, tipo_execucao")
+        .eq("cnpj", cnpjReincidencia)
+        .eq("status", "concluida")
+        .neq("tipo_execucao", "diagnostico")
+        .order("data_conclusao", { ascending: false });
+      if (error) throw error;
+      assert(data.length === 1 && data[0].id === legadoAntigo.id, `esperava só a inspeção legada, recebeu ${JSON.stringify(data)}`);
+    });
+
+    await test("Sem o filtro, o diagnóstico apareceria (prova de que o cenário de vazamento é real, não hipotético)", async () => {
+      const { data, error } = await admin
+        .from("inspecoes")
+        .select("id, tipo_execucao")
+        .eq("cnpj", cnpjReincidencia)
+        .eq("status", "concluida")
+        .order("data_conclusao", { ascending: false });
+      if (error) throw error;
+      assert(data.length === 2, `esperava 2 linhas sem o filtro (prova do cenário), recebeu ${data.length}`);
+    });
+
+    await test("Filtro novo não quebra consulta em CNPJ sem nenhum diagnóstico (caso comum hoje)", async () => {
+      const { data, error } = await admin
+        .from("inspecoes")
+        .select("id")
+        .eq("cnpj", "00000000000000")
+        .eq("status", "concluida")
+        .neq("tipo_execucao", "diagnostico");
+      if (error) throw error;
+      assert(Array.isArray(data) && data.length === 0, "query deveria retornar array vazio, não erro");
     });
 
     console.log("\nUsuário removido — sessão antiga não deve continuar funcionando:");

@@ -24,7 +24,7 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 const DASHBOARD_COLUMNS =
-  "id, status, conformidade, cnpj, estabelecimento_nome, data_inicio, data_conclusao, consultor_id, dados, respostas";
+  "id, status, conformidade, cnpj, estabelecimento_nome, data_inicio, data_conclusao, consultor_id, dados, respostas, tipo_execucao";
 
 async function fetchDashboardStats() {
   const [
@@ -46,7 +46,10 @@ async function fetchDashboardStats() {
 
   // Process metrics
   const totalInspections = inspections?.length || 0;
-  const concluded = inspections?.filter((i) => i.status === "concluida") || [];
+  // tipo_execucao !== "diagnostico" exclui diagnósticos pré-venda (Fase 3) da
+  // reincidência/estatísticas operacionais — inerte hoje, nenhuma linha real
+  // tem esse valor ainda (Fase 4 ainda não existe).
+  const concluded = inspections?.filter((i) => i.status === "concluida" && i.tipo_execucao !== "diagnostico") || [];
   const avgCompliance =
     concluded.length > 0
       ? concluded.reduce((acc, i) => acc + (Number(i.conformidade) || 0), 0) / concluded.length

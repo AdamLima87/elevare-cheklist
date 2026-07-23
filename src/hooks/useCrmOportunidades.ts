@@ -139,11 +139,18 @@ export interface FecharOportunidadeGanhaResultado {
   oportunidade_id: string;
   cliente_id: string;
   cliente_criado: boolean;
+  /** Fase 3: total de diagnósticos (tipo_execucao='diagnostico') vinculados a este cliente através desta oportunidade. */
+  diagnosticos_vinculados: number;
+  /** Fase 3: true quando a oportunidade já estava convertida — a RPC é idempotente, não lança erro na 2ª chamada. */
+  already_converted: boolean;
 }
 
-// RPC atômica (Etapa 7): move pra etapa 'ganho', cria/vincula o cliente
-// operacional (casando por CNPJ) e registra a timeline, tudo numa
-// transação só.
+// RPC atômica (Etapa 7, ampliada na Fase 3): move pra etapa 'ganho',
+// cria/vincula o cliente operacional (casando por CNPJ), vincula os
+// diagnósticos pré-venda da oportunidade ao cliente (preservando
+// crm_oportunidade_id) e registra a timeline, tudo numa transação só.
+// Idempotente: chamar de novo numa oportunidade já convertida retorna o
+// mesmo resultado (already_converted=true) em vez de lançar erro.
 export function useFecharOportunidadeGanha() {
   const queryClient = useQueryClient();
   return useMutation({
