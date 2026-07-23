@@ -3,10 +3,11 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AuthenticatedRoute } from "@/components/auth/AuthenticatedRoute";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Logo } from "@/components/elevare/Logo";
 import { toast } from "sonner";
-import { Loader2, Clock } from "lucide-react";
+import { Loader2, Clock, Tag, CheckCircle2 } from "lucide-react";
 
 export const Route = createFileRoute("/pagamento/pendente")({
   head: () => ({ meta: [{ title: "Contratação pendente · RDCheck" }] }),
@@ -28,11 +29,20 @@ const PERIODICIDADE_LABEL: Record<string, string> = {
   anual: "Plano Anual — R$ 1.250 (à vista ou em até 10x)",
 };
 
+const TIPO_DESCONTO_LABEL: Record<string, string> = {
+  percentual: "de desconto",
+  valor_fixo: "de desconto",
+  primeiro_periodo_gratis: "— primeiro período grátis",
+};
+
 function PagamentoPendentePage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [redirecting, setRedirecting] = useState(false);
   const [intencao, setIntencao] = useState<IntencaoAberta | null>(null);
+  const [cupomInput, setCupomInput] = useState("");
+  const [cupomAplicando, setCupomAplicando] = useState(false);
+  const [cupomAplicado, setCupomAplicado] = useState<{ codigo: string; tipo_desconto: string; valor: number } | null>(null);
 
   useEffect(() => {
     async function loadIntencao() {
@@ -59,10 +69,30 @@ function PagamentoPendentePage() {
     loadIntencao();
   }, [navigate]);
 
+  const handleAplicarCupom = async () => {
+    if (!cupomInput.trim() || !intencao) return;
+    setCupomAplicando(true);
+    try {
+      const { data, error } = await supabase
+        .rpc("aplicar_cupom_checkout", { p_codigo: cupomInput.trim(), p_checkout_intencao_id: intencao.id })
+        .single();
+      if (error || !data) throw error || new Error("Cupom inválido");
+      const cupom = data as { out_tipo_desconto: string; out_valor: number };
+      setCupomAplicado({ codigo: cupomInput.trim().toUpperCase(), tipo_desconto: cupom.out_tipo_desconto, valor: cupom.out_valor });
+      toast.success("Cupom aplicado.");
+    } catch (err: any) {
+      toast.error(err.message || "Não foi possível aplicar este cupom.");
+    } finally {
+      setCupomAplicando(false);
+    }
+  };
+
   const handleIrParaPagamento = async () => {
     setRedirecting(true);
     try {
-      const { data, error } = await supabase.functions.invoke("criar-checkout", { body: {} });
+      const { data, error } = await supabase.functions.invoke("criar-checkout", {
+        body: cupomAplicado ? { cupomCodigo: cupomAplicado.codigo } : {},
+      });
       if (error || !data?.checkoutUrl) {
         throw error || new Error("Sem URL de checkout");
       }
@@ -107,6 +137,31 @@ function PagamentoPendentePage() {
               <p className="text-center text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-md p-3">
                 {PERIODICIDADE_LABEL[intencao.periodicidade] ?? "Plano selecionado"}
               </p>
+
+              {cupomAplicado ? (
+                <p className="flex items-center justify-center gap-2 text-center text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md p-3">
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  Cupom <strong>{cupomAplicado.codigo}</strong> aplicado
+                  {cupomAplicado.tipo_desconto === "percentual" && ` — ${cupomAplicado.valor}% ${TIPO_DESCONTO_LABEL.percentual}`}
+                  {cupomAplicado.tipo_desconto === "valor_fixo" &&
+                    ` — R$ ${cupomAplicado.valor.toFixed(2)} ${TIPO_DESCONTO_LABEL.valor_fixo}`}
+                  {cupomAplicado.tipo_desconto === "primeiro_periodo_gratis" && ` ${TIPO_DESCONTO_LABEL.primeiro_periodo_gratis}`}
+                </p>
+              ) : (
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Possui um cupom?"
+                    value={cupomInput}
+                    onChange={(e) => setCupomInput(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button variant="outline" onClick={handleAplicarCupom} disabled={cupomAplicando || !cupomInput.trim()} className="gap-1.5">
+                    {cupomAplicando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Tag className="h-4 w-4" />}
+                    Aplicar
+                  </Button>
+                </div>
+              )}
+
               <Button
                 onClick={handleIrParaPagamento}
                 disabled={redirecting}

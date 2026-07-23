@@ -15,6 +15,16 @@ function jsonError(message: string, status = 400) {
   });
 }
 
+// tipo_desconto vem sempre do banco (aplicar_cupom_checkout), nunca do
+// cliente. primeiro_periodo_gratis: clamp em R$0,01 — Asaas não aceita
+// cobrança de R$0 num checkout.
+function aplicarDesconto(valorBase: number, tipoDesconto: string, valor: number): number {
+  if (tipoDesconto === "percentual") return Math.max(0.01, Math.round(valorBase * (1 - valor / 100) * 100) / 100);
+  if (tipoDesconto === "valor_fixo") return Math.max(0.01, Math.round((valorBase - valor) * 100) / 100);
+  if (tipoDesconto === "primeiro_periodo_gratis") return 0.01;
+  return valorBase;
+}
+
 // Endpoint AUTENTICADO — chamado por /pagamento/pendente. Resolve tudo
 // (dono, plano, preço) a partir do token verificado e do banco; o corpo
 // da requisição não carrega nada que decida preço, plano ou identidade.
@@ -35,6 +45,20 @@ serve(async (req) => {
     } = await admin.auth.getUser(token);
     if (userError || !user) return jsonError("Sessão inválida.", 401);
 
+    // Cliente no contexto do PRÓPRIO usuário (não service_role) — usado só
+    // pra RPCs que dependem de auth.uid() internamente (aplicar_cupom_checkout).
+    // Nunca usar pra nada que precise bypassar RLS.
+    const asUser = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    let body: { periodicidade?: string; cupomCodigo?: string } = {};
+    try {
+      body = await req.json();
+    } catch {
+      // corpo vazio é válido (checkout de uma intenção já pendente, sem upgrade nem cupom novo)
+    }
+
     let { data: intencao, error: intencaoError } = await admin
       .from("saas_checkout_intencoes")
       .select("id, plano_codigo, periodicidade, provider_checkout_id, checkout_url, status, updated_at, origem")
@@ -50,12 +74,6 @@ serve(async (req) => {
     // usado pela tela de trial expirado. Cria a intenção agora, com os
     // dados do tenant já existente (não do formulário público).
     if (!intencao) {
-      let body: { periodicidade?: string } = {};
-      try {
-        body = await req.json();
-      } catch {
-        // corpo vazio é válido pro fluxo normal (sem upgrade)
-      }
       const periodicidade = body.periodicidade === "mensal" || body.periodicidade === "anual" ? body.periodicidade : null;
       if (!periodicidade) {
         return jsonError("Nenhuma contratação pendente encontrada para esta conta.", 404);
@@ -91,9 +109,11 @@ serve(async (req) => {
     // Reaproveita a sessão de checkout existente enquanto ainda estiver
     // dentro da janela de validade do Asaas — evita criar uma sessão nova
     // a cada refresh da página, e mantém o link que o usuário já pode ter
-    // aberto em outra aba.
+    // aberto em outra aba. Nunca reaproveita se um cupom novo foi enviado
+    // nesta chamada — precisa recalcular o valor com o desconto.
     const bufferMinutos = 5;
     const aindaValido =
+      !body.cupomCodigo &&
       intencao.checkout_url &&
       new Date(intencao.updated_at).getTime() > Date.now() - (CHECKOUT_MINUTES_TO_EXPIRE - bufferMinutos) * 60_000;
     if (aindaValido) {
@@ -110,8 +130,23 @@ serve(async (req) => {
       .in("limite_key", ["preco_mensal", "preco_anual"]);
     if (limitesError || !limites) return jsonError("Não foi possível resolver o preço do plano.", 500);
 
-    const precoMensal = limites.find((l) => l.limite_key === "preco_mensal")?.valor;
-    const precoAnual = limites.find((l) => l.limite_key === "preco_anual")?.valor;
+    let precoMensal = limites.find((l) => l.limite_key === "preco_mensal")?.valor;
+    let precoAnual = limites.find((l) => l.limite_key === "preco_anual")?.valor;
+
+    // Cupom: valida e RESERVA atomicamente (RPC, contexto do próprio
+    // usuário). O desconto é sempre calculado aqui a partir do que o
+    // banco retornou — nunca a partir de nada enviado pelo cliente.
+    if (body.cupomCodigo) {
+      const { data: cupomAplicado, error: cupomError } = await asUser
+        .rpc("aplicar_cupom_checkout", { p_codigo: body.cupomCodigo, p_checkout_intencao_id: intencao.id })
+        .single();
+      if (cupomError || !cupomAplicado) {
+        return jsonError(cupomError?.message || "Não foi possível aplicar o cupom.", 400);
+      }
+      const { out_tipo_desconto, out_valor } = cupomAplicado as { out_tipo_desconto: string; out_valor: number };
+      if (typeof precoMensal === "number") precoMensal = aplicarDesconto(precoMensal, out_tipo_desconto, out_valor);
+      if (typeof precoAnual === "number") precoAnual = aplicarDesconto(precoAnual, out_tipo_desconto, out_valor);
+    }
 
     const appUrl = getAppUrl();
     const callback = {

@@ -12,6 +12,7 @@ import {
   Settings,
   LogOut,
   Menu,
+  Tag,
 } from "lucide-react";
 import { Logo } from "@/components/elevare/Logo";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ const platformMenuItems = [
   { icon: Settings, label: "Usuários", to: "/plataforma/usuarios" },
   { icon: CreditCard, label: "Planos", to: "/plataforma/planos" },
   { icon: Receipt, label: "Cobranças", to: "/plataforma/cobrancas" },
+  { icon: Tag, label: "Cupons", to: "/plataforma/cupons" },
   { icon: Search, label: "Google Places", to: "/plataforma/consumo" },
   { icon: Plug, label: "Integrações", to: "/plataforma/integracoes" },
   { icon: ShieldAlert, label: "Auditoria", to: "/plataforma/logs" },

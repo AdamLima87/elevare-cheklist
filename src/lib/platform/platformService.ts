@@ -189,3 +189,113 @@ export async function removerPlanoLimite(limiteId: string): Promise<void> {
   const { error } = await supabase.from("saas_plano_limites").delete().eq("id", limiteId);
   if (error) throw error;
 }
+
+export interface PlatformBillingDashboard {
+  trials_ativos: number;
+  trials_expirando_em_breve: number;
+  trials_expirados: number;
+  assinaturas_ativas: number;
+  inadimplentes_1_a_6: number;
+  inadimplentes_7_a_14: number;
+  bloqueados: number;
+  cancelados: number;
+  webhooks_com_erro: number;
+  ultimos_pagamentos: Array<{ id: string; empresa_nome: string; valor_cobrado: number; status: string; created_at: string }>;
+}
+
+export async function getBillingDashboard(): Promise<PlatformBillingDashboard> {
+  const { data, error } = await supabase.rpc("platform_billing_dashboard").single();
+  if (error) throw error;
+  return data as PlatformBillingDashboard;
+}
+
+export interface PlatformAssinatura {
+  empresa_id: string;
+  empresa_nome: string;
+  plano_codigo: string;
+  periodicidade: string | null;
+  status: string;
+  trial_ends_at: string | null;
+  current_period_end: string | null;
+  past_due_since: string | null;
+  blocked_at: string | null;
+}
+
+export async function getAssinaturasLista(): Promise<PlatformAssinatura[]> {
+  const { data, error } = await supabase.rpc("platform_assinaturas_lista");
+  if (error) throw error;
+  return (data ?? []) as PlatformAssinatura[];
+}
+
+export async function bloquearAssinatura(empresaId: string, motivo: string): Promise<void> {
+  const { error } = await supabase.rpc("platform_bloquear_assinatura", { p_empresa_id: empresaId, p_motivo: motivo });
+  if (error) throw error;
+}
+
+export async function desbloquearAssinatura(empresaId: string, motivo: string): Promise<void> {
+  const { error } = await supabase.rpc("platform_desbloquear_assinatura", { p_empresa_id: empresaId, p_motivo: motivo });
+  if (error) throw error;
+}
+
+export async function reprocessarWebhookEvento(eventoId: string): Promise<void> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const { error } = await supabase.functions.invoke("reprocessar-webhook-evento", {
+    body: { eventoId },
+    headers: sessionData.session ? { Authorization: `Bearer ${sessionData.session.access_token}` } : undefined,
+  });
+  if (error) throw error;
+}
+
+export interface PlatformCupom {
+  id: string;
+  codigo: string;
+  descricao: string | null;
+  tipo_desconto: "percentual" | "valor_fixo" | "primeiro_periodo_gratis";
+  valor: number;
+  plano_codigo: string | null;
+  periodicidade: "mensal" | "anual" | null;
+  data_inicio: string;
+  data_fim: string | null;
+  max_utilizacoes: number | null;
+  utilizacoes_atual: number;
+  max_utilizacoes_por_empresa: number;
+  somente_novos_clientes: boolean;
+  ativo: boolean;
+  created_at: string;
+}
+
+export async function listCupons(): Promise<PlatformCupom[]> {
+  const { data, error } = await supabase.from("saas_cupons").select("*").order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as PlatformCupom[];
+}
+
+export async function criarCupom(input: {
+  codigo: string;
+  descricao: string;
+  tipoDesconto: string;
+  valor: number;
+  planoCodigo: string | null;
+  periodicidade: string | null;
+  dataFim: string | null;
+  maxUtilizacoes: number | null;
+  maxUtilizacoesPorEmpresa: number;
+}): Promise<void> {
+  const { error } = await supabase.from("saas_cupons").insert({
+    codigo: input.codigo.trim().toUpperCase(),
+    descricao: input.descricao || null,
+    tipo_desconto: input.tipoDesconto,
+    valor: input.valor,
+    plano_codigo: input.planoCodigo,
+    periodicidade: input.periodicidade,
+    data_fim: input.dataFim,
+    max_utilizacoes: input.maxUtilizacoes,
+    max_utilizacoes_por_empresa: input.maxUtilizacoesPorEmpresa,
+  });
+  if (error) throw error;
+}
+
+export async function atualizarCupomAtivo(cupomId: string, ativo: boolean): Promise<void> {
+  const { error } = await supabase.from("saas_cupons").update({ ativo }).eq("id", cupomId);
+  if (error) throw error;
+}

@@ -14,6 +14,14 @@ import {
   removerPlanoLimite,
   getGooglePlacesConsumo,
   getAuditLog,
+  getBillingDashboard,
+  getAssinaturasLista,
+  bloquearAssinatura,
+  desbloquearAssinatura,
+  reprocessarWebhookEvento,
+  listCupons,
+  criarCupom,
+  atualizarCupomAtivo,
 } from "@/lib/platform/platformService";
 
 export function usePlatformDashboardMetrics() {
@@ -136,6 +144,80 @@ export function useDefinirOverrideLimite() {
   const invalidate = useInvalidatePlatformEmpresas();
   return useMutation({
     mutationFn: definirOverrideLimite,
+    onSuccess: invalidate,
+  });
+}
+
+function useInvalidatePlatformBilling() {
+  const queryClient = useQueryClient();
+  return () => {
+    queryClient.invalidateQueries({ queryKey: ["platform", "billing-dashboard"] });
+    queryClient.invalidateQueries({ queryKey: ["platform", "assinaturas"] });
+  };
+}
+
+export function usePlatformBillingDashboard() {
+  return useQuery({
+    queryKey: ["platform", "billing-dashboard"],
+    queryFn: getBillingDashboard,
+  });
+}
+
+export function usePlatformAssinaturas() {
+  return useQuery({
+    queryKey: ["platform", "assinaturas"],
+    queryFn: getAssinaturasLista,
+  });
+}
+
+export function useBloquearAssinatura() {
+  const invalidate = useInvalidatePlatformBilling();
+  return useMutation({
+    mutationFn: (input: { empresaId: string; motivo: string }) => bloquearAssinatura(input.empresaId, input.motivo),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDesbloquearAssinatura() {
+  const invalidate = useInvalidatePlatformBilling();
+  return useMutation({
+    mutationFn: (input: { empresaId: string; motivo: string }) => desbloquearAssinatura(input.empresaId, input.motivo),
+    onSuccess: invalidate,
+  });
+}
+
+export function useReprocessarWebhookEvento() {
+  const invalidate = useInvalidatePlatformBilling();
+  return useMutation({
+    mutationFn: reprocessarWebhookEvento,
+    onSuccess: invalidate,
+  });
+}
+
+export function usePlatformCupons() {
+  return useQuery({
+    queryKey: ["platform", "cupons"],
+    queryFn: listCupons,
+  });
+}
+
+function useInvalidatePlatformCupons() {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: ["platform", "cupons"] });
+}
+
+export function useCriarCupom() {
+  const invalidate = useInvalidatePlatformCupons();
+  return useMutation({
+    mutationFn: criarCupom,
+    onSuccess: invalidate,
+  });
+}
+
+export function useAtualizarCupomAtivo() {
+  const invalidate = useInvalidatePlatformCupons();
+  return useMutation({
+    mutationFn: (input: { cupomId: string; ativo: boolean }) => atualizarCupomAtivo(input.cupomId, input.ativo),
     onSuccess: invalidate,
   });
 }

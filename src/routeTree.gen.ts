@@ -41,6 +41,7 @@ import { Route as PlataformaPlanosRouteImport } from './routes/plataforma/planos
 import { Route as PlataformaLogsRouteImport } from './routes/plataforma/logs'
 import { Route as PlataformaIntegracoesRouteImport } from './routes/plataforma/integracoes'
 import { Route as PlataformaEmpresasRouteImport } from './routes/plataforma/empresas'
+import { Route as PlataformaCuponsRouteImport } from './routes/plataforma/cupons'
 import { Route as PlataformaConsumoRouteImport } from './routes/plataforma/consumo'
 import { Route as PlataformaConfiguracoesRouteImport } from './routes/plataforma/configuracoes'
 import { Route as PlataformaCobrancasRouteImport } from './routes/plataforma/cobrancas'
@@ -224,6 +225,11 @@ const PlataformaEmpresasRoute = PlataformaEmpresasRouteImport.update({
   path: '/plataforma/empresas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlataformaCuponsRoute = PlataformaCuponsRouteImport.update({
+  id: '/plataforma/cupons',
+  path: '/plataforma/cupons',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlataformaConsumoRoute = PlataformaConsumoRouteImport.update({
   id: '/plataforma/consumo',
   path: '/plataforma/consumo',
@@ -376,6 +382,7 @@ export interface FileRoutesByFullPath {
   '/plataforma/cobrancas': typeof PlataformaCobrancasRoute
   '/plataforma/configuracoes': typeof PlataformaConfiguracoesRoute
   '/plataforma/consumo': typeof PlataformaConsumoRoute
+  '/plataforma/cupons': typeof PlataformaCuponsRoute
   '/plataforma/empresas': typeof PlataformaEmpresasRoute
   '/plataforma/integracoes': typeof PlataformaIntegracoesRoute
   '/plataforma/logs': typeof PlataformaLogsRoute
@@ -432,6 +439,7 @@ export interface FileRoutesByTo {
   '/plataforma/cobrancas': typeof PlataformaCobrancasRoute
   '/plataforma/configuracoes': typeof PlataformaConfiguracoesRoute
   '/plataforma/consumo': typeof PlataformaConsumoRoute
+  '/plataforma/cupons': typeof PlataformaCuponsRoute
   '/plataforma/empresas': typeof PlataformaEmpresasRoute
   '/plataforma/integracoes': typeof PlataformaIntegracoesRoute
   '/plataforma/logs': typeof PlataformaLogsRoute
@@ -489,6 +497,7 @@ export interface FileRoutesById {
   '/plataforma/cobrancas': typeof PlataformaCobrancasRoute
   '/plataforma/configuracoes': typeof PlataformaConfiguracoesRoute
   '/plataforma/consumo': typeof PlataformaConsumoRoute
+  '/plataforma/cupons': typeof PlataformaCuponsRoute
   '/plataforma/empresas': typeof PlataformaEmpresasRoute
   '/plataforma/integracoes': typeof PlataformaIntegracoesRoute
   '/plataforma/logs': typeof PlataformaLogsRoute
@@ -547,6 +556,7 @@ export interface FileRouteTypes {
     | '/plataforma/cobrancas'
     | '/plataforma/configuracoes'
     | '/plataforma/consumo'
+    | '/plataforma/cupons'
     | '/plataforma/empresas'
     | '/plataforma/integracoes'
     | '/plataforma/logs'
@@ -603,6 +613,7 @@ export interface FileRouteTypes {
     | '/plataforma/cobrancas'
     | '/plataforma/configuracoes'
     | '/plataforma/consumo'
+    | '/plataforma/cupons'
     | '/plataforma/empresas'
     | '/plataforma/integracoes'
     | '/plataforma/logs'
@@ -659,6 +670,7 @@ export interface FileRouteTypes {
     | '/plataforma/cobrancas'
     | '/plataforma/configuracoes'
     | '/plataforma/consumo'
+    | '/plataforma/cupons'
     | '/plataforma/empresas'
     | '/plataforma/integracoes'
     | '/plataforma/logs'
@@ -716,6 +728,7 @@ export interface RootRouteChildren {
   PlataformaCobrancasRoute: typeof PlataformaCobrancasRoute
   PlataformaConfiguracoesRoute: typeof PlataformaConfiguracoesRoute
   PlataformaConsumoRoute: typeof PlataformaConsumoRoute
+  PlataformaCuponsRoute: typeof PlataformaCuponsRoute
   PlataformaEmpresasRoute: typeof PlataformaEmpresasRoute
   PlataformaIntegracoesRoute: typeof PlataformaIntegracoesRoute
   PlataformaLogsRoute: typeof PlataformaLogsRoute
@@ -962,6 +975,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlataformaEmpresasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/plataforma/cupons': {
+      id: '/plataforma/cupons'
+      path: '/plataforma/cupons'
+      fullPath: '/plataforma/cupons'
+      preLoaderRoute: typeof PlataformaCuponsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/plataforma/consumo': {
       id: '/plataforma/consumo'
       path: '/plataforma/consumo'
@@ -1156,6 +1176,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlataformaCobrancasRoute: PlataformaCobrancasRoute,
   PlataformaConfiguracoesRoute: PlataformaConfiguracoesRoute,
   PlataformaConsumoRoute: PlataformaConsumoRoute,
+  PlataformaCuponsRoute: PlataformaCuponsRoute,
   PlataformaEmpresasRoute: PlataformaEmpresasRoute,
   PlataformaIntegracoesRoute: PlataformaIntegracoesRoute,
   PlataformaLogsRoute: PlataformaLogsRoute,
