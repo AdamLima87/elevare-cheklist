@@ -74,6 +74,189 @@ export type Database = {
           },
         ]
       }
+      checklist_itens: {
+        Row: {
+          critico: boolean
+          id: string
+          item_key: string
+          modelo_versao_id: string
+          ordem: number
+          secao_id: string
+          texto: string
+        }
+        Insert: {
+          critico?: boolean
+          id?: string
+          item_key: string
+          modelo_versao_id: string
+          ordem: number
+          secao_id: string
+          texto: string
+        }
+        Update: {
+          critico?: boolean
+          id?: string
+          item_key?: string
+          modelo_versao_id?: string
+          ordem?: number
+          secao_id?: string
+          texto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_itens_modelo_versao_id_fkey"
+            columns: ["modelo_versao_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_modelo_versoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_itens_secao_id_fkey"
+            columns: ["secao_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_secoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_modelo_versoes: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          is_versao_atual: boolean
+          modelo_id: string
+          numero_versao: number
+          publicado_em: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          is_versao_atual?: boolean
+          modelo_id: string
+          numero_versao: number
+          publicado_em?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          is_versao_atual?: boolean
+          modelo_id?: string
+          numero_versao?: number
+          publicado_em?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_modelo_versoes_modelo_id_fkey"
+            columns: ["modelo_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_modelos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_modelos: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          id: string
+          legislacao_versao_id: string
+          nome: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          id?: string
+          legislacao_versao_id: string
+          nome: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          id?: string
+          legislacao_versao_id?: string
+          nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_modelos_legislacao_versao_id_fkey"
+            columns: ["legislacao_versao_id"]
+            isOneToOne: false
+            referencedRelation: "legislacao_versoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_secoes: {
+        Row: {
+          id: string
+          modelo_versao_id: string
+          ordem: number
+          secao_key: string
+          titulo: string
+        }
+        Insert: {
+          id?: string
+          modelo_versao_id: string
+          ordem: number
+          secao_key: string
+          titulo: string
+        }
+        Update: {
+          id?: string
+          modelo_versao_id?: string
+          ordem?: number
+          secao_key?: string
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_secoes_modelo_versao_id_fkey"
+            columns: ["modelo_versao_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_modelo_versoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_user_queue: {
+        Row: {
+          cnpj: string
+          created_at: string | null
+          email: string
+          error_message: string | null
+          id: string
+          nome: string | null
+          processed_at: string | null
+          status: string | null
+        }
+        Insert: {
+          cnpj: string
+          created_at?: string | null
+          email: string
+          error_message?: string | null
+          id?: string
+          nome?: string | null
+          processed_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          cnpj?: string
+          created_at?: string | null
+          email?: string
+          error_message?: string | null
+          id?: string
+          nome?: string | null
+          processed_at?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       cliente_interacoes: {
         Row: {
           autor_id: string | null
@@ -189,12 +372,12 @@ export type Database = {
       configuracoes: {
         Row: {
           created_at: string | null
-          email_contato: string | null
+          email_contato: string
           empresa_id: string
           enviar_email_cliente: boolean | null
           id: string
           logo_base64: string | null
-          nome_empresa: string | null
+          nome_empresa: string
           notificar_admin: boolean | null
           site: string | null
           telefone: string | null
@@ -202,12 +385,12 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
-          email_contato?: string | null
+          email_contato?: string
           empresa_id: string
           enviar_email_cliente?: boolean | null
           id?: string
           logo_base64?: string | null
-          nome_empresa?: string | null
+          nome_empresa?: string
           notificar_admin?: boolean | null
           site?: string | null
           telefone?: string | null
@@ -215,12 +398,12 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
-          email_contato?: string | null
+          email_contato?: string
           empresa_id?: string
           enviar_email_cliente?: boolean | null
           id?: string
           logo_base64?: string | null
-          nome_empresa?: string | null
+          nome_empresa?: string
           notificar_admin?: boolean | null
           site?: string | null
           telefone?: string | null
@@ -1364,66 +1547,79 @@ export type Database = {
       }
       inspecoes: {
         Row: {
+          checklist_modelo_versao_id: string
           cliente_id: string | null
           cnpj: string | null
           conformidade: number | null
           consultor_id: string | null
-          created_at: string | null
+          created_at: string
           crm_oportunidade_id: string | null
-          dados: Json | null
+          dados: Json
           data_conclusao: string | null
-          data_inicio: string | null
+          data_inicio: string
           empresa_id: string
           estabelecimento_nome: string | null
           id: string
-          numero_sequencial: number | null
-          progresso: number | null
-          respostas: Json | null
-          status: string | null
+          inspecao_origem_id: string | null
+          numero_sequencial: number
+          progresso: number
+          respostas: Json
+          status: string
           tipo_execucao: string
-          updated_at: string | null
+          updated_at: string
         }
         Insert: {
+          checklist_modelo_versao_id: string
           cliente_id?: string | null
           cnpj?: string | null
           conformidade?: number | null
           consultor_id?: string | null
-          created_at?: string | null
+          created_at?: string
           crm_oportunidade_id?: string | null
-          dados?: Json | null
+          dados?: Json
           data_conclusao?: string | null
-          data_inicio?: string | null
+          data_inicio?: string
           empresa_id: string
           estabelecimento_nome?: string | null
           id?: string
-          numero_sequencial?: number | null
-          progresso?: number | null
-          respostas?: Json | null
-          status?: string | null
+          inspecao_origem_id?: string | null
+          numero_sequencial: number
+          progresso?: number
+          respostas?: Json
+          status?: string
           tipo_execucao?: string
-          updated_at?: string | null
+          updated_at?: string
         }
         Update: {
+          checklist_modelo_versao_id?: string
           cliente_id?: string | null
           cnpj?: string | null
           conformidade?: number | null
           consultor_id?: string | null
-          created_at?: string | null
+          created_at?: string
           crm_oportunidade_id?: string | null
-          dados?: Json | null
+          dados?: Json
           data_conclusao?: string | null
-          data_inicio?: string | null
+          data_inicio?: string
           empresa_id?: string
           estabelecimento_nome?: string | null
           id?: string
-          numero_sequencial?: number | null
-          progresso?: number | null
-          respostas?: Json | null
-          status?: string | null
+          inspecao_origem_id?: string | null
+          numero_sequencial?: number
+          progresso?: number
+          respostas?: Json
+          status?: string
           tipo_execucao?: string
-          updated_at?: string | null
+          updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "inspecoes_checklist_modelo_versao_id_fkey"
+            columns: ["checklist_modelo_versao_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_modelo_versoes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "inspecoes_cliente_id_empresa_fkey"
             columns: ["cliente_id", "empresa_id"]
@@ -1452,7 +1648,82 @@ export type Database = {
             referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "inspecoes_inspecao_origem_id_fkey"
+            columns: ["inspecao_origem_id"]
+            isOneToOne: false
+            referencedRelation: "inspecoes"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      legislacao_versoes: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          id: string
+          legislacao_id: string
+          numero_versao: number
+          vigente_desde: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          legislacao_id: string
+          numero_versao: number
+          vigente_desde?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          legislacao_id?: string
+          numero_versao?: number
+          vigente_desde?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legislacao_versoes_legislacao_id_fkey"
+            columns: ["legislacao_id"]
+            isOneToOne: false
+            referencedRelation: "legislacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      legislacoes: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          esfera: string
+          id: string
+          nome: string
+          uf: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          esfera: string
+          id?: string
+          nome: string
+          uf?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          esfera?: string
+          id?: string
+          nome?: string
+          uf?: string | null
+        }
+        Relationships: []
       }
       numeracao_inspecoes: {
         Row: {
@@ -1482,49 +1753,49 @@ export type Database = {
           ativo: boolean
           cnpj: string | null
           conselho_regional: string | null
-          created_at: string | null
+          created_at: string
           email: string | null
           empresa_id: string
           force_password_change: boolean | null
           id: string
-          nome: string | null
+          nome: string
           numero_registro: string | null
-          perfil: string | null
+          perfil: string
           telefone: string | null
           ultimo_acesso: string | null
-          updated_at: string | null
+          updated_at: string
         }
         Insert: {
           ativo?: boolean
           cnpj?: string | null
           conselho_regional?: string | null
-          created_at?: string | null
+          created_at?: string
           email?: string | null
           empresa_id: string
           force_password_change?: boolean | null
           id: string
-          nome?: string | null
+          nome: string
           numero_registro?: string | null
-          perfil?: string | null
+          perfil: string
           telefone?: string | null
           ultimo_acesso?: string | null
-          updated_at?: string | null
+          updated_at?: string
         }
         Update: {
           ativo?: boolean
           cnpj?: string | null
           conselho_regional?: string | null
-          created_at?: string | null
+          created_at?: string
           email?: string | null
           empresa_id?: string
           force_password_change?: boolean | null
           id?: string
-          nome?: string | null
+          nome?: string
           numero_registro?: string | null
-          perfil?: string | null
+          perfil?: string
           telefone?: string | null
           ultimo_acesso?: string | null
-          updated_at?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -2689,6 +2960,7 @@ export type Database = {
           trial_ends_at: string
         }[]
       }
+      is_admin: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       move_to_dlq: {
         Args: {
@@ -2830,6 +3102,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      publicar_checklist_modelo_versao: {
+        Args: { p_modelo_versao_id: string }
+        Returns: undefined
+      }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
@@ -2842,6 +3118,7 @@ export type Database = {
         Args: { p_checkout_intencao_id: string }
         Returns: undefined
       }
+      resolver_checklist_modelo_padrao: { Args: never; Returns: string }
       resolver_preco_plano: {
         Args: { p_periodicidade: string; p_plano_codigo: string }
         Returns: number
