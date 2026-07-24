@@ -1,0 +1,15 @@
+-- Fase 5 — corrige bug real encontrado ao inspecionar pg_proc após a
+-- migration anterior: CREATE OR REPLACE com um parâmetro NOVO na
+-- assinatura NÃO substitui a função existente — Postgres identifica
+-- funções por (nome, tipos de argumento), então
+-- crm_fechar_oportunidade_ganha(uuid) e
+-- crm_fechar_oportunidade_ganha(uuid, text) são dois overloads
+-- DIFERENTES coexistindo. Qualquer chamada antiga
+-- (supabase.rpc("crm_fechar_oportunidade_ganha", {p_oportunidade_id}))
+-- resolveria pro overload de 1 argumento — a versão SEM a checagem de
+-- Diagnóstico da Fase 5 — nunca aplicando a nova regra.
+--
+-- Correção: remove o overload antigo de 1 argumento. Só a versão de 2
+-- argumentos (com p_motivo_sem_diagnostico DEFAULT NULL) permanece —
+-- continua aceitando chamadas nomeadas sem esse parâmetro normalmente.
+DROP FUNCTION IF EXISTS public.crm_fechar_oportunidade_ganha(uuid);

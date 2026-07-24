@@ -36,6 +36,7 @@ import {
   useFecharOportunidadePerdida,
   useCrmDiagnosticosPorOportunidades,
   isProximaAcaoObrigatoriaError,
+  isDiagnosticoNaoConcluidoError,
   type CrmOportunidade,
 } from "@/hooks/useCrmOportunidades";
 import { NextActionRequiredDialog } from "@/components/crm/NextActionRequiredDialog";
@@ -90,6 +91,7 @@ function CrmPipelinePage() {
   } | null>(null);
   const [saidaPendente, setSaidaPendente] = useState<DiagnosticoSaidaPendente | null>(null);
   const [entradaDiagnosticoId, setEntradaDiagnosticoId] = useState<string | null>(null);
+  const [precisaMotivoDiagnostico, setPrecisaMotivoDiagnostico] = useState(false);
 
   const etapasAbertas = etapas.filter((e) => e.tipo === "aberta");
   const primeiraEtapa = etapas.find((e) => e.tipo === "aberta");
@@ -176,18 +178,26 @@ function CrmPipelinePage() {
     }
   };
 
-  const handleConfirmarGanha = async () => {
+  const handleConfirmarGanha = async (motivoSemDiagnostico?: string) => {
     if (!fecharPendente || !pipeline) return;
     try {
       const resultado = await fecharGanha.mutateAsync({
         oportunidadeId: fecharPendente.oportunidade.id,
         pipelineId: pipeline.id,
+        motivoSemDiagnostico,
       });
       toast.success(
         resultado.cliente_criado ? "Oportunidade ganha! Cliente criado." : "Oportunidade ganha! Cliente vinculado.",
       );
       setFecharPendente(null);
+      setPrecisaMotivoDiagnostico(false);
     } catch (error: any) {
+      if (isDiagnosticoNaoConcluidoError(error)) {
+        // Mantém o diálogo aberto, agora mostrando o campo de motivo
+        // obrigatório — a 2ª chamada reenvia com motivoSemDiagnostico.
+        setPrecisaMotivoDiagnostico(true);
+        return;
+      }
       toast.error(error.message || "Erro ao fechar oportunidade");
     }
   };
@@ -493,10 +503,16 @@ function CrmPipelinePage() {
         {fecharPendente && (
           <FecharOportunidadeDialog
             open={!!fecharPendente}
-            onOpenChange={(v) => !v && setFecharPendente(null)}
+            onOpenChange={(v) => {
+              if (!v) {
+                setFecharPendente(null);
+                setPrecisaMotivoDiagnostico(false);
+              }
+            }}
             modo={fecharPendente.modo}
             oportunidadeNome={fecharPendente.oportunidade.nome}
             motivosPerda={motivosPerda}
+            precisaMotivoDiagnostico={precisaMotivoDiagnostico}
             onConfirmarGanha={handleConfirmarGanha}
             onConfirmarPerdida={handleConfirmarPerdida}
             isPending={fecharGanha.isPending || fecharPerdida.isPending}

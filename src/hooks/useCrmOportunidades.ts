@@ -261,6 +261,15 @@ export function isProximaAcaoObrigatoriaError(error: unknown): boolean {
   return typeof message === "string" && message.startsWith("PROXIMA_ACAO_OBRIGATORIA");
 }
 
+// Fase 5: reconhece o erro lançado por crm_fechar_oportunidade_ganha
+// quando o pipeline tem etapa de Diagnóstico configurada e o Diagnóstico
+// da oportunidade não está concluído — mesmo padrão de
+// isProximaAcaoObrigatoriaError (prefixo reconhecível na mensagem).
+export function isDiagnosticoNaoConcluidoError(error: unknown): boolean {
+  const message = (error as { message?: string } | null)?.message;
+  return typeof message === "string" && message.startsWith("DIAGNOSTICO_NAO_CONCLUIDO");
+}
+
 export interface FecharOportunidadeGanhaResultado {
   oportunidade_id: string;
   cliente_id: string;
@@ -280,9 +289,10 @@ export interface FecharOportunidadeGanhaResultado {
 export function useFecharOportunidadeGanha() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { oportunidadeId: string; pipelineId: string }) => {
+    mutationFn: async (input: { oportunidadeId: string; pipelineId: string; motivoSemDiagnostico?: string }) => {
       const { data, error } = await supabase.rpc("crm_fechar_oportunidade_ganha", {
         p_oportunidade_id: input.oportunidadeId,
+        p_motivo_sem_diagnostico: input.motivoSemDiagnostico ?? undefined,
       });
       if (error) throw error;
       return (data as FecharOportunidadeGanhaResultado[])[0];

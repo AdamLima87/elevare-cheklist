@@ -2550,7 +2550,7 @@ export type Database = {
         }[]
       }
       crm_fechar_oportunidade_ganha: {
-        Args: { p_oportunidade_id: string }
+        Args: { p_motivo_sem_diagnostico?: string; p_oportunidade_id: string }
         Returns: {
           already_converted: boolean
           cliente_criado: boolean

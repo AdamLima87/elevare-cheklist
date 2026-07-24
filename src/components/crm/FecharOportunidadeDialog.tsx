@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -17,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import type { CrmCatalogoItem } from "@/hooks/useCrmCatalogos";
 
 interface FecharOportunidadeDialogProps {
@@ -26,7 +27,10 @@ interface FecharOportunidadeDialogProps {
   modo: "ganha" | "perdida";
   oportunidadeNome: string;
   motivosPerda: CrmCatalogoItem[];
-  onConfirmarGanha: () => void;
+  /** Fase 5: true depois que a 1ª tentativa de fechar ganho retornou
+   * DIAGNOSTICO_NAO_CONCLUIDO — mostra o campo de motivo obrigatório. */
+  precisaMotivoDiagnostico?: boolean;
+  onConfirmarGanha: (motivoSemDiagnostico?: string) => void;
   onConfirmarPerdida: (motivoId: string, detalhe: string | null) => void;
   isPending: boolean;
 }
@@ -40,18 +44,28 @@ export function FecharOportunidadeDialog({
   modo,
   oportunidadeNome,
   motivosPerda,
+  precisaMotivoDiagnostico,
   onConfirmarGanha,
   onConfirmarPerdida,
   isPending,
 }: FecharOportunidadeDialogProps) {
   const [motivoId, setMotivoId] = useState("");
   const [detalhe, setDetalhe] = useState("");
+  const [motivoSemDiagnostico, setMotivoSemDiagnostico] = useState("");
 
   const motivoEhOutro = motivosPerda.find((m) => m.id === motivoId)?.nome?.toLowerCase() === "outro";
+  // Validação client-side é só UX (feedback rápido) — a validação real e
+  // definitiva é a da própria RPC (trim/mínimo/máximo no backend).
+  const motivoDiagnosticoValido = motivoSemDiagnostico.trim().length >= 5 && motivoSemDiagnostico.trim().length <= 500;
 
   const handleConfirmar = () => {
     if (modo === "ganha") {
-      onConfirmarGanha();
+      if (precisaMotivoDiagnostico) {
+        if (!motivoDiagnosticoValido) return;
+        onConfirmarGanha(motivoSemDiagnostico.trim());
+      } else {
+        onConfirmarGanha();
+      }
     } else {
       if (!motivoId) return;
       onConfirmarPerdida(motivoId, detalhe.trim() || null);
@@ -76,6 +90,29 @@ export function FecharOportunidadeDialog({
               : `Informe o motivo da perda de "${oportunidadeNome}".`}
           </DialogDescription>
         </DialogHeader>
+
+        {modo === "ganha" && precisaMotivoDiagnostico && (
+          <div className="grid gap-3 py-2">
+            <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/5 p-3 text-sm text-foreground">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+              <p>
+                O Diagnóstico Inicial desta oportunidade ainda não foi concluído. Confirme mesmo assim informando
+                um motivo — isso fica registrado na timeline da oportunidade.
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="motivo-sem-diagnostico">Motivo para fechar sem o Diagnóstico concluído</Label>
+              <Textarea
+                id="motivo-sem-diagnostico"
+                value={motivoSemDiagnostico}
+                onChange={(e) => setMotivoSemDiagnostico(e.target.value)}
+                placeholder="Ex: cliente pediu urgência, diagnóstico será feito após o fechamento."
+                maxLength={500}
+                className="min-h-20"
+              />
+            </div>
+          </div>
+        )}
 
         {modo === "perdida" && (
           <div className="grid gap-4 py-4">
@@ -111,7 +148,11 @@ export function FecharOportunidadeDialog({
         <DialogFooter>
           <Button
             onClick={handleConfirmar}
-            disabled={isPending || (modo === "perdida" && !motivoId)}
+            disabled={
+              isPending ||
+              (modo === "perdida" && !motivoId) ||
+              (modo === "ganha" && precisaMotivoDiagnostico && !motivoDiagnosticoValido)
+            }
             variant={modo === "ganha" ? "default" : "destructive"}
             className="w-full"
           >
