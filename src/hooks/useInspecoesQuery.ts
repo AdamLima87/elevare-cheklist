@@ -17,6 +17,12 @@ export interface InspecoesFilters {
 function applyFilters(query: any, filters: InspecoesFilters) {
   const dateField = filters.dateField ?? "data_conclusao";
 
+  // Fase 4: diagnósticos pré-venda do CRM não são inspeções operacionais —
+  // não devem aparecer em relatórios/estatísticas operacionais. Mesmo
+  // padrão já usado desde a Fase 3 em dashboard.tsx/resultado.tsx/
+  // check-reinspection.ts.
+  query = query.neq("tipo_execucao", "diagnostico");
+
   if (filters.status) query = query.eq("status", filters.status);
   if (filters.consultorId) query = query.eq("consultor_id", filters.consultorId);
   if (filters.cnpj) query = query.eq("cnpj", filters.cnpj);
