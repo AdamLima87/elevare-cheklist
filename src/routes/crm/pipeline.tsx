@@ -42,6 +42,8 @@ import { NextActionRequiredDialog } from "@/components/crm/NextActionRequiredDia
 import { CrmSaudeBadge } from "@/components/crm/CrmSaudeBadge";
 import { CrmDiagnosticoBadge } from "@/components/crm/CrmDiagnosticoBadge";
 import { FecharOportunidadeDialog } from "@/components/crm/FecharOportunidadeDialog";
+import { DiagnosticoSaidaEtapaDialog, type DiagnosticoSaidaPendente } from "@/components/crm/DiagnosticoSaidaEtapaDialog";
+import { DiagnosticoEtapaDialog } from "@/components/crm/DiagnosticoEtapaDialog";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/crm/pipeline")({
@@ -86,9 +88,25 @@ function CrmPipelinePage() {
     oportunidade: CrmOportunidade;
     modo: "ganha" | "perdida";
   } | null>(null);
+  const [saidaPendente, setSaidaPendente] = useState<DiagnosticoSaidaPendente | null>(null);
+  const [entradaDiagnosticoId, setEntradaDiagnosticoId] = useState<string | null>(null);
 
   const etapasAbertas = etapas.filter((e) => e.tipo === "aberta");
   const primeiraEtapa = etapas.find((e) => e.tipo === "aberta");
+
+  // Checado ANTES de chamar a RPC de mover etapa — se o usuário escolher
+  // "voltar", nada é persistido. Resolve a Promise via o diálogo
+  // (DiagnosticoSaidaEtapaDialog). Não se aplica ao mover pra ganho/perdido
+  // (esses têm confirmação dedicada e mais forte na Etapa 5.6/FecharOportunidadeDialog).
+  const confirmarSaidaSemDiagnostico = (
+    etapaOrigemNome: string,
+    etapaAlvoNome: string,
+    diagnosticos: DiagnosticoSaidaPendente["diagnosticos"],
+  ): Promise<boolean> => {
+    return new Promise((resolve) => {
+      setSaidaPendente({ etapaOrigemNome, etapaAlvoNome, diagnosticos, resolve });
+    });
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,6 +145,18 @@ function CrmPipelinePage() {
       return;
     }
 
+    // Saída da etapa de Diagnóstico sem concluir — checado com dados já em
+    // memória, ANTES de qualquer chamada de rede. Cancelar não persiste nada.
+    const etapaOrigem = etapas.find((e) => e.id === oportunidade.etapa_id);
+    if (etapaOrigem?.gera_diagnostico && etapaOrigem.id !== etapaId) {
+      const diagnosticos = diagnosticosPorOportunidade?.get(oportunidade.id) ?? [];
+      const concluido = diagnosticos.length === 1 && diagnosticos[0].status === "concluida";
+      if (!concluido) {
+        const avancar = await confirmarSaidaSemDiagnostico(etapaOrigem.nome, etapaAlvo?.nome ?? "", diagnosticos);
+        if (!avancar) return;
+      }
+    }
+
     try {
       await moverEtapa.mutateAsync({ id: oportunidade.id, etapa_id: etapaId, pipeline_id: pipeline.id });
     } catch (error: any) {
@@ -135,6 +165,14 @@ function CrmPipelinePage() {
         return;
       }
       toast.error(error.message || "Erro ao mover etapa");
+      return;
+    }
+
+    // Entrada na etapa de Diagnóstico — checado DEPOIS que a mudança já foi
+    // persistida com sucesso. Nunca cria o Diagnóstico automaticamente; só
+    // abre o diálogo com a ação explícita.
+    if (etapaAlvo?.gera_diagnostico) {
+      setEntradaDiagnosticoId(oportunidade.id);
     }
   };
 
@@ -464,6 +502,16 @@ function CrmPipelinePage() {
             isPending={fecharGanha.isPending || fecharPerdida.isPending}
           />
         )}
+
+        <DiagnosticoSaidaEtapaDialog
+          pendente={saidaPendente}
+          key={saidaPendente ? "saida-pendente" : "saida-vazio"}
+        />
+
+        <DiagnosticoEtapaDialog
+          oportunidadeId={entradaDiagnosticoId}
+          onClose={() => setEntradaDiagnosticoId(null)}
+        />
       </AppShell>
     </ProtectedRoute>
   );
