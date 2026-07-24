@@ -57,6 +57,7 @@ import { Route as CrmAtividadesRouteImport } from './routes/crm/atividades'
 import { Route as ClientesIdRouteImport } from './routes/clientes/$id'
 import { Route as CrmEmpresasIndexRouteImport } from './routes/crm/empresas/index'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
+import { Route as CrmOportunidadesIdRouteImport } from './routes/crm/oportunidades/$id'
 import { Route as CrmEmpresasIdRouteImport } from './routes/crm/empresas/$id'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
@@ -64,6 +65,9 @@ import { Route as LovableEmailRemindersCheckReinspectionRouteImport } from './ro
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
+import { Route as CrmOportunidadesIdDiagnosticoResultadoRouteImport } from './routes/crm/oportunidades/$id.diagnostico.resultado'
+import { Route as CrmOportunidadesIdDiagnosticoNovoRouteImport } from './routes/crm/oportunidades/$id.diagnostico.novo'
+import { Route as CrmOportunidadesIdDiagnosticoChecklistRouteImport } from './routes/crm/oportunidades/$id.diagnostico.checklist'
 
 const ResultadoRoute = ResultadoRouteImport.update({
   id: '/resultado',
@@ -305,6 +309,11 @@ const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
   path: '/lovable/email/suppression',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CrmOportunidadesIdRoute = CrmOportunidadesIdRouteImport.update({
+  id: '/crm/oportunidades/$id',
+  path: '/crm/oportunidades/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CrmEmpresasIdRoute = CrmEmpresasIdRouteImport.update({
   id: '/crm/empresas/$id',
   path: '/crm/empresas/$id',
@@ -344,6 +353,24 @@ const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
   path: '/lovable/email/auth/preview',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CrmOportunidadesIdDiagnosticoResultadoRoute =
+  CrmOportunidadesIdDiagnosticoResultadoRouteImport.update({
+    id: '/diagnostico/resultado',
+    path: '/diagnostico/resultado',
+    getParentRoute: () => CrmOportunidadesIdRoute,
+  } as any)
+const CrmOportunidadesIdDiagnosticoNovoRoute =
+  CrmOportunidadesIdDiagnosticoNovoRouteImport.update({
+    id: '/diagnostico/novo',
+    path: '/diagnostico/novo',
+    getParentRoute: () => CrmOportunidadesIdRoute,
+  } as any)
+const CrmOportunidadesIdDiagnosticoChecklistRoute =
+  CrmOportunidadesIdDiagnosticoChecklistRouteImport.update({
+    id: '/diagnostico/checklist',
+    path: '/diagnostico/checklist',
+    getParentRoute: () => CrmOportunidadesIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -393,6 +420,7 @@ export interface FileRoutesByFullPath {
   '/crm/': typeof CrmIndexRoute
   '/plataforma/': typeof PlataformaIndexRoute
   '/crm/empresas/$id': typeof CrmEmpresasIdRoute
+  '/crm/oportunidades/$id': typeof CrmOportunidadesIdRouteWithChildren
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/crm/empresas/': typeof CrmEmpresasIndexRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -401,6 +429,9 @@ export interface FileRoutesByFullPath {
   '/lovable/email/reminders/check-reinspection': typeof LovableEmailRemindersCheckReinspectionRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
+  '/crm/oportunidades/$id/diagnostico/checklist': typeof CrmOportunidadesIdDiagnosticoChecklistRoute
+  '/crm/oportunidades/$id/diagnostico/novo': typeof CrmOportunidadesIdDiagnosticoNovoRoute
+  '/crm/oportunidades/$id/diagnostico/resultado': typeof CrmOportunidadesIdDiagnosticoResultadoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -450,6 +481,7 @@ export interface FileRoutesByTo {
   '/crm': typeof CrmIndexRoute
   '/plataforma': typeof PlataformaIndexRoute
   '/crm/empresas/$id': typeof CrmEmpresasIdRoute
+  '/crm/oportunidades/$id': typeof CrmOportunidadesIdRouteWithChildren
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/crm/empresas': typeof CrmEmpresasIndexRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -458,6 +490,9 @@ export interface FileRoutesByTo {
   '/lovable/email/reminders/check-reinspection': typeof LovableEmailRemindersCheckReinspectionRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
+  '/crm/oportunidades/$id/diagnostico/checklist': typeof CrmOportunidadesIdDiagnosticoChecklistRoute
+  '/crm/oportunidades/$id/diagnostico/novo': typeof CrmOportunidadesIdDiagnosticoNovoRoute
+  '/crm/oportunidades/$id/diagnostico/resultado': typeof CrmOportunidadesIdDiagnosticoResultadoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -508,6 +543,7 @@ export interface FileRoutesById {
   '/crm/': typeof CrmIndexRoute
   '/plataforma/': typeof PlataformaIndexRoute
   '/crm/empresas/$id': typeof CrmEmpresasIdRoute
+  '/crm/oportunidades/$id': typeof CrmOportunidadesIdRouteWithChildren
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/crm/empresas/': typeof CrmEmpresasIndexRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -516,6 +552,9 @@ export interface FileRoutesById {
   '/lovable/email/reminders/check-reinspection': typeof LovableEmailRemindersCheckReinspectionRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
+  '/crm/oportunidades/$id/diagnostico/checklist': typeof CrmOportunidadesIdDiagnosticoChecklistRoute
+  '/crm/oportunidades/$id/diagnostico/novo': typeof CrmOportunidadesIdDiagnosticoNovoRoute
+  '/crm/oportunidades/$id/diagnostico/resultado': typeof CrmOportunidadesIdDiagnosticoResultadoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -567,6 +606,7 @@ export interface FileRouteTypes {
     | '/crm/'
     | '/plataforma/'
     | '/crm/empresas/$id'
+    | '/crm/oportunidades/$id'
     | '/lovable/email/suppression'
     | '/crm/empresas/'
     | '/lovable/email/auth/preview'
@@ -575,6 +615,9 @@ export interface FileRouteTypes {
     | '/lovable/email/reminders/check-reinspection'
     | '/lovable/email/transactional/preview'
     | '/lovable/email/transactional/send'
+    | '/crm/oportunidades/$id/diagnostico/checklist'
+    | '/crm/oportunidades/$id/diagnostico/novo'
+    | '/crm/oportunidades/$id/diagnostico/resultado'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -624,6 +667,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/plataforma'
     | '/crm/empresas/$id'
+    | '/crm/oportunidades/$id'
     | '/lovable/email/suppression'
     | '/crm/empresas'
     | '/lovable/email/auth/preview'
@@ -632,6 +676,9 @@ export interface FileRouteTypes {
     | '/lovable/email/reminders/check-reinspection'
     | '/lovable/email/transactional/preview'
     | '/lovable/email/transactional/send'
+    | '/crm/oportunidades/$id/diagnostico/checklist'
+    | '/crm/oportunidades/$id/diagnostico/novo'
+    | '/crm/oportunidades/$id/diagnostico/resultado'
   id:
     | '__root__'
     | '/'
@@ -681,6 +728,7 @@ export interface FileRouteTypes {
     | '/crm/'
     | '/plataforma/'
     | '/crm/empresas/$id'
+    | '/crm/oportunidades/$id'
     | '/lovable/email/suppression'
     | '/crm/empresas/'
     | '/lovable/email/auth/preview'
@@ -689,6 +737,9 @@ export interface FileRouteTypes {
     | '/lovable/email/reminders/check-reinspection'
     | '/lovable/email/transactional/preview'
     | '/lovable/email/transactional/send'
+    | '/crm/oportunidades/$id/diagnostico/checklist'
+    | '/crm/oportunidades/$id/diagnostico/novo'
+    | '/crm/oportunidades/$id/diagnostico/resultado'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -739,6 +790,7 @@ export interface RootRouteChildren {
   CrmIndexRoute: typeof CrmIndexRoute
   PlataformaIndexRoute: typeof PlataformaIndexRoute
   CrmEmpresasIdRoute: typeof CrmEmpresasIdRoute
+  CrmOportunidadesIdRoute: typeof CrmOportunidadesIdRouteWithChildren
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   CrmEmpresasIndexRoute: typeof CrmEmpresasIndexRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
@@ -1087,6 +1139,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailSuppressionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/crm/oportunidades/$id': {
+      id: '/crm/oportunidades/$id'
+      path: '/crm/oportunidades/$id'
+      fullPath: '/crm/oportunidades/$id'
+      preLoaderRoute: typeof CrmOportunidadesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/crm/empresas/$id': {
       id: '/crm/empresas/$id'
       path: '/crm/empresas/$id'
@@ -1136,8 +1195,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailAuthPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/crm/oportunidades/$id/diagnostico/resultado': {
+      id: '/crm/oportunidades/$id/diagnostico/resultado'
+      path: '/diagnostico/resultado'
+      fullPath: '/crm/oportunidades/$id/diagnostico/resultado'
+      preLoaderRoute: typeof CrmOportunidadesIdDiagnosticoResultadoRouteImport
+      parentRoute: typeof CrmOportunidadesIdRoute
+    }
+    '/crm/oportunidades/$id/diagnostico/novo': {
+      id: '/crm/oportunidades/$id/diagnostico/novo'
+      path: '/diagnostico/novo'
+      fullPath: '/crm/oportunidades/$id/diagnostico/novo'
+      preLoaderRoute: typeof CrmOportunidadesIdDiagnosticoNovoRouteImport
+      parentRoute: typeof CrmOportunidadesIdRoute
+    }
+    '/crm/oportunidades/$id/diagnostico/checklist': {
+      id: '/crm/oportunidades/$id/diagnostico/checklist'
+      path: '/diagnostico/checklist'
+      fullPath: '/crm/oportunidades/$id/diagnostico/checklist'
+      preLoaderRoute: typeof CrmOportunidadesIdDiagnosticoChecklistRouteImport
+      parentRoute: typeof CrmOportunidadesIdRoute
+    }
   }
 }
+
+interface CrmOportunidadesIdRouteChildren {
+  CrmOportunidadesIdDiagnosticoChecklistRoute: typeof CrmOportunidadesIdDiagnosticoChecklistRoute
+  CrmOportunidadesIdDiagnosticoNovoRoute: typeof CrmOportunidadesIdDiagnosticoNovoRoute
+  CrmOportunidadesIdDiagnosticoResultadoRoute: typeof CrmOportunidadesIdDiagnosticoResultadoRoute
+}
+
+const CrmOportunidadesIdRouteChildren: CrmOportunidadesIdRouteChildren = {
+  CrmOportunidadesIdDiagnosticoChecklistRoute:
+    CrmOportunidadesIdDiagnosticoChecklistRoute,
+  CrmOportunidadesIdDiagnosticoNovoRoute:
+    CrmOportunidadesIdDiagnosticoNovoRoute,
+  CrmOportunidadesIdDiagnosticoResultadoRoute:
+    CrmOportunidadesIdDiagnosticoResultadoRoute,
+}
+
+const CrmOportunidadesIdRouteWithChildren =
+  CrmOportunidadesIdRoute._addFileChildren(CrmOportunidadesIdRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -1187,6 +1285,7 @@ const rootRouteChildren: RootRouteChildren = {
   CrmIndexRoute: CrmIndexRoute,
   PlataformaIndexRoute: PlataformaIndexRoute,
   CrmEmpresasIdRoute: CrmEmpresasIdRoute,
+  CrmOportunidadesIdRoute: CrmOportunidadesIdRouteWithChildren,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   CrmEmpresasIndexRoute: CrmEmpresasIndexRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,

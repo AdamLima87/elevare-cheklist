@@ -51,6 +51,25 @@ export function useCrmOportunidades(pipelineId: string | undefined) {
   });
 }
 
+// Fase 4: lista simples de oportunidades de uma Conta, usada como ponto de
+// entrada pra página de detalhe da oportunidade (/crm/oportunidades/$id) a
+// partir da Conta — hoje a Conta não tinha nenhuma listagem de oportunidades.
+export function useCrmOportunidadesPorConta(crmEmpresaId: string | undefined) {
+  return useQuery({
+    queryKey: ["crm-oportunidades-por-conta", crmEmpresaId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("crm_oportunidades")
+        .select("id, nome, etapa_id, valor_estimado, fechada_em")
+        .eq("crm_empresa_id", crmEmpresaId as string)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!crmEmpresaId,
+  });
+}
+
 export function useCrmOportunidade(id: string | undefined) {
   return useQuery({
     queryKey: ["crm-oportunidade", id],
@@ -126,6 +145,65 @@ export function useMoverEtapaOportunidade() {
       queryClient.invalidateQueries({ queryKey: ["crm-oportunidade", data.id] });
       queryClient.invalidateQueries({ queryKey: ["crm-timeline"] });
       queryClient.invalidateQueries({ queryKey: ["crm-atividades"] });
+    },
+  });
+}
+
+export interface CrmDiagnosticoRow {
+  id: string;
+  status: "em_andamento" | "concluida";
+  progresso: number;
+  conformidade: number | null;
+  data_inicio: string;
+  data_conclusao: string | null;
+  estabelecimento_nome: string | null;
+}
+
+// Fase 4: lê diretamente inspecoes (tipo_execucao='diagnostico') filtradas
+// pela oportunidade — RLS (inspecoes_diagnostico_select, Fase 3) já garante
+// tenant-wide admin/consultor, sem query adicional aqui. Mais de uma linha
+// não deveria ocorrer (índice único parcial + RPC idempotente, Fase 4), mas
+// a UI trata isso como inconsistência a sinalizar, nunca escolhe sozinha.
+export function useCrmDiagnostico(crmOportunidadeId: string | undefined) {
+  return useQuery({
+    queryKey: ["crm-diagnostico", crmOportunidadeId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("inspecoes")
+        .select("id, status, progresso, conformidade, data_inicio, data_conclusao, estabelecimento_nome")
+        .eq("crm_oportunidade_id", crmOportunidadeId as string)
+        .eq("tipo_execucao", "diagnostico")
+        .order("data_inicio", { ascending: false });
+      if (error) throw error;
+      const rows = (data ?? []) as CrmDiagnosticoRow[];
+      return { rows, inconsistente: rows.length > 1 };
+    },
+    enabled: !!crmOportunidadeId,
+  });
+}
+
+export interface ObterOuCriarDiagnosticoResultado {
+  inspecao_id: string;
+  criado: boolean;
+}
+
+// RPC idempotente (Fase 4) — nunca faz SELECT-then-INSERT no client. Duas
+// chamadas concorrentes (duplo clique, duas abas) sempre retornam o mesmo
+// inspecao_id: o lock em crm_oportunidades dentro da RPC serializa a
+// segunda chamada, e o índice único parcial é a defesa estrutural.
+export function useObterOuCriarDiagnostico() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (crmOportunidadeId: string) => {
+      const { data, error } = await supabase.rpc("crm_obter_ou_criar_diagnostico", {
+        p_oportunidade_id: crmOportunidadeId,
+      });
+      if (error) throw error;
+      return (data as ObterOuCriarDiagnosticoResultado[])[0];
+    },
+    onSuccess: (_data, crmOportunidadeId) => {
+      queryClient.invalidateQueries({ queryKey: ["crm-diagnostico", crmOportunidadeId] });
+      queryClient.invalidateQueries({ queryKey: ["crm-timeline"] });
     },
   });
 }
