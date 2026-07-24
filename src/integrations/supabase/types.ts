@@ -2542,6 +2542,13 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      crm_definir_etapa_diagnostico: {
+        Args: { p_etapa_id?: string; p_pipeline_id: string }
+        Returns: {
+          etapa_diagnostico_id: string
+          pipeline_id: string
+        }[]
+      }
       crm_fechar_oportunidade_ganha: {
         Args: { p_oportunidade_id: string }
         Returns: {
