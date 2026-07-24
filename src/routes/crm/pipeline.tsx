@@ -22,7 +22,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Loader2, Plus, Search, ExternalLink } from "lucide-react";
+import { Loader2, Plus, Search, ExternalLink, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
@@ -34,12 +34,15 @@ import {
   useMoverEtapaOportunidade,
   useFecharOportunidadeGanha,
   useFecharOportunidadePerdida,
+  useCrmDiagnosticosPorOportunidades,
   isProximaAcaoObrigatoriaError,
   type CrmOportunidade,
 } from "@/hooks/useCrmOportunidades";
 import { NextActionRequiredDialog } from "@/components/crm/NextActionRequiredDialog";
 import { CrmSaudeBadge } from "@/components/crm/CrmSaudeBadge";
+import { CrmDiagnosticoBadge } from "@/components/crm/CrmDiagnosticoBadge";
 import { FecharOportunidadeDialog } from "@/components/crm/FecharOportunidadeDialog";
+import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/crm/pipeline")({
   head: () => ({
@@ -212,6 +215,10 @@ function CrmPipelinePage() {
     ? oportunidades.filter((o) => o.nome.toLowerCase().includes(search.trim().toLowerCase()))
     : oportunidades;
 
+  const etapaDiagnosticoId = etapas.find((e) => e.gera_diagnostico)?.id;
+  const oportunidadeIds = oportunidadesFiltradas.map((o) => o.id);
+  const { data: diagnosticosPorOportunidade } = useCrmDiagnosticosPorOportunidades(oportunidadeIds);
+
   const isLoading = loadingPipeline || loadingEtapas || loadingOportunidades;
 
   const colunas = etapasAbertas.map((etapa) => ({
@@ -325,11 +332,18 @@ function CrmPipelinePage() {
                 onDragLeave={() => setDragOverEtapa((prev) => (prev === coluna.id ? null : prev))}
                 onDrop={(e) => handleDropColuna(e, coluna.id)}
               >
-                <div className="mb-2 flex items-center justify-between gap-2 px-1 pt-1">
-                  <span className="truncate text-sm font-semibold text-foreground">{coluna.nome}</span>
-                  <span className="shrink-0 rounded-full bg-background px-2 py-0.5 text-xs font-medium text-muted-foreground shadow-sm">
-                    {coluna.oportunidades.length}
-                  </span>
+                <div className="mb-2 flex flex-col gap-1 px-1 pt-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-semibold text-foreground">{coluna.nome}</span>
+                    <span className="shrink-0 rounded-full bg-background px-2 py-0.5 text-xs font-medium text-muted-foreground shadow-sm">
+                      {coluna.oportunidades.length}
+                    </span>
+                  </div>
+                  {coluna.gera_diagnostico && (
+                    <Badge variant="outline" className="w-fit gap-1 text-[10px]">
+                      <Stethoscope className="h-3 w-3" /> Etapa de Diagnóstico
+                    </Badge>
+                  )}
                 </div>
                 <div
                   className={cn(
@@ -370,7 +384,27 @@ function CrmPipelinePage() {
                             <ExternalLink className="h-3.5 w-3.5" />
                           </button>
                         </div>
-                        <CrmSaudeBadge saude={oportunidade.saude} />
+                        <div className="flex flex-wrap items-center gap-1">
+                          <CrmSaudeBadge saude={oportunidade.saude} />
+                          {etapaDiagnosticoId &&
+                            (() => {
+                              const diagnosticos = diagnosticosPorOportunidade?.get(oportunidade.id) ?? [];
+                              // "não iniciado" só é mostrado na própria coluna de
+                              // Diagnóstico, pra não poluir as demais colunas com
+                              // oportunidades que talvez nunca passem por lá.
+                              if (diagnosticos.length === 0 && oportunidade.etapa_id !== etapaDiagnosticoId) {
+                                return null;
+                              }
+                              return (
+                                <CrmDiagnosticoBadge
+                                  diagnosticos={diagnosticos}
+                                  onClick={() =>
+                                    navigate({ to: "/crm/oportunidades/$id", params: { id: oportunidade.id } })
+                                  }
+                                />
+                              );
+                            })()}
+                        </div>
                       </CardHeader>
                       <CardContent className="space-y-1.5 p-3 pt-0 text-xs text-muted-foreground">
                         <div className="truncate">

@@ -182,6 +182,54 @@ export function useCrmDiagnostico(crmOportunidadeId: string | undefined) {
   });
 }
 
+export interface CrmDiagnosticoResumo {
+  crm_oportunidade_id: string;
+  inspecao_id: string;
+  status: "em_andamento" | "concluida";
+  progresso: number;
+  conformidade: number | null;
+  updated_at: string;
+}
+
+// Fase 5: versão agregada de useCrmDiagnostico pro Kanban, que renderiza N
+// cards de uma vez — uma única query pra todas as oportunidades carregadas,
+// em vez de 1 hook por card (N+1). Nunca escolhe entre múltiplos registros
+// da mesma oportunidade (>1 é inconsistência, sinalizada pelo consumidor
+// via `rows.length`), mesmo princípio de useCrmDiagnostico.
+export function useCrmDiagnosticosPorOportunidades(oportunidadeIds: string[]) {
+  const ids = [...oportunidadeIds].sort();
+  return useQuery({
+    queryKey: ["crm-diagnosticos-por-oportunidades", ids],
+    queryFn: async () => {
+      if (ids.length === 0) return new Map<string, CrmDiagnosticoResumo[]>();
+      const { data, error } = await supabase
+        .from("inspecoes")
+        .select("id, crm_oportunidade_id, status, progresso, conformidade, updated_at")
+        .in("crm_oportunidade_id", ids)
+        .eq("tipo_execucao", "diagnostico");
+      if (error) throw error;
+
+      const porOportunidade = new Map<string, CrmDiagnosticoResumo[]>();
+      for (const row of data ?? []) {
+        const key = row.crm_oportunidade_id as string;
+        const resumo: CrmDiagnosticoResumo = {
+          crm_oportunidade_id: key,
+          inspecao_id: row.id,
+          status: row.status as "em_andamento" | "concluida",
+          progresso: row.progresso,
+          conformidade: row.conformidade == null ? null : Number(row.conformidade),
+          updated_at: row.updated_at,
+        };
+        const list = porOportunidade.get(key) ?? [];
+        list.push(resumo);
+        porOportunidade.set(key, list);
+      }
+      return porOportunidade;
+    },
+    enabled: ids.length > 0,
+  });
+}
+
 export interface ObterOuCriarDiagnosticoResultado {
   inspecao_id: string;
   criado: boolean;
