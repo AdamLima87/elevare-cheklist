@@ -41,6 +41,7 @@ import {
   useDeleteCrmLeadsNicho,
   type CrmCatalogoItem,
 } from "@/hooks/useCrmCatalogos";
+import { CrmEtapasCard } from "@/components/crm/CrmEtapasCard";
 import {
   useLeadFinderUsage,
   useSaveLeadFinderCredential,
@@ -352,6 +353,11 @@ function GeralTab() {
 function CrmTab() {
   return (
     <div className="space-y-8">
+      <div>
+        <h2 className="mb-3 text-lg font-semibold">Pipeline</h2>
+        <CrmEtapasCard />
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-3">
         <CatalogoCard
           titulo="Motivos de Perda"
