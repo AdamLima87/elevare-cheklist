@@ -2495,6 +2495,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      can_access_crm: { Args: never; Returns: boolean }
       complete_onboarding: { Args: never; Returns: undefined }
       confirmar_cupom_checkout: {
         Args: { p_checkout_intencao_id: string }
@@ -2544,8 +2545,10 @@ export type Database = {
       crm_fechar_oportunidade_ganha: {
         Args: { p_oportunidade_id: string }
         Returns: {
+          already_converted: boolean
           cliente_criado: boolean
           cliente_id: string
+          diagnosticos_vinculados: number
           oportunidade_id: string
         }[]
       }
@@ -2656,6 +2659,13 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      crm_obter_ou_criar_diagnostico: {
+        Args: { p_oportunidade_id: string }
+        Returns: {
+          criado: boolean
+          inspecao_id: string
+        }[]
       }
       crm_relatorio_pre_migracao_prospeccao: {
         Args: { p_empresa_id?: string }

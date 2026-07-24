@@ -139,11 +139,24 @@ async function main() {
   console.log(`Encontrados: ${diagnosticoSemOportunidade.rowCount}`);
   if (diagnosticoSemOportunidade.rowCount > 0) console.table(diagnosticoSemOportunidade.rows);
 
+  section("14. Diagnósticos duplicados por oportunidade (Fase 4 — pré-requisito do índice único)");
+  const diagnosticosDuplicados = await client.query(
+    `SELECT empresa_id, crm_oportunidade_id, count(*)::int AS total
+     FROM inspecoes
+     WHERE tipo_execucao = 'diagnostico'
+     GROUP BY empresa_id, crm_oportunidade_id
+     HAVING count(*) > 1`
+  );
+  console.log(`Encontrados: ${diagnosticosDuplicados.rowCount}`);
+  if (diagnosticosDuplicados.rowCount > 0) console.table(diagnosticosDuplicados.rows);
+
   section("RESUMO / CRITÉRIO DE PARADA");
   const bloqueadores = [];
   if (orfaos.rowCount > 0) bloqueadores.push(`${orfaos.rowCount} inspeção(ões) com cliente_id órfão`);
   if (divergentes.rowCount > 0) bloqueadores.push(`${divergentes.rowCount} inspeção(ões) com empresa_id divergente`);
   if (colisoes.rowCount > 0) bloqueadores.push(`${colisoes.rowCount} colisão(ões) de nome de constraint/índice`);
+  if (diagnosticosDuplicados.rowCount > 0)
+    bloqueadores.push(`${diagnosticosDuplicados.rowCount} oportunidade(s) com mais de um diagnóstico`);
 
   if (bloqueadores.length > 0) {
     console.log("BLOQUEADO — encontrados problemas que exigem decisão antes da migration:");
