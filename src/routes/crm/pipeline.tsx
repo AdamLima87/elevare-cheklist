@@ -22,7 +22,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Loader2, Plus, Search } from "lucide-react";
+import { Loader2, Plus, Search, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
@@ -349,14 +349,27 @@ function CrmPipelinePage() {
                       onDragEnd={handleDragEnd}
                     >
                       <CardHeader className="space-y-1.5 p-3 pb-2">
-                        <CardTitle
-                          className="cursor-pointer text-sm leading-snug hover:underline"
-                          onClick={() =>
-                            navigate({ to: "/crm/empresas/$id", params: { id: oportunidade.crm_empresa_id } })
-                          }
-                        >
-                          {oportunidade.nome}
-                        </CardTitle>
+                        <div className="flex items-start justify-between gap-2">
+                          <CardTitle
+                            className="cursor-pointer text-sm leading-snug hover:underline"
+                            onClick={() =>
+                              navigate({ to: "/crm/empresas/$id", params: { id: oportunidade.crm_empresa_id } })
+                            }
+                          >
+                            {oportunidade.nome}
+                          </CardTitle>
+                          <button
+                            type="button"
+                            title="Ver Oportunidade"
+                            className="shrink-0 text-muted-foreground hover:text-primary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate({ to: "/crm/oportunidades/$id", params: { id: oportunidade.id } });
+                            }}
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                         <CrmSaudeBadge saude={oportunidade.saude} />
                       </CardHeader>
                       <CardContent className="space-y-1.5 p-3 pt-0 text-xs text-muted-foreground">

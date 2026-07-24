@@ -36,7 +36,7 @@ import {
   useConcluirCrmAtividade,
   type CrmAtividade,
 } from "@/hooks/useCrmAtividades";
-import { isProximaAcaoObrigatoriaError } from "@/hooks/useCrmOportunidades";
+import { isProximaAcaoObrigatoriaError, useCrmOportunidadesPorConta } from "@/hooks/useCrmOportunidades";
 import { NextActionRequiredDialog } from "@/components/crm/NextActionRequiredDialog";
 
 const STATUS_LABEL: Record<CrmEmpresaStatus, string> = {
@@ -124,6 +124,8 @@ function CrmEmpresaDetailPage() {
                     </div>
                   </CardContent>
                 </Card>
+
+                <OportunidadesDaContaCard crmEmpresaId={id} />
               </TabsContent>
 
               <TabsContent value="contatos">
@@ -138,6 +140,34 @@ function CrmEmpresaDetailPage() {
         )}
       </AppShell>
     </ProtectedRoute>
+  );
+}
+
+function OportunidadesDaContaCard({ crmEmpresaId }: { crmEmpresaId: string }) {
+  const navigate = useNavigate();
+  const { data: oportunidades = [], isLoading } = useCrmOportunidadesPorConta(crmEmpresaId);
+
+  if (isLoading || oportunidades.length === 0) return null;
+
+  return (
+    <Card className="mt-4">
+      <CardHeader>
+        <CardTitle className="text-base">Oportunidades desta Conta</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {oportunidades.map((op) => (
+          <button
+            key={op.id}
+            type="button"
+            onClick={() => navigate({ to: "/crm/oportunidades/$id", params: { id: op.id } })}
+            className="flex w-full items-center justify-between rounded-md border p-2 text-left text-sm hover:bg-accent"
+          >
+            <span>{op.nome}</span>
+            {op.fechada_em && <Badge variant="outline">fechada</Badge>}
+          </button>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 
