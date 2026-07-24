@@ -1,11 +1,13 @@
 import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/elevare/AppShell";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, AlertTriangle } from "lucide-react";
 import { useCrmOportunidade, useCrmDiagnostico } from "@/hooks/useCrmOportunidades";
 import { useCrmEtapas } from "@/hooks/useCrmCatalogos";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/crm/oportunidades/$id")({
   head: () => ({ meta: [{ title: "Oportunidade · CRM Comercial · RDCheck" }] }),
@@ -22,6 +24,36 @@ function CrmOportunidadeDetailPage() {
   const { data: oportunidade, isLoading } = useCrmOportunidade(id);
   const { data: etapas } = useCrmEtapas(oportunidade?.pipeline_id);
   const etapaAtual = etapas?.find((e) => e.id === oportunidade?.etapa_id);
+  const { data: diagnostico } = useCrmDiagnostico(id);
+
+  // Fase 5: alerta de "avançou sem concluir" combina o evento histórico
+  // (crm_timeline, imutável — a saída da etapa de Diagnóstico já foi
+  // registrada com diagnostico_concluido=false naquele momento) com o
+  // ESTADO ATUAL do diagnóstico. Sem essa combinação, o alerta ficaria
+  // preso pra sempre mesmo depois do diagnóstico ser concluído — a
+  // timeline nunca é alterada, só a leitura combinada decide se ainda
+  // vale mostrar o aviso.
+  const { data: ultimoEventoMudancaEtapa } = useQuery({
+    queryKey: ["crm-timeline-ultimo-mudanca-etapa", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("crm_timeline")
+        .select("metadata")
+        .eq("crm_oportunidade_id", id)
+        .eq("evento_tipo", "mudanca_etapa")
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      return data?.[0] ?? null;
+    },
+    enabled: !!id,
+  });
+
+  const houveAvancoSemDiagnostico =
+    (ultimoEventoMudancaEtapa?.metadata as { diagnostico_concluido?: boolean } | null)?.diagnostico_concluido === false;
+  const diagnosticoAtualConcluido =
+    !diagnostico?.inconsistente && diagnostico?.rows.length === 1 && diagnostico.rows[0].status === "concluida";
+  const mostrarAlertaAvancoSemDiagnostico = houveAvancoSemDiagnostico && !diagnosticoAtualConcluido;
 
   return (
     <ProtectedRoute allowedProfiles={["admin", "consultor"]}>
@@ -49,6 +81,19 @@ function CrmOportunidadeDetailPage() {
             {oportunidade?.fechada_em && etapaAtual?.tipo === "ganho" && (
               <div className="mb-4 rounded-md border border-success/30 bg-success/5 px-4 py-2 text-sm text-success">
                 Esta oportunidade já foi convertida em cliente.
+              </div>
+            )}
+
+            {etapaAtual?.gera_diagnostico && (
+              <p className="mb-4 text-sm text-muted-foreground">
+                Esta é a etapa de Diagnóstico Inicial do pipeline.
+              </p>
+            )}
+
+            {mostrarAlertaAvancoSemDiagnostico && (
+              <div className="mb-4 flex items-start gap-2 rounded-md border border-warning/40 bg-warning/5 px-4 py-2 text-sm">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                <p>Esta oportunidade avançou sem concluir o Diagnóstico Inicial.</p>
               </div>
             )}
 
