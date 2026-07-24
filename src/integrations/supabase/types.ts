@@ -2667,6 +2667,15 @@ export type Database = {
           inspecao_id: string
         }[]
       }
+      crm_registrar_timeline_sistema: {
+        Args: {
+          p_crm_oportunidade_id: string
+          p_descricao: string
+          p_evento_tipo: string
+          p_metadata: Json
+        }
+        Returns: undefined
+      }
       crm_relatorio_pre_migracao_prospeccao: {
         Args: { p_empresa_id?: string }
         Returns: {

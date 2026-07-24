@@ -597,24 +597,25 @@ async function main() {
 
     console.log("\nFase 3 — Conversão (crm_fechar_oportunidade_ganha):");
 
+    // Fase 4: uma oportunidade tem no máximo 1 Diagnóstico Inicial
+    // (índice único parcial inspecoes_diagnostico_unico_por_oportunidade) —
+    // o cenário de "2 diagnósticos na mesma oportunidade" da Fase 3 foi
+    // superado por essa regra explícita e não é mais um estado válido.
     const oportunidadeConv = await seedOportunidade(A, "Oportunidade Conversão");
     const diagConv1 = await seedDiagnostico(A, oportunidadeConv);
-    const diagConv2 = await seedDiagnostico(A, oportunidadeConv);
 
     let clienteConvId;
-    await test("Fechamento normal: cria cliente e vincula os 2 diagnósticos da oportunidade", async () => {
+    await test("Fechamento normal: cria cliente e vincula o diagnóstico da oportunidade", async () => {
       const { data, error } = await A.client.rpc("crm_fechar_oportunidade_ganha", { p_oportunidade_id: oportunidadeConv });
       if (error) throw error;
       const r = data[0];
       assert(r.cliente_criado === true, "esperava cliente_criado=true");
       assert(r.already_converted === false, "esperava already_converted=false na 1ª chamada");
-      assert(r.diagnosticos_vinculados === 2, `esperava 2 diagnósticos vinculados, recebeu ${r.diagnosticos_vinculados}`);
+      assert(r.diagnosticos_vinculados === 1, `esperava 1 diagnóstico vinculado, recebeu ${r.diagnosticos_vinculados}`);
       clienteConvId = r.cliente_id;
       const { data: d1 } = await admin.from("inspecoes").select("cliente_id, crm_oportunidade_id").eq("id", diagConv1).single();
-      assert(d1.cliente_id === clienteConvId, "diagnóstico 1 não foi vinculado ao cliente certo");
-      assert(d1.crm_oportunidade_id === oportunidadeConv, "diagnóstico 1 perdeu crm_oportunidade_id na conversão");
-      const { data: d2 } = await admin.from("inspecoes").select("cliente_id").eq("id", diagConv2).single();
-      assert(d2.cliente_id === clienteConvId, "diagnóstico 2 não foi vinculado ao cliente certo");
+      assert(d1.cliente_id === clienteConvId, "diagnóstico não foi vinculado ao cliente certo");
+      assert(d1.crm_oportunidade_id === oportunidadeConv, "diagnóstico perdeu crm_oportunidade_id na conversão");
     });
 
     await test("Segunda chamada é idempotente: already_converted=true, sem nova escrita", async () => {
@@ -625,7 +626,7 @@ async function main() {
       assert(r.already_converted === true, "esperava already_converted=true na 2ª chamada");
       assert(r.cliente_criado === false, "esperava cliente_criado=false na 2ª chamada");
       assert(r.cliente_id === clienteConvId, "cliente_id mudou entre chamadas");
-      assert(r.diagnosticos_vinculados === 2, `esperava 2, recebeu ${r.diagnosticos_vinculados}`);
+      assert(r.diagnosticos_vinculados === 1, `esperava 1, recebeu ${r.diagnosticos_vinculados}`);
       const after = await admin.from("clientes").select("id", { count: "exact", head: true }).eq("empresa_id", A.empresaId);
       assert(before.count === after.count, "número de clientes da empresa mudou na chamada idempotente");
     });
@@ -693,6 +694,72 @@ async function main() {
       if (error) throw error;
       assert(data[0].cliente_id === clienteDupPrioritario.id, "deveria ter priorizado o vínculo direto da Conta, não reconsiderado por CNPJ");
       await admin.from("clientes").delete().in("id", [clienteDupPrioritario.id, clienteDupSecundario.id]);
+    });
+
+    console.log("\nFase 4 — crm_obter_ou_criar_diagnostico (unicidade e idempotência):");
+
+    await test("Duas chamadas concorrentes para a mesma oportunidade retornam o mesmo inspecao_id, exatamente 1 linha criada", async () => {
+      const oportunidadeConcorrente = await seedOportunidade(A, "Oportunidade Concorrência Diagnóstico");
+      const [r1, r2] = await Promise.all([
+        A.client.rpc("crm_obter_ou_criar_diagnostico", { p_oportunidade_id: oportunidadeConcorrente }),
+        A.client.rpc("crm_obter_ou_criar_diagnostico", { p_oportunidade_id: oportunidadeConcorrente }),
+      ]);
+      if (r1.error) throw r1.error;
+      if (r2.error) throw r2.error;
+      const id1 = r1.data[0].inspecao_id;
+      const id2 = r2.data[0].inspecao_id;
+      assert(id1 === id2, `chamadas concorrentes retornaram inspecao_id diferentes: ${id1} vs ${id2}`);
+      assert(r1.data[0].criado !== r2.data[0].criado, "exatamente uma das duas chamadas deveria ter criado=true");
+      const { count, error: countErr } = await admin
+        .from("inspecoes")
+        .select("id", { count: "exact", head: true })
+        .eq("crm_oportunidade_id", oportunidadeConcorrente)
+        .eq("tipo_execucao", "diagnostico");
+      if (countErr) throw countErr;
+      assert(count === 1, `esperava exatamente 1 linha de diagnóstico, encontrou ${count}`);
+    });
+
+    await test("RPC nunca preenche cliente_id, mesmo com CNPJ da Conta batendo um cliente existente", async () => {
+      const oportunidadeSemCliente = await seedOportunidade(A, "Oportunidade Sem Cliente");
+      const { data, error } = await A.client.rpc("crm_obter_ou_criar_diagnostico", { p_oportunidade_id: oportunidadeSemCliente });
+      if (error) throw error;
+      const { data: row } = await admin.from("inspecoes").select("cliente_id, tipo_execucao").eq("id", data[0].inspecao_id).single();
+      assert(row.cliente_id === null, "diagnóstico criado pela RPC não deveria ter cliente_id preenchido");
+      assert(row.tipo_execucao === "diagnostico", "tipo_execucao deveria ser 'diagnostico'");
+    });
+
+    await test("Índice único bloqueia um segundo diagnóstico inserido manualmente pra mesma oportunidade (23505)", async () => {
+      const oportunidadeIndiceUnico = await seedOportunidade(A, "Oportunidade Índice Único");
+      await seedDiagnostico(A, oportunidadeIndiceUnico);
+      let erroCapturado = null;
+      try {
+        await seedDiagnostico(A, oportunidadeIndiceUnico);
+      } catch (e) {
+        erroCapturado = e;
+      }
+      assert(erroCapturado !== null, "segundo INSERT de diagnóstico pra mesma oportunidade deveria ter falhado");
+      assert(/inspecoes_diagnostico_unico_por_oportunidade/.test(erroCapturado.message), `mensagem inesperada: ${erroCapturado.message}`);
+    });
+
+    await test("Perfil cliente não consegue chamar crm_obter_ou_criar_diagnostico", async () => {
+      const oportunidadeClienteChama = await seedOportunidade(A, "Oportunidade Cliente Chama RPC");
+      const { error } = await clienteSession.client.rpc("crm_obter_ou_criar_diagnostico", { p_oportunidade_id: oportunidadeClienteChama });
+      assert(error !== null, "perfil cliente não deveria conseguir chamar a RPC de criação de diagnóstico");
+    });
+
+    await test("Evento de timeline 'diagnostico_iniciado' é gravado exatamente uma vez, mesmo com chamadas concorrentes", async () => {
+      const oportunidadeTimelineDiag = await seedOportunidade(A, "Oportunidade Timeline Diagnóstico");
+      await Promise.all([
+        A.client.rpc("crm_obter_ou_criar_diagnostico", { p_oportunidade_id: oportunidadeTimelineDiag }),
+        A.client.rpc("crm_obter_ou_criar_diagnostico", { p_oportunidade_id: oportunidadeTimelineDiag }),
+      ]);
+      const { data: eventos, error } = await admin
+        .from("crm_timeline")
+        .select("id")
+        .eq("crm_oportunidade_id", oportunidadeTimelineDiag)
+        .eq("evento_tipo", "diagnostico_iniciado");
+      if (error) throw error;
+      assert(eventos.length === 1, `esperava exatamente 1 evento 'diagnostico_iniciado', encontrou ${eventos.length}`);
     });
 
     console.log("\nFase 3 — Reincidência exclui diagnóstico pré-venda:");
