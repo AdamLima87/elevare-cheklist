@@ -20,21 +20,33 @@ import {
 import { ArrowRight, Camera, Plus, X, Trash2 } from "lucide-react";
 import { SyncStatus } from "@/components/elevare/SyncStatus";
 import { cn } from "@/lib/utils";
+import type { InspectionContext } from "@/lib/inspection-context";
 
 export interface ChecklistShellProps {
+  context: InspectionContext;
+  /** Chave do rascunho local (ignorada quando `preloaded` é fornecido). */
+  draftKey: string;
+  /** Quando fornecido, pula o carregamento via rascunho e usa esta inspeção
+   * diretamente — usado pelas rotas do CRM, que já validaram a coerência
+   * rota↔diagnóstico antes de renderizar o shell. */
+  preloaded?: Inspecao;
   /** Chamado quando não há rascunho para carregar, ou o usuário pede pra editar a identificação. */
   onBackToIdentificacao: () => void;
-  /** Chamado após o Apêndice B ser concluído com sucesso. */
-  onFinalizar: () => void;
+  /** Chamado após o Apêndice B ser concluído com sucesso, com o id da inspeção. */
+  onFinalizar: (inspecaoId: string) => void;
 }
 
-export function ChecklistShell({ onBackToIdentificacao, onFinalizar }: ChecklistShellProps) {
+export function ChecklistShell({ context, draftKey, preloaded, onBackToIdentificacao, onFinalizar }: ChecklistShellProps) {
   const [insp, setInsp] = useState<Inspecao | null>(null);
   const [activeTab, setActiveTab] = useState("a");
 
   useEffect(() => {
+    if (preloaded) {
+      setInsp(preloaded);
+      return;
+    }
     try {
-      let r = loadRascunho();
+      let r = loadRascunho(draftKey);
       if (!r) {
         toast.error("Preencha os dados do estabelecimento para iniciar.");
         onBackToIdentificacao();
@@ -73,7 +85,7 @@ export function ChecklistShell({ onBackToIdentificacao, onFinalizar }: Checklist
 
       // Persist after state update is defined
       if (nextInsp) {
-        const newCloudUpdatedAt = await saveToHistorico(nextInsp, { kind: "cliente" });
+        const newCloudUpdatedAt = await saveToHistorico(nextInsp, context);
         // saveToHistorico compares insp.cloudUpdatedAt against the cloud row to
         // detect concurrent edits. Without feeding the fresh timestamp back into
         // state here, every save after the first one in this session would look
@@ -110,7 +122,7 @@ export function ChecklistShell({ onBackToIdentificacao, onFinalizar }: Checklist
       }
       return;
     }
-    onFinalizar();
+    onFinalizar(insp.id);
   };
 
   try {

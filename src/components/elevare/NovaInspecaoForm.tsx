@@ -6,7 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import {
+  draftKey,
   emptyEstabelecimento,
+  loadInspecao,
   loadRascunho,
   saveRascunho,
   saveToHistorico,
@@ -16,6 +18,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import type { Cliente } from "@/hooks/useClientes";
 import { ArrowRight, Loader2 } from "lucide-react";
+import type { InspectionContext } from "@/lib/inspection-context";
 
 export function formatCNPJ(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 14);
@@ -34,9 +37,16 @@ interface NovaInspecaoFormProps {
   prefill?: Partial<Estabelecimento>;
   /** Comportamento da rota /nova-inspecao standalone: carrega o rascunho global via ?edit=true. */
   editFromUrl?: boolean;
+  /** Fase 4: presente = identificação de um Diagnóstico do CRM já criado
+   * (via crm_obter_ou_criar_diagnostico) — o form nunca cria uma nova
+   * inspeção aqui, só preenche a identificação da que já existe. Mutuamente
+   * exclusivo com `clienteId`/`editFromUrl` na prática. */
+  crmContext?: { crmOportunidadeId: string; inspecaoId: string };
+  /** Sobrepõe a navegação padrão (`/checklist`) após iniciar/salvar com sucesso. */
+  onIniciado?: (insp: Inspecao) => void;
 }
 
-export function NovaInspecaoForm({ clienteId, prefill, editFromUrl = false }: NovaInspecaoFormProps) {
+export function NovaInspecaoForm({ clienteId, prefill, editFromUrl = false, crmContext, onIniciado }: NovaInspecaoFormProps) {
   const navigate = useNavigate();
   const [estab, setEstab] = useState<Estabelecimento>(() => ({
     ...emptyEstabelecimento(),
@@ -46,6 +56,10 @@ export function NovaInspecaoForm({ clienteId, prefill, editFromUrl = false }: No
   const [rascunho, setRascunho] = useState<Inspecao | null>(null);
   const [loadingCnpj, setLoadingCnpj] = useState(false);
   const [profile, setProfile] = useState<any>(null);
+
+  const context: InspectionContext = crmContext
+    ? { kind: "diagnostico_crm", crmOportunidadeId: crmContext.crmOportunidadeId }
+    : { kind: "cliente", clienteId };
 
   useEffect(() => {
     async function loadProfile() {
@@ -64,6 +78,7 @@ export function NovaInspecaoForm({ clienteId, prefill, editFromUrl = false }: No
   }, []);
 
   useEffect(() => {
+    if (crmContext) return; // fluxo CRM tem seu próprio efeito de carregamento, abaixo
     const existing = loadRascunho();
     if (!existing) return;
 
@@ -84,6 +99,33 @@ export function NovaInspecaoForm({ clienteId, prefill, editFromUrl = false }: No
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editFromUrl, clienteId]);
+
+  useEffect(() => {
+    if (!crmContext) return;
+    let cancelled = false;
+    (async () => {
+      // A inspeção já foi criada pela RPC crm_obter_ou_criar_diagnostico
+      // antes deste form ser aberto — aqui só resgatamos ela (rascunho local
+      // já parametrizado por id, ou a linha remota como base) pra nunca
+      // criar uma segunda via createNewInspecao().
+      const key = draftKey(context, crmContext.inspecaoId);
+      const existingDraft = loadRascunho(key);
+      if (existingDraft) {
+        if (cancelled) return;
+        setRascunho(existingDraft);
+        if (existingDraft.dados?.estabelecimento?.razaoSocial) setEstab(existingDraft.dados.estabelecimento);
+        return;
+      }
+      const loaded = await loadInspecao(crmContext.inspecaoId);
+      if (cancelled || !loaded) return;
+      setRascunho(loaded.insp);
+      if (loaded.insp.dados?.estabelecimento?.razaoSocial) setEstab(loaded.insp.dados.estabelecimento);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [crmContext?.inspecaoId]);
 
   const update = (k: keyof Estabelecimento, v: string) => {
     let finalValue = v;
@@ -247,10 +289,11 @@ export function NovaInspecaoForm({ clienteId, prefill, editFromUrl = false }: No
       return;
     }
 
-    // Rascunho é uma única chave global no localStorage. Se já existe um
-    // rascunho de OUTRO estabelecimento e não estamos continuando ele,
-    // confirma antes de sobrescrever.
-    if (!rascunho) {
+    // Rascunho é uma única chave global no localStorage no fluxo legado. Se
+    // já existe um rascunho de OUTRO estabelecimento e não estamos
+    // continuando ele, confirma antes de sobrescrever. No fluxo CRM não se
+    // aplica: a chave já é dedicada por inspecaoId, sem colisão possível.
+    if (!crmContext && !rascunho) {
       const existing = loadRascunho();
       if (existing) {
         const existingCnpj = existing.dados?.estabelecimento?.cnpj?.replace(/\D/g, "") ?? "";
@@ -267,7 +310,7 @@ export function NovaInspecaoForm({ clienteId, prefill, editFromUrl = false }: No
     }
 
     const emailResponsavel = estab.respLegalEmail || estab.email;
-    if (!emailResponsavel) {
+    if (context.kind === "cliente" && !emailResponsavel) {
       toast.warning("Adicione o e-mail do responsável para criar o acesso do cliente.");
     }
 
@@ -284,6 +327,14 @@ export function NovaInspecaoForm({ clienteId, prefill, editFromUrl = false }: No
           },
           estabelecimento: estab.nomeFantasia || estab.razaoSocial,
         };
+      } else if (crmContext) {
+        // Nunca deveria faltar — o efeito de carregamento acima sempre
+        // resgata a inspeção já criada pela RPC. Se ainda assim faltar
+        // (ex.: falha de rede no load), não criamos uma nova aqui: melhor
+        // falhar de forma visível do que duplicar a inspeção do Diagnóstico.
+        toast.dismiss(loadingToast);
+        toast.error("Não foi possível carregar o diagnóstico. Recarregue a página e tente novamente.");
+        return;
       } else {
         const { createNewInspecao } = await import("@/lib/storage");
         insp = await createNewInspecao();
@@ -291,11 +342,12 @@ export function NovaInspecaoForm({ clienteId, prefill, editFromUrl = false }: No
         insp.estabelecimento = estab.nomeFantasia || estab.razaoSocial;
       }
 
-      await saveRascunho(insp);
-      await saveToHistorico(insp, { kind: "cliente", clienteId });
+      const key = crmContext ? draftKey(context, insp.id) : undefined;
+      await saveRascunho(insp, key);
+      await saveToHistorico(insp, context);
 
-      // Auto-create client if email is present
-      if (emailResponsavel && estab.cnpj) {
+      // Auto-create client if email is present — só no fluxo operacional.
+      if (context.kind === "cliente" && emailResponsavel && estab.cnpj) {
         const cleanCnpj = estab.cnpj.replace(/\D/g, "");
         supabase.functions
           .invoke("admin-manage-users", {
@@ -325,7 +377,8 @@ export function NovaInspecaoForm({ clienteId, prefill, editFromUrl = false }: No
       setRascunho(null);
 
       toast.dismiss(loadingToast);
-      navigate({ to: "/checklist" });
+      if (onIniciado) onIniciado(insp);
+      else navigate({ to: "/checklist" });
     } catch (error) {
       console.error("Erro ao processar inspeção:", error);
       toast.error("Erro ao salvar dados. Verifique sua conexão.");

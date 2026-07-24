@@ -2,6 +2,9 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/elevare/AppShell";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { ChecklistShell } from "@/components/elevare/ChecklistShell";
+import { draftKey } from "@/lib/storage";
+
+const CONTEXT = { kind: "cliente" as const };
 
 export const Route = createFileRoute("/checklist")({
   head: () => ({
@@ -16,6 +19,8 @@ function ChecklistPage() {
     <ProtectedRoute allowedProfiles={["admin", "consultor"]}>
       <AppShell>
         <ChecklistShell
+          context={CONTEXT}
+          draftKey={draftKey(CONTEXT)}
           onBackToIdentificacao={() => navigate({ to: "/nova-inspecao" })}
           onFinalizar={() => navigate({ to: "/resultado" })}
         />

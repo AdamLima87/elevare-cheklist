@@ -1,6 +1,9 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { AppShell } from "@/components/elevare/AppShell";
 import { ResultadoShell } from "@/components/elevare/ResultadoShell";
+import { draftKey } from "@/lib/storage";
+
+const CONTEXT = { kind: "cliente" as const };
 
 export const Route = createFileRoute("/resultado")({
   head: () => ({
@@ -16,6 +19,8 @@ function ResultadoPage() {
   return (
     <AppShell>
       <ResultadoShell
+        context={CONTEXT}
+        draftKey={draftKey(CONTEXT)}
         search={search}
         onVoltarChecklist={() => navigate({ to: "/checklist" })}
         onNovaInspecao={() => navigate({ to: "/nova-inspecao" })}

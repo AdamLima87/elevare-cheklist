@@ -86,6 +86,21 @@ export interface Inspecao {
 export const HISTORICO_KEY = "elevare_inspecoes";
 const RASCUNHO_KEY = "elevare_rascunho";
 
+/** Chave de rascunho parametrizada por contexto/id (Fase 4). Prioriza
+ * `inspecaoId` quando já existe (rascunho já persistido, id estável) —
+ * caso normal em checklist/resultado. O fluxo operacional legado sem
+ * `clienteId`/`inspecaoId` conhecido ainda (ex.: `/nova-inspecao` antes do
+ * primeiro save) continua usando a MESMA chave global de sempre —
+ * deliberado: rotas legadas (`/checklist`, `/resultado`) são singletons de
+ * um slot só e não têm noção de id/oportunidade, então nunca ganham uma
+ * chave por-id — só as rotas novas do CRM usam chaves dedicadas. */
+export function draftKey(context: InspectionContext, inspecaoId?: string): string {
+  if (inspecaoId) return `rdcheck:draft:inspecao:${inspecaoId}`;
+  if (context.kind === "diagnostico_crm") return `rdcheck:draft:diagnostico:${context.crmOportunidadeId}`;
+  if (context.kind === "cliente" && context.clienteId) return `rdcheck:draft:cliente:${context.clienteId}`;
+  return RASCUNHO_KEY;
+}
+
 export function emptyEstabelecimento(): Estabelecimento {
   return {
     razaoSocial: "",
@@ -173,29 +188,57 @@ export async function createNewInspecao(): Promise<Inspecao> {
   };
 }
 
-export function loadRascunho(): Inspecao | null {
+export function loadRascunho(key: string = RASCUNHO_KEY): Inspecao | null {
   if (typeof localStorage === "undefined") return null;
   try {
-    const raw = localStorage.getItem(RASCUNHO_KEY);
+    const raw = localStorage.getItem(key);
     return raw ? (JSON.parse(raw) as Inspecao) : null;
   } catch {
     return null;
   }
 }
 
-export async function saveRascunho(insp: Inspecao) {
+export async function saveRascunho(insp: Inspecao, key: string = RASCUNHO_KEY) {
   if (typeof localStorage === "undefined") return;
-  localStorage.setItem(RASCUNHO_KEY, JSON.stringify(insp));
+  localStorage.setItem(key, JSON.stringify(insp));
 
   // In the current architecture, saveToHistorico handles cloud sync
   // to avoid duplication and inconsistencies.
   // saveRascunho is now strictly for local persistence of the current active session.
 }
 
-export async function clearRascunho() {
+const DRAFT_KEY_PREFIX = "rdcheck:draft:";
+
+/** Atualiza `cloudUpdatedAt` em QUALQUER slot de rascunho que contenha esta
+ * mesma inspeção — o slot legado fixo e qualquer chave `rdcheck:draft:*`.
+ * Evita ter que saber, a partir de `saveToHistorico`, qual chave exata o
+ * caller usou (legado vs. rotas novas do CRM usam esquemas diferentes). */
+function refreshDraftCloudTimestamp(inspecaoId: string, cloudUpdatedAt: string) {
   if (typeof localStorage === "undefined") return;
-  const rascunho = loadRascunho();
-  localStorage.removeItem(RASCUNHO_KEY);
+  const keysToCheck = [RASCUNHO_KEY];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k?.startsWith(DRAFT_KEY_PREFIX)) keysToCheck.push(k);
+  }
+  for (const key of keysToCheck) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const stored = JSON.parse(raw) as Inspecao;
+      if (stored.id === inspecaoId) {
+        stored.cloudUpdatedAt = cloudUpdatedAt;
+        localStorage.setItem(key, JSON.stringify(stored));
+      }
+    } catch {
+      // slot malformado — ignora
+    }
+  }
+}
+
+export async function clearRascunho(key: string = RASCUNHO_KEY) {
+  if (typeof localStorage === "undefined") return;
+  const rascunho = loadRascunho(key);
+  localStorage.removeItem(key);
 
   // Note: We don't necessarily want to delete from Cloud when clearing local draft
   // but if the draft ID is deleted from history, that's handled in deleteFromHistorico
@@ -413,11 +456,12 @@ export async function saveToHistorico(
         // apply the returned cloudUpdatedAt themselves — otherwise every save
         // after the first one falsely looks like a conflict with itself and gets
         // silently dropped.
-        const currentRascunho = loadRascunho();
-        if (currentRascunho && currentRascunho.id === insp.id) {
-          currentRascunho.cloudUpdatedAt = upserted.updated_at;
-          localStorage.setItem(RASCUNHO_KEY, JSON.stringify(currentRascunho));
-        }
+        // Não dá pra assumir qual chave o caller usou pra este rascunho (o
+        // fluxo legado sempre usa RASCUNHO_KEY fixo, independente do id; as
+        // rotas novas do CRM usam draftKey(context, insp.id)) — em vez de
+        // arriscar um mismatch, atualiza o cloudUpdatedAt em qualquer slot
+        // (legado ou por-prefixo) que contenha esta mesma inspeção.
+        refreshDraftCloudTimestamp(insp.id, upserted.updated_at);
       }
 
       return upserted?.updated_at;
@@ -427,6 +471,46 @@ export async function saveToHistorico(
     }
   }
   return undefined;
+}
+
+export interface LoadedInspecao {
+  insp: Inspecao;
+  context: InspectionContext;
+}
+
+/** Busca uma inspeção existente por id direto no Supabase (RLS decide
+ * visibilidade — cliente/consultor/admin/diagnóstico). Deriva o
+ * `InspectionContext` dos campos já lidos (`tipo_execucao`,
+ * `crm_oportunidade_id`, `cliente_id`), em vez de cada rota montar sua
+ * própria query solta e assumir o contexto. Usada para retomar um
+ * diagnóstico em andamento e para o modo readonly/concluído do resultado. */
+export async function loadInspecao(id: string): Promise<LoadedInspecao | null> {
+  const { data, error } = await supabase.from("inspecoes").select("*").eq("id", id).single();
+  if (error || !data) {
+    if (error && error.code !== "PGRST116") console.error("Erro ao carregar inspeção:", error);
+    return null;
+  }
+
+  const insp: Inspecao = {
+    id: data.id,
+    numero_sequencial: data.numero_sequencial,
+    status: data.status as any,
+    estabelecimento: data.estabelecimento_nome || "",
+    dataInicio: data.data_inicio,
+    dataConclusao: data.data_conclusao,
+    progresso: data.progresso,
+    conformidade: data.conformidade ? Number(data.conformidade) : null,
+    dados: data.dados as any,
+    respostas: data.respostas as any,
+    cloudUpdatedAt: data.updated_at,
+  };
+
+  const context: InspectionContext =
+    data.tipo_execucao === "diagnostico" && data.crm_oportunidade_id
+      ? { kind: "diagnostico_crm", crmOportunidadeId: data.crm_oportunidade_id }
+      : { kind: "cliente", clienteId: data.cliente_id ?? undefined };
+
+  return { insp, context };
 }
 
 export async function deleteFromHistorico(id: string) {

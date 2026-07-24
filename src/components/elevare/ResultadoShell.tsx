@@ -32,14 +32,46 @@ import { gerarPDF } from "@/lib/pdf";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
+import type { InspectionContext } from "@/lib/inspection-context";
+import type { ReactNode } from "react";
 
 export interface ResultadoShellProps {
+  context: InspectionContext;
+  /** Chave do rascunho local, usada apenas no branch de carregamento por
+   * rascunho (não é usada quando `preloaded` é fornecido). */
+  draftKey: string;
   search: { id?: string; readonly?: boolean };
+  /** Quando fornecido, pula o carregamento interno (readonly/rascunho) e usa
+   * esta inspeção diretamente — usado pelas rotas do CRM, que já validaram
+   * a coerência rota↔diagnóstico antes de renderizar o shell. */
+  preloaded?: Inspecao;
+  /** Título do cabeçalho — default "Resultado da Inspeção" (fluxo operacional). */
+  titulo?: string;
+  /** Aviso extra exibido abaixo dos botões de ação (ex.: limitação do fluxo de Diagnóstico). */
+  avisoExtra?: ReactNode;
+  /** Substitui o rodapé padrão ("Voltar ao checklist"/"Nova inspeção") —
+   * usado pelas rotas do CRM, onde "Nova inspeção" não faz sentido. Quando
+   * omitido, mantém o rodapé padrão do fluxo operacional. */
+  footerActions?: ReactNode;
   onVoltarChecklist: () => void;
   onNovaInspecao: () => void;
+  /** Chamado após salvar com sucesso e status="concluida" — usado para
+   * eventos adicionais (ex.: timeline do CRM) sem acoplar o shell a isso. */
+  onConcluido?: (insp: Inspecao) => void | Promise<void>;
 }
 
-export function ResultadoShell({ search, onVoltarChecklist, onNovaInspecao }: ResultadoShellProps) {
+export function ResultadoShell({
+  context,
+  draftKey,
+  search,
+  preloaded,
+  titulo,
+  avisoExtra,
+  footerActions,
+  onVoltarChecklist,
+  onNovaInspecao,
+  onConcluido,
+}: ResultadoShellProps) {
   const [insp, setInsp] = useState<Inspecao | null>(null);
   const [loading, setLoading] = useState(false);
   const [planoAcao, setPlanoAcao] = useState<Record<string, AcaoCorretiva>>({});
@@ -62,6 +94,14 @@ export function ResultadoShell({ search, onVoltarChecklist, onNovaInspecao }: Re
 
   useEffect(() => {
     async function loadData() {
+      if (preloaded) {
+        setInsp(preloaded);
+        setPlanoAcao(
+          ensurePlanoAcao(preloaded.respostas, preloaded.dados?.planoAcao, preloaded.dataConclusao),
+        );
+        return;
+      }
+
       if (search.readonly && search.id) {
         setLoading(true);
         try {
@@ -99,7 +139,7 @@ export function ResultadoShell({ search, onVoltarChecklist, onNovaInspecao }: Re
         return;
       }
 
-      const r = loadRascunho();
+      const r = loadRascunho(draftKey);
       if (!r || !r.dados.estabelecimento.razaoSocial) {
         onNovaInspecao();
         return;
@@ -211,7 +251,7 @@ export function ResultadoShell({ search, onVoltarChecklist, onNovaInspecao }: Re
         dados: { ...finalInsp.dados, planoAcao },
       };
 
-      const newCloudUpdatedAt = await saveToHistorico(updatedInsp, { kind: "cliente" });
+      const newCloudUpdatedAt = await saveToHistorico(updatedInsp, context);
       setInsp(newCloudUpdatedAt ? { ...updatedInsp, cloudUpdatedAt: newCloudUpdatedAt } : updatedInsp);
 
       if (!newCloudUpdatedAt) {
@@ -222,65 +262,71 @@ export function ResultadoShell({ search, onVoltarChecklist, onNovaInspecao }: Re
         return;
       }
 
-      // Enviar e-mail automático e garantir acesso do cliente
-      const email = updatedInsp.dados?.estabelecimento?.respLegalEmail || updatedInsp.dados?.estabelecimento?.email;
-      const cnpj = updatedInsp.dados?.estabelecimento?.cnpj?.replace(/\D/g, "") || "";
-      const nomeLegal = updatedInsp.dados?.estabelecimento?.respLegalNome || updatedInsp.estabelecimento;
+      // Login de cliente + e-mail transacional pro portal só fazem sentido
+      // no fluxo operacional — dependem de cliente_id, que não existe (por
+      // design) no fluxo de Diagnóstico do CRM antes da conversão.
+      if (context.kind === "cliente") {
+        const email = updatedInsp.dados?.estabelecimento?.respLegalEmail || updatedInsp.dados?.estabelecimento?.email;
+        const cnpj = updatedInsp.dados?.estabelecimento?.cnpj?.replace(/\D/g, "") || "";
+        const nomeLegal = updatedInsp.dados?.estabelecimento?.respLegalNome || updatedInsp.estabelecimento;
 
-      console.log("Iniciando processos pós-conclusão para:", email);
+        console.log("Iniciando processos pós-conclusão para:", email);
 
-      if (email && cnpj) {
-        try {
-          // 1. Garantir que o cliente tem um usuário no sistema
-          const clientResponse = await supabase.functions.invoke("admin-manage-users", {
-            body: {
-              action: "create_client",
-              userData: {
-                email,
-                password: cnpj,
-                nome: nomeLegal,
-                perfil: "cliente",
-                cnpj
+        if (email && cnpj) {
+          try {
+            // 1. Garantir que o cliente tem um usuário no sistema
+            const clientResponse = await supabase.functions.invoke("admin-manage-users", {
+              body: {
+                action: "create_client",
+                userData: {
+                  email,
+                  password: cnpj,
+                  nome: nomeLegal,
+                  perfil: "cliente",
+                  cnpj
+                }
               }
+            });
+
+            if (clientResponse.error) {
+              console.error("Erro ao criar/atualizar cliente:", clientResponse.error);
+            } else {
+              console.log("Acesso do cliente garantido");
             }
-          });
 
-          if (clientResponse.error) {
-            console.error("Erro ao criar/atualizar cliente:", clientResponse.error);
-          } else {
-            console.log("Acesso do cliente garantido");
+            // 2. Enviar e-mail
+            const response = await fetch('/lovable/email/transactional/send', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+              },
+              body: JSON.stringify({
+                templateName: "inspection",
+                recipientEmail: email,
+                templateData: {
+                  email_cliente: email,
+                  nome_estabelecimento: updatedInsp.estabelecimento,
+                  cnpj: cnpj,
+                  data_inspecao: updatedInsp.dataInicio,
+                  conformidade: updatedInsp.conformidade,
+                  classificacaoLabel: cls.label,
+                  classificacaoTone: cls.tone,
+                  link_resultado: `${window.location.origin}/meu-resultado`
+                }
+              })
+            });
+
+            if (!response.ok) throw new Error('Falha ao enviar e-mail');
+            toast.success(`Relatório enviado por e-mail para ${email}`);
+          } catch (emailErr) {
+            console.error("Erro nos processos pós-conclusão:", emailErr);
+            toast.error("Não foi possível processar todos os envios automáticos.");
           }
-
-          // 2. Enviar e-mail
-          const response = await fetch('/lovable/email/transactional/send', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-            },
-            body: JSON.stringify({
-              templateName: "inspection",
-              recipientEmail: email,
-              templateData: {
-                email_cliente: email,
-                nome_estabelecimento: updatedInsp.estabelecimento,
-                cnpj: cnpj,
-                data_inspecao: updatedInsp.dataInicio,
-                conformidade: updatedInsp.conformidade,
-                classificacaoLabel: cls.label,
-                classificacaoTone: cls.tone,
-                link_resultado: `${window.location.origin}/meu-resultado`
-              }
-            })
-          });
-
-          if (!response.ok) throw new Error('Falha ao enviar e-mail');
-          toast.success(`Relatório enviado por e-mail para ${email}`);
-        } catch (emailErr) {
-          console.error("Erro nos processos pós-conclusão:", emailErr);
-          toast.error("Não foi possível processar todos os envios automáticos.");
         }
       }
+
+      await onConcluido?.(updatedInsp);
     } catch (err) {
       console.error("Erro ao salvar:", err);
       toast.error("Erro ao salvar inspeção.");
@@ -290,7 +336,7 @@ export function ResultadoShell({ search, onVoltarChecklist, onNovaInspecao }: Re
   };
 
   const novaInspecao = () => {
-    clearRascunho();
+    clearRascunho(draftKey);
     onNovaInspecao();
   };
 
@@ -334,7 +380,7 @@ export function ResultadoShell({ search, onVoltarChecklist, onNovaInspecao }: Re
   return (
     <>
       <div className="mb-6 border-b border-border pb-4">
-        <span className="label-eyebrow text-primary">Resultado da Inspeção</span>
+        <span className="label-eyebrow text-primary">{titulo ?? "Resultado da Inspeção"}</span>
         <h1 className="font-display text-3xl font-semibold mt-1">{insp.estabelecimento}</h1>
         <p className="text-sm text-muted-foreground">{insp.dados.estabelecimento.razaoSocial}</p>
       </div>
@@ -412,6 +458,8 @@ export function ResultadoShell({ search, onVoltarChecklist, onNovaInspecao }: Re
           <Button onClick={baixarPDF} className="gap-1.5"><FileDown className="h-4 w-4" /> Baixar PDF</Button>
         </div>
       )}
+
+      {avisoExtra}
 
       <Card className="mt-4">
         <CardHeader>
@@ -543,10 +591,12 @@ export function ResultadoShell({ search, onVoltarChecklist, onNovaInspecao }: Re
       </Card>
 
       {!search.readonly && (
-        <div className="mt-6 flex flex-wrap justify-end gap-2">
-          <Button variant="ghost" onClick={onVoltarChecklist}>Voltar ao checklist</Button>
-          <Button onClick={novaInspecao} className="gap-1.5"><RotateCcw className="h-4 w-4" /> Nova inspeção</Button>
-        </div>
+        footerActions ?? (
+          <div className="mt-6 flex flex-wrap justify-end gap-2">
+            <Button variant="ghost" onClick={onVoltarChecklist}>Voltar ao checklist</Button>
+            <Button onClick={novaInspecao} className="gap-1.5"><RotateCcw className="h-4 w-4" /> Nova inspeção</Button>
+          </div>
+        )
       )}
     </>
   );
