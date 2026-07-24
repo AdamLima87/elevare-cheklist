@@ -7,11 +7,20 @@ export function defaultAcaoTexto(): string {
   return "Corrigir a não conformidade identificada e adequar o item às Boas Práticas até o prazo estabelecido.";
 }
 
+// Reads the date portion of an ISO string as a local-midnight calendar date,
+// ignoring any time/offset. Prevents a UTC-midnight timestamp from shifting to
+// the previous/next calendar day once addDays/format below apply the local
+// timezone of whichever machine runs the code.
+function calendarDateFromISO(iso: string): Date {
+  const [year, month, day] = iso.slice(0, 10).split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
 export function defaultPrazo(
   dataConclusaoISO: string | null | undefined,
   dias = DEFAULT_PRAZO_DIAS,
 ): string {
-  const base = dataConclusaoISO ? new Date(dataConclusaoISO) : new Date();
+  const base = dataConclusaoISO ? calendarDateFromISO(dataConclusaoISO) : new Date();
   return format(addDays(base, dias), "yyyy-MM-dd");
 }
 
