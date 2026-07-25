@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { checklistSections, contarNCCriticas, criticalItemIds } from "./checklist-data";
 import { calcularPercentual, calcularSecoes, classificacao, type Inspecao } from "./storage";
+import { contarNCCriticasModelo, type ChecklistModeloResolvido } from "./checklist-modelo-service";
 import { ensurePlanoAcao } from "./plano-acao";
 import { BRAND } from "./brand";
 import logoUrl from "@/assets/rdcheck-logo-full.png";
@@ -13,13 +13,17 @@ export interface MarcaRelatorio {
   contato?: string;
 }
 
+// Fase 7 — quem chama gerarPDF já carregou o modelo resolvido (via
+// carregarChecklistModelo, nunca via hook — pdf.ts não é um componente
+// React) e o passa aqui; nada de Supabase é chamado dentro desta função.
 export async function gerarPDF(
   insp: Inspecao,
+  modelo: ChecklistModeloResolvido,
   opts?: { reincidencias?: Record<string, number>; marca?: MarcaRelatorio },
 ) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const score = calcularPercentual(insp.respostas);
-  const ncCriticas = contarNCCriticas(insp.respostas);
+  const ncCriticas = contarNCCriticasModelo(modelo, insp.respostas);
   const cls = classificacao(score.percentual, ncCriticas);
   const reincidencias = opts?.reincidencias ?? {};
   const marcaNome = opts?.marca?.nome?.trim() || BRAND.name;
@@ -209,7 +213,7 @@ export async function gerarPDF(
   y += 30;
 
   // 3. Tabela de seções — mesmo critério da nota geral: NA fora do denominador
-  const sectionRows = calcularSecoes(insp.respostas).map((sec) => {
+  const sectionRows = calcularSecoes(insp.respostas, modelo).map((sec) => {
     const pct = sec.percentual === null ? "-" : `${sec.percentual.toFixed(0)}%`;
     return [sec.title, String(sec.sim), String(sec.nao), String(sec.na), pct, ""];
   });
@@ -260,7 +264,7 @@ export async function gerarPDF(
   // 4. Tabela de não conformidades + plano de ação corretivo
   const planoAcao = ensurePlanoAcao(insp.respostas, insp.dados?.planoAcao, insp.dataConclusao);
   const ncRows: string[][] = [];
-  checklistSections.forEach((sec) => {
+  modelo.secoes.forEach((sec) => {
     sec.items.forEach((it) => {
       if (insp.respostas[it.id] === "N") {
         const acao = planoAcao[it.id];
@@ -268,7 +272,7 @@ export async function gerarPDF(
           ? new Date(acao.prazo + "T00:00:00").toLocaleDateString("pt-BR")
           : "";
         const marcadores: string[] = [];
-        if (criticalItemIds.has(it.id)) marcadores.push("[CRÍTICO]");
+        if (modelo.criticalItemIds.has(it.id)) marcadores.push("[CRÍTICO]");
         if (reincidencias[it.id]) marcadores.push(`[REINCIDENTE — ${reincidencias[it.id]}ª inspeção consecutiva]`);
         const descricao = marcadores.length ? `${marcadores.join(" ")} ${it.text}` : it.text;
         ncRows.push([it.id, sec.title, descricao, acao?.texto || "", prazoFormatado]);

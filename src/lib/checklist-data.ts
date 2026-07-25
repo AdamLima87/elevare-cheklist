@@ -1,16 +1,10 @@
-export interface ChecklistItem {
-  id: string;
-  text: string;
-  // Item de risco sanitário direto (RDC 216): uma não conformidade aqui
-  // limita a classificação final a REGULAR, independentemente do percentual.
-  critico?: boolean;
-}
-
-export interface ChecklistSection {
-  id: string;
-  title: string;
-  items: ChecklistItem[];
-}
+// Fase 7 — este arquivo não é mais importado por nenhum código de runtime do
+// app (só por scripts/gerar-seed-checklist-rdc275.mjs, a fonte do seed em
+// supabase/migrations/20260808100100_..._seed_rdc275.sql). Os tipos abaixo
+// vêm de checklist-types.ts justamente pra nenhum import de tipo precisar
+// tocar este arquivo.
+export type { ChecklistItem, ChecklistSection } from "./checklist-types";
+import type { ChecklistSection } from "./checklist-types";
 
 export const checklistSections: ChecklistSection[] = [
   {

@@ -36,7 +36,8 @@ import {
 import { cn } from "@/lib/utils";
 import { useNavigate } from "@tanstack/react-router";
 import { classificacao } from "@/lib/storage";
-import { contarNCCriticas } from "@/lib/checklist-data";
+import { contarNCCriticasModelo } from "@/lib/checklist-modelo-service";
+import { useChecklistModeloPadrao } from "@/hooks/useChecklistModeloPadrao";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { useConsultants } from "@/hooks/useConsultants";
 import { useInspecoesQuery, useInspecoesStats } from "@/hooks/useInspecoesQuery";
@@ -60,6 +61,7 @@ function RelatoriosPage() {
   const isAdmin = profile?.perfil === "admin" || profile?.perfil === "super_admin";
   const { data: consultants = {} } = useConsultants(isAdmin);
   const resendEmail = useResendInspectionEmail();
+  const { data: modeloPadrao } = useChecklistModeloPadrao();
 
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
@@ -276,7 +278,10 @@ function RelatoriosPage() {
                     </TableHeader>
                     <TableBody>
                       {visibleRows.map((insp: any) => {
-                        const cls = classificacao(Number(insp.conformidade), contarNCCriticas(insp.respostas));
+                        const cls = classificacao(
+                          Number(insp.conformidade),
+                          modeloPadrao ? contarNCCriticasModelo(modeloPadrao, insp.respostas) : 0,
+                        );
                         const isSending =
                           resendEmail.isPending && resendEmail.variables?.id === insp.id;
                         return (

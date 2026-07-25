@@ -10,12 +10,12 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from "recharts";
-import { checklistSections, contarNCCriticas } from "@/lib/checklist-data";
 import { dedupeLatestPerCnpj, dueDate, isWithinReminderWindow } from "@/lib/reinspection";
 import { cn } from "@/lib/utils";
 import { useUpcomingVisitas } from "@/hooks/useVisitas";
 import { useExpiringDocumentos } from "@/hooks/useDocumentos";
-import { calcularSecoes, classificacao } from "@/lib/storage";
+import { calcularSecoes, classificacao, resolverChecklistModeloPadrao } from "@/lib/storage";
+import { carregarChecklistModelo, contarNCCriticasModelo } from "@/lib/checklist-modelo-service";
 import { toTrendPoints } from "@/lib/compliance-trend";
 import { DashboardSummaryCards } from "@/components/elevare/DashboardSummaryCards";
 
@@ -31,13 +31,21 @@ async function fetchDashboardStats() {
     { data: inspections, error },
     { data: consultants },
     { count: agendadasCount },
+    modeloVersaoIdPadrao,
   ] = await Promise.all([
     supabase.from("inspecoes").select(DASHBOARD_COLUMNS),
     supabase.from("profiles").select("id, nome").eq("perfil", "consultor"),
     supabase.from("visitas").select("id", { count: "exact", head: true }).eq("status", "agendada"),
+    resolverChecklistModeloPadrao(),
   ]);
 
   if (error) throw error;
+
+  // Fase 7 — dashboard é uma tela de resumo agregado, não por-inspeção; usa o
+  // modelo padrão (hoje o único em uso) pra rankings/contagens de seção. Ver
+  // nota em useChecklistModeloPadrao.ts sobre o mesmo trade-off em outras telas.
+  const checklistModelo = await carregarChecklistModelo(supabase, modeloVersaoIdPadrao);
+  const checklistSections = checklistModelo.secoes;
 
   const consultantMap = (consultants || []).reduce((acc: any, c: any) => {
     acc[c.id] = c.nome;
@@ -186,14 +194,14 @@ async function fetchDashboardStats() {
   concluded.forEach((i) => {
     const respostas = i.respostas as any;
     if (!respostas) return;
-    calcularSecoes(respostas).forEach((sec) => {
+    calcularSecoes(respostas, checklistModelo).forEach((sec) => {
       if (sec.percentual !== null) {
         sectionAgg[sec.id].sumPct += sec.percentual;
         sectionAgg[sec.id].count++;
       }
     });
     totalNC += Object.values(respostas).filter((r) => r === "N").length;
-    totalCriticalNC += contarNCCriticas(respostas);
+    totalCriticalNC += contarNCCriticasModelo(checklistModelo, respostas);
   });
 
   const categoryBreakdown = CATEGORY_IDS.map((id) => {

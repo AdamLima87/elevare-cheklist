@@ -8,7 +8,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { checklistSections, totalChecklistItems } from "@/lib/checklist-data";
 import {
   emptyFuncionario,
   loadRascunho,
@@ -17,10 +16,13 @@ import {
   type Inspecao,
   type Resposta,
 } from "@/lib/storage";
-import { ArrowRight, Camera, Plus, X, Trash2 } from "lucide-react";
+import { ArrowRight, Camera, Plus, X, Trash2, Loader2 } from "lucide-react";
 import { SyncStatus } from "@/components/elevare/SyncStatus";
 import { cn } from "@/lib/utils";
 import type { InspectionContext } from "@/lib/inspection-context";
+import { useChecklistModelo } from "@/hooks/useChecklistModelo";
+import { ChecklistModeloNaoEncontrado } from "@/components/elevare/ChecklistModeloNaoEncontrado";
+import type { ChecklistSection } from "@/lib/checklist-types";
 
 export interface ChecklistShellProps {
   context: InspectionContext;
@@ -61,7 +63,22 @@ export function ChecklistShell({ context, draftKey, preloaded, onBackToIdentific
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const { data: modelo, error: modeloError } = useChecklistModelo(insp?.checklistModeloVersaoId);
+
   if (!insp) return null;
+
+  if (modeloError) return <ChecklistModeloNaoEncontrado />;
+
+  if (!modelo) {
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const totalChecklistItems = modelo.totalItens;
+  const checklistSections = modelo.secoes;
 
   const persist = async (updater: (i: Inspecao) => Inspecao) => {
     try {
@@ -176,6 +193,7 @@ export function ChecklistShell({ context, draftKey, preloaded, onBackToIdentific
             <ApendiceA
               insp={insp}
               persist={persist}
+              secoes={checklistSections}
               totalItems={totalChecklistItems}
               onComplete={() => setActiveTab("b")}
             />
@@ -212,7 +230,19 @@ function Card({ children, className }: { children: React.ReactNode; className?: 
   return <div className={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)}>{children}</div>;
 }
 
-function ApendiceA({ insp, persist, totalItems, onComplete }: { insp: Inspecao; persist: (u: (i: Inspecao) => Inspecao) => void, totalItems: number, onComplete: () => void }) {
+function ApendiceA({
+  insp,
+  persist,
+  secoes,
+  totalItems,
+  onComplete,
+}: {
+  insp: Inspecao;
+  persist: (u: (i: Inspecao) => Inspecao) => void;
+  secoes: ChecklistSection[];
+  totalItems: number;
+  onComplete: () => void;
+}) {
   const respondidosCount = Object.values(insp.respostas || {}).filter((r) => r !== null && r !== undefined).length;
 
   const setResposta = (id: string, r: Resposta) => {
@@ -239,8 +269,8 @@ function ApendiceA({ insp, persist, totalItems, onComplete }: { insp: Inspecao; 
   try {
     return (
       <>
-        <Accordion type="single" collapsible defaultValue={checklistSections[0].id} className="space-y-3">
-          {checklistSections.map((sec) => {
+        <Accordion type="single" collapsible defaultValue={secoes[0].id} className="space-y-3">
+          {secoes.map((sec) => {
             const total = sec.items.length;
             const done = sec.items.filter((it) => insp.respostas?.[it.id] != null).length;
             return (

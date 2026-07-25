@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { checklistSections } from "@/lib/checklist-data";
+import { useChecklistModelo } from "@/hooks/useChecklistModelo";
 import type { Resposta } from "@/lib/storage";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
@@ -28,11 +28,14 @@ function useRespostas(inspecaoId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("inspecoes")
-        .select("respostas")
+        .select("respostas, checklist_modelo_versao_id")
         .eq("id", inspecaoId as string)
         .single();
       if (error) throw error;
-      return (data.respostas ?? {}) as Record<string, Resposta>;
+      return {
+        respostas: (data.respostas ?? {}) as Record<string, Resposta>,
+        checklistModeloVersaoId: data.checklist_modelo_versao_id as string,
+      };
     },
     enabled: !!inspecaoId,
   });
@@ -50,14 +53,19 @@ export function ComparativoInspecoes({ inspecoes }: { inspecoes: InspecaoOption[
   const [anteriorId, setAnteriorId] = useState<string | undefined>(ordenadas[1]?.id);
   const [atualId, setAtualId] = useState<string | undefined>(ordenadas[0]?.id);
 
-  const { data: respostasAnterior, isLoading: loadingAnterior } = useRespostas(anteriorId);
-  const { data: respostasAtual, isLoading: loadingAtual } = useRespostas(atualId);
+  const { data: anteriorData, isLoading: loadingAnterior } = useRespostas(anteriorId);
+  const { data: atualData, isLoading: loadingAtual } = useRespostas(atualId);
+  // Comparar através de modelos de checklist diferentes não faz sentido —
+  // usa o modelo da inspeção ATUAL como referência de seções/itens.
+  const { data: modelo, isLoading: loadingModelo } = useChecklistModelo(atualData?.checklistModeloVersaoId);
 
   const anterior = ordenadas.find((i) => i.id === anteriorId);
   const atual = ordenadas.find((i) => i.id === atualId);
 
   const diffs = useMemo(() => {
-    if (!respostasAnterior || !respostasAtual) return [];
+    if (!anteriorData || !atualData || !modelo) return [];
+    const respostasAnterior = anteriorData.respostas;
+    const respostasAtual = atualData.respostas;
     const result: {
       id: string;
       text: string;
@@ -67,7 +75,7 @@ export function ComparativoInspecoes({ inspecoes }: { inspecoes: InspecaoOption[
       mudanca: "melhorou" | "piorou" | "igual";
     }[] = [];
 
-    checklistSections.forEach((secao) => {
+    modelo.secoes.forEach((secao) => {
       secao.items.forEach((item) => {
         const antes = respostasAnterior[item.id] ?? null;
         const depois = respostasAtual[item.id] ?? null;
@@ -81,7 +89,7 @@ export function ComparativoInspecoes({ inspecoes }: { inspecoes: InspecaoOption[
       });
     });
     return result;
-  }, [respostasAnterior, respostasAtual]);
+  }, [anteriorData, atualData, modelo]);
 
   if (ordenadas.length < 2) {
     return (
@@ -133,7 +141,7 @@ export function ComparativoInspecoes({ inspecoes }: { inspecoes: InspecaoOption[
         </div>
       </div>
 
-      {loadingAnterior || loadingAtual ? (
+      {loadingAnterior || loadingAtual || loadingModelo ? (
         <div className="flex justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>

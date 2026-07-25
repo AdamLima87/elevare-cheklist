@@ -1,14 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { checklistSections } from "@/lib/checklist-data";
-import type { AcaoCorretiva } from "@/lib/storage";
-
-const itemLookup = new Map<string, { text: string; secao: string }>();
-checklistSections.forEach((secao) => {
-  secao.items.forEach((item) => {
-    itemLookup.set(item.id, { text: item.text, secao: secao.title });
-  });
-});
+import { carregarChecklistModelo } from "@/lib/checklist-modelo-service";
+import { resolverChecklistModeloPadrao, type AcaoCorretiva } from "@/lib/storage";
 
 export interface PlanoAcaoRow extends AcaoCorretiva {
   itemId: string;
@@ -29,6 +22,18 @@ export function usePlanosAcaoCliente(clienteId: string | undefined) {
         .eq("cliente_id", clienteId as string)
         .order("data_conclusao", { ascending: false });
       if (error) throw error;
+
+      // Fase 7 — mesmo trade-off documentado em useChecklistModeloPadrao.ts:
+      // esta lista agrega planos de ação de várias inspeções do cliente, sem
+      // ser uma tela de execução de uma inspeção específica.
+      const modeloVersaoIdPadrao = await resolverChecklistModeloPadrao();
+      const modelo = await carregarChecklistModelo(supabase, modeloVersaoIdPadrao);
+      const itemLookup = new Map<string, { text: string; secao: string }>();
+      modelo.secoes.forEach((secao) => {
+        secao.items.forEach((item) => {
+          itemLookup.set(item.id, { text: item.text, secao: secao.title });
+        });
+      });
 
       const rows: PlanoAcaoRow[] = [];
       (data ?? []).forEach((insp: any) => {

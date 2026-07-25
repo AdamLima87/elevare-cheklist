@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { ChecklistItem, ChecklistSection } from "./checklist-data";
+import type { ChecklistItem, ChecklistSection } from "./checklist-types";
 
 export interface ChecklistModeloResolvido {
   modeloVersaoId: string;

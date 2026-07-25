@@ -131,6 +131,7 @@ export async function syncFromCloud(silent = false) {
         dataConclusao: item.data_conclusao,
         progresso: Number(item.progresso),
         conformidade: item.conformidade ? Number(item.conformidade) : null,
+        checklistModeloVersaoId: item.checklist_modelo_versao_id,
         dados: item.dados as any,
         respostas: item.respostas as any,
         cloudUpdatedAt: item.updated_at,

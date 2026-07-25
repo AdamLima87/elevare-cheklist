@@ -29,7 +29,8 @@ import { Loader2, FileText, ArrowLeft, Plus, CheckCircle2, PlayCircle } from "lu
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { classificacao, saveRascunho, type Inspecao } from "@/lib/storage";
-import { contarNCCriticas } from "@/lib/checklist-data";
+import { contarNCCriticasModelo } from "@/lib/checklist-modelo-service";
+import { useChecklistModeloPadrao } from "@/hooks/useChecklistModeloPadrao";
 import { toTrendPoints } from "@/lib/compliance-trend";
 import { ComplianceTrendChart } from "@/components/elevare/ComplianceTrendChart";
 import { ComparativoInspecoes } from "@/components/elevare/ComparativoInspecoes";
@@ -63,6 +64,7 @@ function ClienteDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams({ from: "/clientes/$id" });
   const { data: cliente, isLoading: loadingCliente } = useCliente(id);
+  const { data: modeloPadrao } = useChecklistModeloPadrao();
   const { data: profile } = useCurrentProfile();
 
   const { data: rows = [], isLoading: loadingInspecoes } = useQuery({
@@ -108,6 +110,7 @@ function ClienteDetailPage() {
       dataConclusao: row.data_conclusao,
       progresso: row.progresso,
       conformidade: row.conformidade ? Number(row.conformidade) : null,
+      checklistModeloVersaoId: row.checklist_modelo_versao_id,
       dados: row.dados,
       respostas: row.respostas,
       cloudUpdatedAt: row.updated_at,
@@ -234,7 +237,10 @@ function ClienteDetailPage() {
                                 </TableRow>
                               ) : (
                                 rows.map((insp: any) => {
-                                  const cls = classificacao(Number(insp.conformidade), contarNCCriticas(insp.respostas));
+                                  const cls = classificacao(
+                                    Number(insp.conformidade),
+                                    modeloPadrao ? contarNCCriticasModelo(modeloPadrao, insp.respostas) : 0,
+                                  );
                                   return (
                                     <TableRow key={insp.id}>
                                       <TableCell className="text-sm">

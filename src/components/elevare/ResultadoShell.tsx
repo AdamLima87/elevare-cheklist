@@ -26,12 +26,14 @@ import {
   type Inspecao,
 } from "@/lib/storage";
 import { ensurePlanoAcao } from "@/lib/plano-acao";
-import { checklistSections, contarNCCriticas, criticalItemIds } from "@/lib/checklist-data";
+import { contarNCCriticasModelo } from "@/lib/checklist-modelo-service";
 import { FileDown, MessageCircle, Mail, Save, RotateCcw, Loader2 } from "lucide-react";
 import { gerarPDF } from "@/lib/pdf";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
+import { useChecklistModelo } from "@/hooks/useChecklistModelo";
+import { ChecklistModeloNaoEncontrado } from "@/components/elevare/ChecklistModeloNaoEncontrado";
 import type { InspectionContext } from "@/lib/inspection-context";
 import type { ReactNode } from "react";
 
@@ -123,6 +125,7 @@ export function ResultadoShell({
               dataConclusao: data.data_conclusao,
               progresso: data.progresso,
               conformidade: data.conformidade ? Number(data.conformidade) : null,
+              checklistModeloVersaoId: data.checklist_modelo_versao_id,
               dados: data.dados as any,
               respostas: data.respostas as any,
             };
@@ -164,17 +167,22 @@ export function ResultadoShell({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.id, search.readonly]);
 
+  const { data: modelo, error: modeloError } = useChecklistModelo(insp?.checklistModeloVersaoId);
+
   const score = useMemo(() => (insp ? calcularPercentual(insp.respostas) : null), [insp]);
-  const ncCriticas = useMemo(() => (insp ? contarNCCriticas(insp.respostas) : 0), [insp]);
+  const ncCriticas = useMemo(
+    () => (insp && modelo ? contarNCCriticasModelo(modelo, insp.respostas) : 0),
+    [insp, modelo],
+  );
   const cls = score ? classificacao(score.percentual, ncCriticas) : null;
 
   const chartData = useMemo(() => {
-    if (!insp) return [];
-    return calcularSecoes(insp.respostas).map((sec) => ({
+    if (!insp || !modelo) return [];
+    return calcularSecoes(insp.respostas, modelo).map((sec) => ({
       secao: sec.title.split(",")[0].slice(0, 18),
       pct: sec.percentual === null ? 0 : Math.round(sec.percentual),
     }));
-  }, [insp]);
+  }, [insp, modelo]);
 
   // Reincidência: para cada NC atual, conta em quantas inspeções concluídas
   // consecutivas (a partir da mais recente) o mesmo item já estava "N".
@@ -194,6 +202,10 @@ export function ResultadoShell({
           // Fase 3: diagnósticos pré-venda não contam pra reincidência
           // operacional — inerte hoje, nenhuma linha real tem esse valor ainda.
           .neq("tipo_execucao", "diagnostico")
+          // Fase 7: um mesmo id de item pode significar coisas diferentes em
+          // legislações/modelos diferentes — só compara respostas dentro do
+          // MESMO modelo de checklist exato (imutável por construção).
+          .eq("checklist_modelo_versao_id", insp.checklistModeloVersaoId)
           .neq("id", insp.id)
           .order("data_conclusao", { ascending: false })
           .limit(10);
@@ -220,15 +232,15 @@ export function ResultadoShell({
   }, [insp]);
 
   const naoConformidades = useMemo(() => {
-    if (!insp) return [];
+    if (!insp || !modelo) return [];
     const out: { id: string; text: string; secao: string }[] = [];
-    checklistSections.forEach((sec) => {
+    modelo.secoes.forEach((sec) => {
       sec.items.forEach((it) => {
         if (insp.respostas[it.id] === "N") out.push({ id: it.id, text: it.text, secao: sec.title });
       });
     });
     return out;
-  }, [insp]);
+  }, [insp, modelo]);
 
   if (loading) {
     return (
@@ -238,7 +250,8 @@ export function ResultadoShell({
     );
   }
 
-  if (!insp || !score || !cls) return null;
+  if (modeloError) return <ChecklistModeloNaoEncontrado />;
+  if (!insp || !score || !cls || !modelo) return null;
 
   const finalInsp = insp;
 
@@ -364,7 +377,7 @@ export function ResultadoShell({
                 .join(" · ") || undefined,
           }
         : undefined;
-      gerarPDF({ ...finalInsp, dados: { ...finalInsp.dados, planoAcao } }, { reincidencias, marca });
+      gerarPDF({ ...finalInsp, dados: { ...finalInsp.dados, planoAcao } }, modelo, { reincidencias, marca });
     } catch (e) {
       console.error(e);
       toast.error("Não foi possível gerar o PDF.");
@@ -498,7 +511,7 @@ export function ResultadoShell({
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-semibold uppercase tracking-wide text-destructive">{nc.secao}</span>
-                      {criticalItemIds.has(nc.id) && (
+                      {modelo.criticalItemIds.has(nc.id) && (
                         <span className="rounded-full bg-destructive px-2 py-0.5 text-[10px] font-bold uppercase text-destructive-foreground">
                           Crítico
                         </span>

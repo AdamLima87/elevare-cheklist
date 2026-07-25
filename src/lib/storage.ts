@@ -2,8 +2,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSyncStore } from "@/hooks/useSyncStore";
 import { isCloudNewer } from "./conflict";
 import { findOrCreateCliente } from "@/hooks/useClientes";
-import { checklistSections } from "./checklist-data";
 import { tipoExecucaoFor, type InspectionContext } from "./inspection-context";
+import type { ChecklistModeloResolvido } from "./checklist-modelo-service";
 
 export type Resposta = "S" | "N" | "NA" | null;
 
@@ -79,6 +79,10 @@ export interface Inspecao {
     planoAcao?: Record<string, AcaoCorretiva>;
   };
   respostas: Record<string, Resposta>;
+  /** Fase 7 — qual versão de modelo de checklist esta inspeção usa. Sempre
+   * presente (coluna NOT NULL em `inspecoes`); toda criação de Inspecao
+   * precisa resolver isso, nunca deixar implícito. */
+  checklistModeloVersaoId: string;
   /** Last `updated_at` this client saw from the cloud row, used to detect concurrent edits. Local bookkeeping only, not a DB column. */
   cloudUpdatedAt?: string;
 }
@@ -167,8 +171,19 @@ export function formatNumero(n: number) {
   return `#${(n || 0).toString().padStart(3, "0")}`;
 }
 
-export async function createNewInspecao(): Promise<Inspecao> {
+/** Resolve o modelo de checklist padrão (hoje: o único ativo — RDC 275). Ponto
+ * de extensão da Fase 9 (regra por estado/tipo de estabelecimento) fica só
+ * no corpo da função SQL `resolver_checklist_modelo_padrao`, não aqui. */
+export async function resolverChecklistModeloPadrao(): Promise<string> {
+  const { data, error } = await supabase.rpc("resolver_checklist_modelo_padrao");
+  if (error) throw error;
+  if (!data) throw new Error("Nenhum modelo de checklist padrão disponível.");
+  return data as string;
+}
+
+export async function createNewInspecao(checklistModeloVersaoId?: string): Promise<Inspecao> {
   const num = await getNextNumero();
+  const modeloId = checklistModeloVersaoId ?? (await resolverChecklistModeloPadrao());
   return {
     id: crypto.randomUUID(),
     numero_sequencial: num,
@@ -178,6 +193,7 @@ export async function createNewInspecao(): Promise<Inspecao> {
     dataConclusao: null,
     progresso: 0,
     conformidade: null,
+    checklistModeloVersaoId: modeloId,
     dados: {
       estabelecimento: emptyEstabelecimento(),
       questionario: emptyQuestionario(),
@@ -269,6 +285,7 @@ export async function loadHistoricoFromCloud(): Promise<Inspecao[]> {
     dataConclusao: item.data_conclusao,
     progresso: item.progresso,
     conformidade: item.conformidade ? Number(item.conformidade) : null,
+    checklistModeloVersaoId: item.checklist_modelo_versao_id,
     dados: item.dados as any,
     respostas: item.respostas as any,
   }));
@@ -347,6 +364,7 @@ export async function pushInspecaoToCloud(
       data_conclusao: insp.dataConclusao,
       progresso: insp.progresso,
       conformidade: insp.conformidade,
+      checklist_modelo_versao_id: insp.checklistModeloVersaoId,
       dados: insp.dados as any,
       respostas: insp.respostas as any,
     })
@@ -500,6 +518,7 @@ export async function loadInspecao(id: string): Promise<LoadedInspecao | null> {
     dataConclusao: data.data_conclusao,
     progresso: data.progresso,
     conformidade: data.conformidade ? Number(data.conformidade) : null,
+    checklistModeloVersaoId: data.checklist_modelo_versao_id,
     dados: data.dados as any,
     respostas: data.respostas as any,
     cloudUpdatedAt: data.updated_at,
@@ -600,8 +619,13 @@ export interface SecaoScore {
 
 // Conformidade por seção com o MESMO critério da nota geral:
 // NA sai do denominador. Fonte única para a tela de resultado e o PDF.
-export function calcularSecoes(respostas: Record<string, Resposta>): SecaoScore[] {
-  return checklistSections.map((sec) => {
+// Fase 7 — dirigido pelo modelo resolvido (via carregarChecklistModelo), não
+// mais por um import estático de um único checklist fixo.
+export function calcularSecoes(
+  respostas: Record<string, Resposta>,
+  modelo: Pick<ChecklistModeloResolvido, "secoes">,
+): SecaoScore[] {
+  return modelo.secoes.map((sec) => {
     let sim = 0,
       nao = 0,
       na = 0;

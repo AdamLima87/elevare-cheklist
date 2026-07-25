@@ -9,7 +9,8 @@ import { toast } from "sonner";
 import { Loader2, Search, FileText, Download } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { classificacao, type Inspecao } from "@/lib/storage";
-import { contarNCCriticas } from "@/lib/checklist-data";
+import { contarNCCriticasModelo } from "@/lib/checklist-modelo-service";
+import { useChecklistModeloPadrao } from "@/hooks/useChecklistModeloPadrao";
 import { toTrendPoints } from "@/lib/compliance-trend";
 import { ComplianceTrendChart } from "@/components/elevare/ComplianceTrendChart";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ function ClientePage() {
   const [loading, setLoading] = useState(true);
   const [inspections, setInspections] = useState<any[]>([]);
   const navigate = useNavigate();
+  const { data: modeloPadrao } = useChecklistModeloPadrao();
 
   useEffect(() => {
     async function loadClientData() {
@@ -113,7 +115,10 @@ function ClientePage() {
               <div className="grid gap-4">
                 {inspections.map((insp) => {
                   const conf = Number(insp.conformidade);
-                  const cls = classificacao(conf, contarNCCriticas(insp.respostas));
+                  const cls = classificacao(
+                    conf,
+                    modeloPadrao ? contarNCCriticasModelo(modeloPadrao, insp.respostas) : 0,
+                  );
                   return (
                     <Card key={insp.id}>
                       <CardContent className="p-4 flex items-center justify-between">

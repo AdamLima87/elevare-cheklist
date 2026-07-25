@@ -2,7 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { classificacao } from "@/lib/storage";
-import { contarNCCriticas } from "@/lib/checklist-data";
+import { carregarChecklistModelo, contarNCCriticasModelo } from "@/lib/checklist-modelo-service";
 
 export function useResendInspectionEmail() {
   return useMutation({
@@ -12,7 +12,10 @@ export function useResendInspectionEmail() {
       const cnpj = insp.cnpj || insp.dados?.estabelecimento?.cnpj || "";
       if (!email) throw new Error("E-mail do cliente não encontrado.");
 
-      const cls = classificacao(Number(insp.conformidade), contarNCCriticas(insp.respostas));
+      // Reenvio usa o modelo EXATO da inspeção (temos o id real aqui, não é
+      // uma agregação de várias inspeções como as telas de resumo).
+      const modelo = await carregarChecklistModelo(supabase, insp.checklist_modelo_versao_id);
+      const cls = classificacao(Number(insp.conformidade), contarNCCriticasModelo(modelo, insp.respostas));
       const response = await fetch("/lovable/email/transactional/send", {
         method: "POST",
         headers: {
