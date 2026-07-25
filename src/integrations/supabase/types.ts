@@ -1569,7 +1569,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          checklist_modelo_versao_id: string
+          checklist_modelo_versao_id?: string
           cliente_id?: string | null
           cnpj?: string | null
           conformidade?: number | null

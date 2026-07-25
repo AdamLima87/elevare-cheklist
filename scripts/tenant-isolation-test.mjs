@@ -222,6 +222,11 @@ const CLEANUP_TABLES_IN_ORDER = [
   "documentos",
   "visitas",
   "cliente_interacoes",
+  // Fase 7 — referenciam inspecoes via FK composta (NO ACTION), precisam
+  // ser limpas antes. reinspecao_programacao_eventos NÃO tem empresa_id
+  // (só programacao_id) — limpa via subquery, tratado à parte em
+  // cleanupTenant() antes deste laço genérico.
+  "reinspecao_programacoes",
   "inspecoes",
   "crm_oportunidades",
   "crm_contatos",
@@ -240,6 +245,13 @@ const CLEANUP_TABLES_IN_ORDER = [
 
 async function cleanupTenant(tenant) {
   const empresaId = tenant.empresaId;
+  // reinspecao_programacao_eventos não tem empresa_id — limpa via
+  // subconsulta pelas programações do tenant, antes do laço genérico.
+  const { data: progsDoTenant } = await admin.from("reinspecao_programacoes").select("id").eq("empresa_id", empresaId);
+  if (progsDoTenant?.length) {
+    const { error } = await admin.from("reinspecao_programacao_eventos").delete().in("programacao_id", progsDoTenant.map((p) => p.id));
+    if (error) console.error(`  aviso: limpeza de reinspecao_programacao_eventos para ${tenant.label} falhou: ${error.message}`);
+  }
   for (const table of CLEANUP_TABLES_IN_ORDER) {
     const { error } = await admin.from(table).delete().eq("empresa_id", empresaId);
     if (error) console.error(`  aviso: limpeza de ${table} para ${tenant.label} falhou: ${error.message}`);
@@ -1133,6 +1145,138 @@ async function main() {
         empresa_id: A.empresaId, crm_oportunidade_id: oportunidadeMultipla, tipo_execucao: "diagnostico", numero_sequencial: numero2,
       });
       assert(segundoInsertErr !== null, "segundo INSERT deveria ter sido bloqueado pelo índice único (prova de que 'múltiplos' é inalcançável em uso normal)");
+    });
+
+    console.log("\nFase 7 — imutabilidade de checklist (legislações/modelos):");
+
+    const { data: modeloVersaoAtual } = await admin
+      .from("checklist_modelo_versoes")
+      .select("id, modelo_id")
+      .eq("is_versao_atual", true)
+      .single();
+
+    await test("UPDATE em item de versão de checklist publicada falha", async () => {
+      const { data: item } = await admin.from("checklist_itens").select("id").eq("modelo_versao_id", modeloVersaoAtual.id).limit(1).single();
+      const { error } = await admin.from("checklist_itens").update({ texto: "hackeado" }).eq("id", item.id);
+      assert(error !== null, "UPDATE deveria falhar (trigger de imutabilidade de conteúdo)");
+    });
+
+    await test("UPDATE em seção de versão de checklist publicada falha", async () => {
+      const { data: secao } = await admin.from("checklist_secoes").select("id").eq("modelo_versao_id", modeloVersaoAtual.id).limit(1).single();
+      const { error } = await admin.from("checklist_secoes").update({ titulo: "hackeado" }).eq("id", secao.id);
+      assert(error !== null, "UPDATE deveria falhar (trigger de imutabilidade de conteúdo)");
+    });
+
+    await test("UPDATE de modelo_id/numero_versao em versão publicada falha (imutabilidade de identidade)", async () => {
+      const { data: legislacaoVersao } = await admin.from("legislacao_versoes").select("id").limit(1).single();
+      const { data: outroModelo } = await admin
+        .from("checklist_modelos")
+        .insert({ legislacao_versao_id: legislacaoVersao.id, codigo: `TESTE_ISOLAMENTO_${Date.now()}`, nome: "Modelo descartável de teste" })
+        .select("id")
+        .single();
+      const { error } = await admin.from("checklist_modelo_versoes").update({ modelo_id: outroModelo.id }).eq("id", modeloVersaoAtual.id);
+      await admin.from("checklist_modelos").delete().eq("id", outroModelo.id);
+      assert(error !== null, "UPDATE de modelo_id deveria falhar — identidade de versão publicada é imutável");
+    });
+
+    console.log("\nFase 7 — crm_obter_ou_criar_diagnostico com checklist_modelo_versao_id:");
+
+    const oportunidadeModelo = await seedOportunidade(A, "Oportunidade Fase7 Modelo");
+
+    await test("RPC preenche checklist_modelo_versao_id com o modelo padrão", async () => {
+      const { data, error } = await A.client.rpc("crm_obter_ou_criar_diagnostico", { p_oportunidade_id: oportunidadeModelo });
+      if (error) throw error;
+      const { data: insp } = await admin.from("inspecoes").select("checklist_modelo_versao_id").eq("id", data[0].inspecao_id).single();
+      assert(insp.checklist_modelo_versao_id === modeloVersaoAtual.id, "checklist_modelo_versao_id não foi preenchido com o modelo padrão");
+    });
+
+    await test("Evento 'diagnostico_iniciado' é gravado (regressão do fix de crm_registrar_timeline_sistema)", async () => {
+      const { data } = await admin.from("crm_timeline").select("id").eq("crm_oportunidade_id", oportunidadeModelo).eq("evento_tipo", "diagnostico_iniciado");
+      assert(data.length === 1, `esperava 1 evento, encontrou ${data.length}`);
+    });
+
+    console.log("\nFase 7 — fluxo de programação de reinspeção:");
+
+    const clienteReinspecao = await seedCliente(A, "Cliente Reinspeção Fase7");
+    const numeroOrigem = (await A.client.rpc("get_next_numero_inspecao")).data;
+    const { data: inspecaoOrigemReinspecao } = await admin
+      .from("inspecoes")
+      .insert({
+        empresa_id: A.empresaId, cliente_id: clienteReinspecao, numero_sequencial: numeroOrigem,
+        status: "concluida", data_conclusao: new Date().toISOString(), respostas: {},
+        checklist_modelo_versao_id: modeloVersaoAtual.id, consultor_id: A.userId,
+      })
+      .select("id")
+      .single();
+
+    let programacaoReinspecaoId;
+    await test("criar_programacao_reinspecao cria com status 'programada' e evento 'criada'", async () => {
+      const { data, error } = await A.client.rpc("criar_programacao_reinspecao", {
+        p_inspecao_origem_id: inspecaoOrigemReinspecao.id, p_data_prevista: "2027-01-01",
+      });
+      if (error) throw error;
+      programacaoReinspecaoId = data;
+      const { data: prog } = await admin.from("reinspecao_programacoes").select("status").eq("id", programacaoReinspecaoId).single();
+      assert(prog.status === "programada", `esperava 'programada', recebeu '${prog.status}'`);
+    });
+
+    await test("Consultor do Tenant B não vê programação do Tenant A (RLS)", async () => {
+      const { data } = await B.client.from("reinspecao_programacoes").select("id").eq("id", programacaoReinspecaoId);
+      assert(data.length === 0, "Tenant B não deveria enxergar a programação do Tenant A");
+    });
+
+    await test("reagendar_programacao_reinspecao atualiza data e status", async () => {
+      const { error } = await A.client.rpc("reagendar_programacao_reinspecao", { p_programacao_id: programacaoReinspecaoId, p_nova_data: "2027-02-01" });
+      if (error) throw error;
+      const { data: prog } = await admin.from("reinspecao_programacoes").select("status, data_prevista").eq("id", programacaoReinspecaoId).single();
+      assert(prog.status === "reagendada" && prog.data_prevista === "2027-02-01", "reagendamento não aplicado corretamente");
+    });
+
+    let novaReinspecaoId;
+    await test("iniciar_reinspecao cria inspeção tipo_execucao='reinspecao' herdando cliente/modelo", async () => {
+      const { data, error } = await A.client.rpc("iniciar_reinspecao", { p_programacao_id: programacaoReinspecaoId });
+      if (error) throw error;
+      novaReinspecaoId = data;
+      const { data: nova } = await admin.from("inspecoes").select("tipo_execucao, inspecao_origem_id, cliente_id, checklist_modelo_versao_id").eq("id", novaReinspecaoId).single();
+      assert(nova.tipo_execucao === "reinspecao", "tipo_execucao incorreto");
+      assert(nova.inspecao_origem_id === inspecaoOrigemReinspecao.id, "inspecao_origem_id não vinculado");
+      assert(nova.cliente_id === clienteReinspecao, "cliente_id não herdado");
+      assert(nova.checklist_modelo_versao_id === modeloVersaoAtual.id, "checklist_modelo_versao_id não herdado");
+    });
+
+    await test("iniciar_reinspecao de novo (duplo-clique/concorrência) falha e não duplica", async () => {
+      const { error } = await A.client.rpc("iniciar_reinspecao", { p_programacao_id: programacaoReinspecaoId });
+      assert(error !== null, "segunda chamada deveria falhar");
+      const { data: todas } = await admin.from("inspecoes").select("id").eq("inspecao_origem_id", inspecaoOrigemReinspecao.id);
+      assert(todas.length === 1, `esperava 1 reinspeção, encontrou ${todas.length}`);
+    });
+
+    await test("cancelar_programacao_reinspecao falha para programação já 'iniciada'", async () => {
+      const { error } = await A.client.rpc("cancelar_programacao_reinspecao", { p_programacao_id: programacaoReinspecaoId });
+      assert(error !== null, "cancelar deveria falhar — status 'iniciada' não é cancelável");
+    });
+
+    await test("Concluir a reinspeção marca a programação como 'realizada' (trigger automático)", async () => {
+      const { error } = await A.client.from("inspecoes").update({ status: "concluida", data_conclusao: new Date().toISOString() }).eq("id", novaReinspecaoId);
+      if (error) throw error;
+      const { data: prog } = await admin.from("reinspecao_programacoes").select("status").eq("id", programacaoReinspecaoId).single();
+      assert(prog.status === "realizada", `esperava 'realizada', recebeu '${prog.status}'`);
+      const { data: eventos } = await admin.from("reinspecao_programacao_eventos").select("id").eq("programacao_id", programacaoReinspecaoId).eq("evento_tipo", "realizada");
+      assert(eventos.length === 1, "evento 'realizada' não foi gravado pelo trigger");
+    });
+
+    await test("FK composta rejeita programação apontando inspeção de outro tenant", async () => {
+      const clienteB2 = await seedCliente(B, "Cliente B FK Fase7");
+      const numeroB2 = (await B.client.rpc("get_next_numero_inspecao")).data;
+      const { data: inspB2 } = await admin
+        .from("inspecoes")
+        .insert({ empresa_id: B.empresaId, cliente_id: clienteB2, numero_sequencial: numeroB2, status: "concluida", respostas: {}, checklist_modelo_versao_id: modeloVersaoAtual.id })
+        .select("id")
+        .single();
+      const { error } = await admin.from("reinspecao_programacoes").insert({
+        empresa_id: A.empresaId, inspecao_origem_id: inspB2.id, data_prevista: "2027-01-01",
+      });
+      assert(error !== null, "INSERT deveria falhar — FK composta (empresa_id, inspecao_origem_id) exige mesma empresa");
     });
 
   } finally {
