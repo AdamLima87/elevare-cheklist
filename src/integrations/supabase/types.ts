@@ -1807,6 +1807,128 @@ export type Database = {
           },
         ]
       }
+      reinspecao_programacao_eventos: {
+        Row: {
+          autor_id: string | null
+          created_at: string
+          data_anterior: string | null
+          data_nova: string | null
+          evento_tipo: string
+          id: string
+          observacao: string | null
+          programacao_id: string
+        }
+        Insert: {
+          autor_id?: string | null
+          created_at?: string
+          data_anterior?: string | null
+          data_nova?: string | null
+          evento_tipo: string
+          id?: string
+          observacao?: string | null
+          programacao_id: string
+        }
+        Update: {
+          autor_id?: string | null
+          created_at?: string
+          data_anterior?: string | null
+          data_nova?: string | null
+          evento_tipo?: string
+          id?: string
+          observacao?: string | null
+          programacao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reinspecao_programacao_eventos_programacao_id_fkey"
+            columns: ["programacao_id"]
+            isOneToOne: false
+            referencedRelation: "reinspecao_programacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reinspecao_programacoes: {
+        Row: {
+          cliente_id: string | null
+          created_at: string
+          created_by: string | null
+          data_prevista: string
+          empresa_id: string
+          id: string
+          inspecao_criada_id: string | null
+          inspecao_origem_id: string
+          observacao: string | null
+          responsavel_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          cliente_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_prevista: string
+          empresa_id: string
+          id?: string
+          inspecao_criada_id?: string | null
+          inspecao_origem_id: string
+          observacao?: string | null
+          responsavel_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          cliente_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_prevista?: string
+          empresa_id?: string
+          id?: string
+          inspecao_criada_id?: string | null
+          inspecao_origem_id?: string
+          observacao?: string | null
+          responsavel_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reinspecao_programacoes_cliente_id_empresa_id_fkey"
+            columns: ["cliente_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id", "empresa_id"]
+          },
+          {
+            foreignKeyName: "reinspecao_programacoes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reinspecao_programacoes_inspecao_criada_id_empresa_id_fkey"
+            columns: ["inspecao_criada_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "inspecoes"
+            referencedColumns: ["id", "empresa_id"]
+          },
+          {
+            foreignKeyName: "reinspecao_programacoes_inspecao_origem_id_empresa_id_fkey"
+            columns: ["inspecao_origem_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "inspecoes"
+            referencedColumns: ["id", "empresa_id"]
+          },
+          {
+            foreignKeyName: "reinspecao_programacoes_responsavel_id_empresa_id_fkey"
+            columns: ["responsavel_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id", "empresa_id"]
+          },
+        ]
+      }
       saas_assinaturas: {
         Row: {
           blocked_at: string | null
@@ -2734,10 +2856,23 @@ export type Database = {
         }[]
       }
       can_access_crm: { Args: never; Returns: boolean }
+      cancelar_programacao_reinspecao: {
+        Args: { p_observacao?: string; p_programacao_id: string }
+        Returns: undefined
+      }
       complete_onboarding: { Args: never; Returns: undefined }
       confirmar_cupom_checkout: {
         Args: { p_checkout_intencao_id: string }
         Returns: undefined
+      }
+      criar_programacao_reinspecao: {
+        Args: {
+          p_data_prevista: string
+          p_inspecao_origem_id: string
+          p_observacao?: string
+          p_responsavel_id?: string
+        }
+        Returns: string
       }
       crm_busca_global: {
         Args: { p_query: string }
@@ -2906,7 +3041,10 @@ export type Database = {
         }
       }
       crm_obter_ou_criar_diagnostico: {
-        Args: { p_oportunidade_id: string }
+        Args: {
+          p_checklist_modelo_versao_id?: string
+          p_oportunidade_id: string
+        }
         Returns: {
           criado: boolean
           inspecao_id: string
@@ -2959,6 +3097,10 @@ export type Database = {
           status: string
           trial_ends_at: string
         }[]
+      }
+      iniciar_reinspecao: {
+        Args: { p_programacao_id: string; p_responsavel_id?: string }
+        Returns: string
       }
       is_admin: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
@@ -3113,6 +3255,14 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      reagendar_programacao_reinspecao: {
+        Args: {
+          p_nova_data: string
+          p_observacao?: string
+          p_programacao_id: string
+        }
+        Returns: undefined
       }
       remover_cupom_checkout: {
         Args: { p_checkout_intencao_id: string }

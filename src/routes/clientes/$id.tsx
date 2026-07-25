@@ -35,6 +35,8 @@ import { toTrendPoints } from "@/lib/compliance-trend";
 import { ComplianceTrendChart } from "@/components/elevare/ComplianceTrendChart";
 import { ComparativoInspecoes } from "@/components/elevare/ComparativoInspecoes";
 import { NovaInspecaoForm } from "@/components/elevare/NovaInspecaoForm";
+import { ReinspecaoCard } from "@/components/elevare/ReinspecaoCard";
+import { useReinspecaoProgramacoesCliente } from "@/hooks/useReinspecaoProgramacoes";
 import { useCliente, ETAPAS_FUNIL, useUpdateClienteFunil, useConverterProspectEmCliente } from "@/hooks/useClientes";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { useClienteInteracoes, useCreateInteracao } from "@/hooks/useClienteInteracoes";
@@ -162,6 +164,7 @@ function ClienteDetailPage() {
                 <TabsTrigger value="agenda">Agenda</TabsTrigger>
                 <TabsTrigger value="documentos">Documentos</TabsTrigger>
                 <TabsTrigger value="comparativo">Comparativo</TabsTrigger>
+                <TabsTrigger value="reinspecoes">Reinspeções</TabsTrigger>
               </TabsList>
 
               <TabsContent value="geral">
@@ -322,6 +325,10 @@ function ClienteDetailPage() {
 
               <TabsContent value="comparativo">
                 <ComparativoInspecoes inspecoes={rows as any} />
+              </TabsContent>
+
+              <TabsContent value="reinspecoes">
+                <ReinspecoesTab clienteId={id} />
               </TabsContent>
             </Tabs>
           </>
@@ -547,6 +554,39 @@ function PlanosAcaoTab({ clienteId }: { clienteId: string }) {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function ReinspecoesTab({ clienteId }: { clienteId: string }) {
+  const { data: programacoes = [], isLoading } = useReinspecaoProgramacoesCliente(clienteId);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (programacoes.length === 0) {
+    return (
+      <p className="py-12 text-center text-sm text-muted-foreground">
+        Nenhuma reinspeção programada ainda. Programe uma a partir do resultado de uma inspeção concluída.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {programacoes.map((p) => (
+        <div key={p.id}>
+          <p className="mb-1 text-xs text-muted-foreground">
+            Origem: inspeção {p.inspecao_origem?.numero_sequencial ? `#${p.inspecao_origem.numero_sequencial}` : "—"}
+          </p>
+          <ReinspecaoCard programacao={p} />
+        </div>
+      ))}
     </div>
   );
 }

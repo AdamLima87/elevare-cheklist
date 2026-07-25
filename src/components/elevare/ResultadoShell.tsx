@@ -34,6 +34,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { useChecklistModelo } from "@/hooks/useChecklistModelo";
 import { ChecklistModeloNaoEncontrado } from "@/components/elevare/ChecklistModeloNaoEncontrado";
+import { useProgramacaoReinspecao } from "@/hooks/useReinspecaoProgramacoes";
+import { ReinspecaoCard } from "@/components/elevare/ReinspecaoCard";
+import { ProgramarReinspecaoDialog } from "@/components/elevare/ProgramarReinspecaoDialog";
+import { CalendarPlus } from "lucide-react";
 import type { InspectionContext } from "@/lib/inspection-context";
 import type { ReactNode } from "react";
 
@@ -168,6 +172,8 @@ export function ResultadoShell({
   }, [search.id, search.readonly]);
 
   const { data: modelo, error: modeloError } = useChecklistModelo(insp?.checklistModeloVersaoId);
+  const { data: programacaoReinspecao } = useProgramacaoReinspecao(insp?.id);
+  const [programarReinspecaoOpen, setProgramarReinspecaoOpen] = useState(false);
 
   const score = useMemo(() => (insp ? calcularPercentual(insp.respostas) : null), [insp]);
   const ncCriticas = useMemo(
@@ -602,6 +608,24 @@ export function ResultadoShell({
           )}
         </CardContent>
       </Card>
+
+      {insp.status === "concluida" && (
+        <div className="mt-6">
+          {programacaoReinspecao ? (
+            <ReinspecaoCard programacao={programacaoReinspecao} />
+          ) : (
+            <Button variant="outline" onClick={() => setProgramarReinspecaoOpen(true)} className="gap-1.5">
+              <CalendarPlus className="h-4 w-4" /> Programar Reinspeção
+            </Button>
+          )}
+          <ProgramarReinspecaoDialog
+            open={programarReinspecaoOpen}
+            onOpenChange={setProgramarReinspecaoOpen}
+            inspecaoOrigemId={insp.id}
+            dataConclusaoOrigem={insp.dataConclusao}
+          />
+        </div>
+      )}
 
       {!search.readonly && (
         footerActions ?? (
