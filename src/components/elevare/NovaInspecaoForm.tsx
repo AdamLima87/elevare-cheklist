@@ -343,7 +343,7 @@ export function NovaInspecaoForm({ clienteId, prefill, editFromUrl = false, crmC
       }
 
       const key = crmContext ? draftKey(context, insp.id) : undefined;
-      await saveRascunho(insp, key);
+      await saveRascunho(insp, undefined, key);
       await saveToHistorico(insp, context);
 
       // Auto-create client if email is present — só no fluxo operacional.

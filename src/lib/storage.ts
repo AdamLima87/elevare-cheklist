@@ -214,9 +214,20 @@ export function loadRascunho(key: string = RASCUNHO_KEY): Inspecao | null {
   }
 }
 
-export async function saveRascunho(insp: Inspecao, key: string = RASCUNHO_KEY) {
+/** `context` é opcional só por compatibilidade com os callers que nunca
+ * lidam com um contexto não-"cliente" (o default de sempre). Quando
+ * fornecido, fica embutido no rascunho salvo (`_context`) para que rotas
+ * legadas de slot único (`/checklist`, `/resultado`) consigam recuperar o
+ * contexto correto de uma inspeção carregada via `loadInspecao` (ex.:
+ * reinspeção) em vez de assumir sempre `{kind:"cliente"}`. */
+export async function saveRascunho(
+  insp: Inspecao,
+  context?: InspectionContext,
+  key: string = RASCUNHO_KEY,
+) {
   if (typeof localStorage === "undefined") return;
-  localStorage.setItem(key, JSON.stringify(insp));
+  const stored: StoredHistoricoItem = context ? { ...insp, _context: context } : insp;
+  localStorage.setItem(key, JSON.stringify(stored));
 
   // In the current architecture, saveToHistorico handles cloud sync
   // to avoid duplication and inconsistencies.
@@ -527,7 +538,9 @@ export async function loadInspecao(id: string): Promise<LoadedInspecao | null> {
   const context: InspectionContext =
     data.tipo_execucao === "diagnostico" && data.crm_oportunidade_id
       ? { kind: "diagnostico_crm", crmOportunidadeId: data.crm_oportunidade_id }
-      : { kind: "cliente", clienteId: data.cliente_id ?? undefined };
+      : data.tipo_execucao === "reinspecao"
+        ? { kind: "reinspecao", clienteId: data.cliente_id ?? undefined }
+        : { kind: "cliente", clienteId: data.cliente_id ?? undefined };
 
   return { insp, context };
 }

@@ -2,11 +2,16 @@
 // persistida em `inspecoes` (cliente_id / crm_oportunidade_id / tipo_execucao).
 // É metadado de fluxo, nunca inferido pela ausência de outro dado: todo
 // call site que persiste uma Inspecao precisa declarar explicitamente qual
-// dos dois é.
+// dos três é.
 export type InspectionContext =
   | { kind: "cliente"; clienteId?: string }
-  | { kind: "diagnostico_crm"; crmOportunidadeId: string };
+  | { kind: "diagnostico_crm"; crmOportunidadeId: string }
+  | { kind: "reinspecao"; clienteId?: string };
 
-export function tipoExecucaoFor(context: InspectionContext): "inspecao_legada" | "diagnostico" {
-  return context.kind === "diagnostico_crm" ? "diagnostico" : "inspecao_legada";
+export function tipoExecucaoFor(
+  context: InspectionContext,
+): "inspecao_legada" | "diagnostico" | "reinspecao" {
+  if (context.kind === "diagnostico_crm") return "diagnostico";
+  if (context.kind === "reinspecao") return "reinspecao";
+  return "inspecao_legada";
 }

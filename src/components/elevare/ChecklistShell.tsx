@@ -15,6 +15,7 @@ import {
   type Funcionario,
   type Inspecao,
   type Resposta,
+  type StoredHistoricoItem,
 } from "@/lib/storage";
 import { ArrowRight, Camera, Plus, X, Trash2, Loader2 } from "lucide-react";
 import { SyncStatus } from "@/components/elevare/SyncStatus";
@@ -41,6 +42,12 @@ export interface ChecklistShellProps {
 export function ChecklistShell({ context, draftKey, preloaded, onBackToIdentificacao, onFinalizar }: ChecklistShellProps) {
   const [insp, setInsp] = useState<Inspecao | null>(null);
   const [activeTab, setActiveTab] = useState("a");
+  // Rotas legadas de slot único (/checklist) passam sempre {kind:"cliente"}
+  // como default estático — mas um rascunho carregado via loadInspecao (ex.:
+  // ao retomar uma reinspeção) pode ter embutido seu próprio _context
+  // (gravado por saveRascunho). Preferir esse valor evita que o autosave
+  // sobrescreva tipo_execucao='reinspecao' de volta para 'inspecao_legada'.
+  const [effectiveContext, setEffectiveContext] = useState(context);
 
   useEffect(() => {
     if (preloaded) {
@@ -54,6 +61,8 @@ export function ChecklistShell({ context, draftKey, preloaded, onBackToIdentific
         onBackToIdentificacao();
         return;
       }
+      const storedContext = (r as StoredHistoricoItem)._context;
+      if (storedContext) setEffectiveContext(storedContext);
       setInsp(r);
     } catch (e) {
       console.error("Erro ao carregar inspeção:", e);
@@ -102,7 +111,7 @@ export function ChecklistShell({ context, draftKey, preloaded, onBackToIdentific
 
       // Persist after state update is defined
       if (nextInsp) {
-        const newCloudUpdatedAt = await saveToHistorico(nextInsp, context);
+        const newCloudUpdatedAt = await saveToHistorico(nextInsp, effectiveContext);
         // saveToHistorico compares insp.cloudUpdatedAt against the cloud row to
         // detect concurrent edits. Without feeding the fresh timestamp back into
         // state here, every save after the first one in this session would look

@@ -29,6 +29,7 @@ import { Loader2, FileText, ArrowLeft, Plus, CheckCircle2, PlayCircle } from "lu
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { classificacao, saveRascunho, type Inspecao } from "@/lib/storage";
+import type { InspectionContext } from "@/lib/inspection-context";
 import { contarNCCriticasModelo } from "@/lib/checklist-modelo-service";
 import { useChecklistModeloPadrao } from "@/hooks/useChecklistModeloPadrao";
 import { toTrendPoints } from "@/lib/compliance-trend";
@@ -117,7 +118,16 @@ function ClienteDetailPage() {
       respostas: row.respostas,
       cloudUpdatedAt: row.updated_at,
     };
-    await saveRascunho(mapped);
+    // Query de "em andamento" acima não filtra tipo_execucao — pode ser uma
+    // reinspeção em progresso, não só o fluxo "cliente" normal. Sem embutir
+    // o _context correto aqui, o autosave do checklist reverteria
+    // tipo_execucao='reinspecao' pra 'inspecao_legada' (mesmo bug corrigido
+    // no fluxo via ReinspecaoCard).
+    const ctx: InspectionContext =
+      row.tipo_execucao === "reinspecao"
+        ? { kind: "reinspecao", clienteId: row.cliente_id ?? undefined }
+        : { kind: "cliente", clienteId: row.cliente_id ?? undefined };
+    await saveRascunho(mapped, ctx);
     navigate({ to: "/checklist" });
   };
 

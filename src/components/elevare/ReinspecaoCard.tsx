@@ -84,7 +84,7 @@ export function ReinspecaoCard({ programacao }: { programacao: ReinspecaoProgram
           try {
             const loaded = await loadInspecao(novaInspecaoId);
             if (loaded) {
-              await saveRascunho(loaded.insp);
+              await saveRascunho(loaded.insp, loaded.context);
             }
           } catch (err) {
             console.error("Falha ao carregar reinspeção recém-criada:", err);
@@ -158,7 +158,7 @@ export function ReinspecaoCard({ programacao }: { programacao: ReinspecaoProgram
             onClick={async () => {
               try {
                 const loaded = await loadInspecao(programacao.inspecao_criada_id as string);
-                if (loaded) await saveRascunho(loaded.insp);
+                if (loaded) await saveRascunho(loaded.insp, loaded.context);
               } catch (err) {
                 console.error("Falha ao carregar reinspeção:", err);
               }

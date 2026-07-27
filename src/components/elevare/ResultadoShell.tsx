@@ -24,6 +24,7 @@ import {
   saveToHistorico,
   type AcaoCorretiva,
   type Inspecao,
+  type StoredHistoricoItem,
 } from "@/lib/storage";
 import { ensurePlanoAcao } from "@/lib/plano-acao";
 import { contarNCCriticasModelo } from "@/lib/checklist-modelo-service";
@@ -81,6 +82,10 @@ export function ResultadoShell({
   const [insp, setInsp] = useState<Inspecao | null>(null);
   const [loading, setLoading] = useState(false);
   const [planoAcao, setPlanoAcao] = useState<Record<string, AcaoCorretiva>>({});
+  // Ver ChecklistShell — mesmo motivo: um rascunho de reinspeção carrega seu
+  // próprio _context, que precisa prevalecer sobre o default estático da
+  // rota pra "Salvar" não sobrescrever tipo_execucao='reinspecao'.
+  const [effectiveContext, setEffectiveContext] = useState(context);
 
   // Timbre do relatório: puxa o cadastro da consultoria (tenant). Se estiver em
   // branco, o PDF cai no fallback da marca do produto (RDCheck).
@@ -151,6 +156,8 @@ export function ResultadoShell({
         onNovaInspecao();
         return;
       }
+      const storedContext = (r as StoredHistoricoItem)._context;
+      if (storedContext) setEffectiveContext(storedContext);
 
       // The "concluida" status will only be set when the user clicks "Salvar"
       const score = calcularPercentual(r.respostas);
@@ -270,7 +277,7 @@ export function ResultadoShell({
         dados: { ...finalInsp.dados, planoAcao },
       };
 
-      const newCloudUpdatedAt = await saveToHistorico(updatedInsp, context);
+      const newCloudUpdatedAt = await saveToHistorico(updatedInsp, effectiveContext);
       setInsp(newCloudUpdatedAt ? { ...updatedInsp, cloudUpdatedAt: newCloudUpdatedAt } : updatedInsp);
 
       if (!newCloudUpdatedAt) {
@@ -283,8 +290,9 @@ export function ResultadoShell({
 
       // Login de cliente + e-mail transacional pro portal só fazem sentido
       // no fluxo operacional — dependem de cliente_id, que não existe (por
-      // design) no fluxo de Diagnóstico do CRM antes da conversão.
-      if (context.kind === "cliente") {
+      // design) no fluxo de Diagnóstico do CRM antes da conversão. Reinspeção
+      // herda cliente_id da origem, então também tem acesso de portal.
+      if (effectiveContext.kind === "cliente" || effectiveContext.kind === "reinspecao") {
         const email = updatedInsp.dados?.estabelecimento?.respLegalEmail || updatedInsp.dados?.estabelecimento?.email;
         const cnpj = updatedInsp.dados?.estabelecimento?.cnpj?.replace(/\D/g, "") || "";
         const nomeLegal = updatedInsp.dados?.estabelecimento?.respLegalNome || updatedInsp.estabelecimento;

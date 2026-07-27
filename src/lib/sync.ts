@@ -48,6 +48,9 @@ async function resolveSyncContext(
     if (remote.tipo_execucao === "diagnostico" && remote.crm_oportunidade_id) {
       return { kind: "diagnostico_crm", crmOportunidadeId: remote.crm_oportunidade_id };
     }
+    if (remote.tipo_execucao === "reinspecao") {
+      return { kind: "reinspecao" };
+    }
     // Linha remota existe e comprovadamente não é diagnóstico — compatibilidade legada.
     return { kind: "cliente" };
   }
