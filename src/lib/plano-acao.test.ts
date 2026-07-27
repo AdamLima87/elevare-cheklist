@@ -1,3 +1,4 @@
+import { addDays, format } from "date-fns";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PRAZO_DIAS, defaultPrazo, ensurePlanoAcao } from "./plano-acao";
 
@@ -11,9 +12,11 @@ describe("defaultPrazo", () => {
   });
 
   it("falls back to today when no conclusion date is given", () => {
-    const expected = new Date();
-    expected.setDate(expected.getDate() + DEFAULT_PRAZO_DIAS);
-    const expectedStr = expected.toISOString().slice(0, 10);
+    // Same local-calendar formatting defaultPrazo itself uses — comparing
+    // against toISOString() (UTC) here made this fail deterministically
+    // between 21h-23h59 local (America/Sao_Paulo), where the UTC calendar
+    // day is already ahead of the local one.
+    const expectedStr = format(addDays(new Date(), DEFAULT_PRAZO_DIAS), "yyyy-MM-dd");
     expect(defaultPrazo(null)).toBe(expectedStr);
   });
 });
