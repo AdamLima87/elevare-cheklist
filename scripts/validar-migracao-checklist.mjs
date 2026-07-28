@@ -1,13 +1,16 @@
-// Fase 7.2 — valida que o conteúdo semeado no banco (checklist_secoes/
-// checklist_itens da versão "atual" do modelo RDC_275_2002_PADRAO) é
-// EXATAMENTE equivalente ao que está hoje em src/lib/checklist-data.ts:
-// mesmas seções, mesma ordem, mesmos itens, mesmo texto, mesmo `critico`.
+// Fase 8.B — generaliza scripts/validar-migracao-checklist-rdc275.mjs
+// (Fase 7.2) para validar QUALQUER modelo, não só RDC_275_2002_PADRAO.
+// Valida que o conteúdo semeado no banco (checklist_secoes/checklist_itens
+// da versão "atual" do modelo) é EXATAMENTE equivalente ao módulo de dados
+// TS informado: mesmas seções, mesma ordem, mesmos itens, mesmo texto,
+// mesmo `critico`.
 //
-// uso: node scripts/validar-migracao-checklist-rdc275.mjs [caminho/para/.env.staging]
+// uso: node scripts/validar-migracao-checklist.mjs <MODELO_CODIGO> <caminho/dados.ts> [caminho/para/.env.staging]
+// ex.: node scripts/validar-migracao-checklist.mjs RDC_275_2002_PADRAO ./src/lib/checklist-data.ts
+//      node scripts/validar-migracao-checklist.mjs RDC_216_2004_PADRAO ./src/lib/checklist-data-rdc216.ts
 
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
-import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const PRODUCTION_REF = "nvkfgczahyxzgoomkavk";
@@ -24,7 +27,15 @@ function loadEnvFile(filePath) {
   return env;
 }
 
-const envPath = process.argv[2] || ".env.staging";
+const modeloCodigo = process.argv[2];
+const dadosArg = process.argv[3];
+const envPath = process.argv[4] || ".env.staging";
+
+if (!modeloCodigo || !dadosArg) {
+  console.error("Uso: node scripts/validar-migracao-checklist.mjs <MODELO_CODIGO> <caminho/dados.ts> [.env.staging]");
+  process.exit(1);
+}
+
 const env = loadEnvFile(envPath);
 const supabaseUrl = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
 const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY || env.VITE_SUPABASE_ANON_KEY;
@@ -38,10 +49,8 @@ if (supabaseUrl.includes(PRODUCTION_REF)) {
 }
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const checklistDataUrl =
-  "file:///" + path.resolve(__dirname, "../src/lib/checklist-data.ts").replace(/\\/g, "/").replace(/ /g, "%20");
-const { checklistSections } = await import(checklistDataUrl);
+const dadosUrl = "file:///" + path.resolve(process.cwd(), dadosArg).replace(/\\/g, "/").replace(/ /g, "%20");
+const { checklistSections } = await import(dadosUrl);
 
 let falhas = 0;
 function assertEqual(label, esperado, recebido) {
@@ -54,10 +63,10 @@ function assertEqual(label, esperado, recebido) {
 const { data: modelo, error: modeloErr } = await supabase
   .from("checklist_modelos")
   .select("id")
-  .eq("codigo", "RDC_275_2002_PADRAO")
+  .eq("codigo", modeloCodigo)
   .single();
 if (modeloErr || !modelo) {
-  console.error("Modelo RDC_275_2002_PADRAO não encontrado:", modeloErr?.message);
+  console.error(`Modelo ${modeloCodigo} não encontrado:`, modeloErr?.message);
   process.exit(1);
 }
 
@@ -125,7 +134,7 @@ const totalItensEsperado = checklistSections.reduce((acc, s) => acc + s.items.le
 assertEqual("total de itens", totalItensEsperado, itensDb.length);
 
 if (falhas > 0) {
-  console.error(`\n${falhas} divergência(s) encontrada(s) entre checklist-data.ts e o banco.`);
+  console.error(`\n${falhas} divergência(s) encontrada(s) entre ${dadosArg} e o banco.`);
   process.exit(1);
 }
-console.log(`OK — ${checklistSections.length} seções e ${totalItensEsperado} itens equivalentes entre checklist-data.ts e o banco.`);
+console.log(`OK — ${checklistSections.length} seções e ${totalItensEsperado} itens equivalentes entre ${dadosArg} (${modeloCodigo}) e o banco.`);

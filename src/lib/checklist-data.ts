@@ -1,5 +1,5 @@
 // Fase 7 — este arquivo não é mais importado por nenhum código de runtime do
-// app (só por scripts/gerar-seed-checklist-rdc275.mjs, a fonte do seed em
+// app (só por scripts/gerar-seed-checklist.mjs, a fonte do seed em
 // supabase/migrations/20260808100100_..._seed_rdc275.sql). Os tipos abaixo
 // vêm de checklist-types.ts justamente pra nenhum import de tipo precisar
 // tocar este arquivo.

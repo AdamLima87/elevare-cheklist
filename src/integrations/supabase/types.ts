@@ -162,6 +162,7 @@ export type Database = {
           ativo: boolean
           codigo: string
           created_at: string
+          descricao: string | null
           id: string
           legislacao_versao_id: string
           nome: string
@@ -170,6 +171,7 @@ export type Database = {
           ativo?: boolean
           codigo: string
           created_at?: string
+          descricao?: string | null
           id?: string
           legislacao_versao_id: string
           nome: string
@@ -178,6 +180,7 @@ export type Database = {
           ativo?: boolean
           codigo?: string
           created_at?: string
+          descricao?: string | null
           id?: string
           legislacao_versao_id?: string
           nome?: string
