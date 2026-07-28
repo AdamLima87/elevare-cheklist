@@ -104,7 +104,7 @@ function CrmDiagnosticoNovoPage() {
         <h1 className="font-display text-2xl font-semibold mt-1">
           {oportunidade?.crm_empresas?.nome_fantasia || oportunidade?.crm_empresas?.razao_social || "Oportunidade"}
         </h1>
-        <p className="text-sm text-muted-foreground">Checklist atual do RDCheck — identificação do estabelecimento.</p>
+        <p className="text-sm text-muted-foreground">Identificação do estabelecimento para o diagnóstico.</p>
       </div>
 
       {(status === "loading" || loadingOportunidade) && (

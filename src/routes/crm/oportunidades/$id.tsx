@@ -224,7 +224,7 @@ function DiagnosticoInicialCard({
         {!row && (
           <div className="space-y-3 text-sm">
             <p className="text-muted-foreground">
-              Nenhum diagnóstico iniciado ainda. Checklist atual do RDCheck, sem depender de cliente cadastrado.
+              Nenhum diagnóstico iniciado ainda. Escolha a legislação e inicie o checklist, sem depender de cliente cadastrado.
             </p>
             <Button
               size="sm"

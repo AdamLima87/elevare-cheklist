@@ -93,6 +93,16 @@ export async function gerarPDF(
   doc.setTextColor(50, 50, 50);
   doc.text("Relatório de Inspeção", pageWidth - 20, 45, { align: "right" });
 
+  // Fase 8.B — identifica a legislação/modelo usado nesta inspeção
+  // específica (nunca assume "a" legislação, já que mais de um modelo pode
+  // estar em uso simultaneamente no tenant).
+  if (modelo.modeloNome) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(120, 120, 120);
+    doc.text(modelo.modeloNome, pageWidth - 20, 58, { align: "right" });
+  }
+
   y = 90;
 
   // 1.3 Dados do Estabelecimento em 2 colunas
@@ -374,6 +384,7 @@ export async function gerarPDF(
     addLayoutElements(doc, i, totalPages);
   }
 
-  const filename = `Relatorio_RDCheck_${(insp.estabelecimento || "inspecao").replace(/\s+/g, "_")}.pdf`;
+  const modeloSlug = modelo.modeloCodigo ? `_${modelo.modeloCodigo}` : "";
+  const filename = `Relatorio_RDCheck${modeloSlug}_${(insp.estabelecimento || "inspecao").replace(/\s+/g, "_")}.pdf`;
   doc.save(filename);
 }

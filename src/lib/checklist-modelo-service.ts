@@ -7,6 +7,10 @@ export interface ChecklistModeloResolvido {
    * 8.B, usado pra identificar a legislação em PDF e telas com múltiplos
    * modelos em uso. */
   modeloNome: string;
+  /** Código do modelo (ex.: "RDC_275_2002_PADRAO") — Fase 8.B, usado em
+   * nomes de arquivo (PDF) pra distinguir modelos sem depender do nome
+   * completo, que pode ter espaços/acentos. */
+  modeloCodigo: string;
   secoes: ChecklistSection[];
   totalItens: number;
   criticalItemIds: Set<string>;
@@ -22,6 +26,7 @@ export class ChecklistModeloNaoEncontradoError extends Error {
 function montarModeloResolvido(
   modeloVersaoId: string,
   modeloNome: string,
+  modeloCodigo: string,
   secoesRows: { id: string; secao_key: string; titulo: string; ordem: number }[],
   itensRows: { secao_id: string; item_key: string; texto: string; critico: boolean; ordem: number }[],
 ): ChecklistModeloResolvido {
@@ -44,7 +49,7 @@ function montarModeloResolvido(
     items: itensPorSecaoId.get(s.id) ?? [],
   }));
 
-  return { modeloVersaoId, modeloNome, secoes, totalItens, criticalItemIds };
+  return { modeloVersaoId, modeloNome, modeloCodigo, secoes, totalItens, criticalItemIds };
 }
 
 /**
@@ -86,7 +91,7 @@ export async function carregarChecklistModelos(
   ] = await Promise.all([
     supabase
       .from("checklist_modelo_versoes")
-      .select("id, checklist_modelos(nome)")
+      .select("id, checklist_modelos(nome, codigo)")
       .in("id", ids),
     supabase
       .from("checklist_secoes")
@@ -106,6 +111,9 @@ export async function carregarChecklistModelos(
 
   const nomePorVersaoId = new Map<string, string>(
     (versoesRows ?? []).map((v: any) => [v.id, v.checklist_modelos?.nome ?? ""]),
+  );
+  const codigoPorVersaoId = new Map<string, string>(
+    (versoesRows ?? []).map((v: any) => [v.id, v.checklist_modelos?.codigo ?? ""]),
   );
 
   const secoesPorModelo = new Map<string, typeof secoesRows>();
@@ -128,7 +136,13 @@ export async function carregarChecklistModelos(
     if (!secoes || secoes.length === 0) continue; // sem seções cadastradas — omitido, ver doc acima
     resultado.set(
       id,
-      montarModeloResolvido(id, nomePorVersaoId.get(id) ?? "", secoes, itensPorModelo.get(id) ?? []),
+      montarModeloResolvido(
+        id,
+        nomePorVersaoId.get(id) ?? "",
+        codigoPorVersaoId.get(id) ?? "",
+        secoes,
+        itensPorModelo.get(id) ?? [],
+      ),
     );
   }
   return resultado;
