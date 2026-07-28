@@ -11,6 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   emptyFuncionario,
   loadRascunho,
+  saveRascunho,
   saveToHistorico,
   type Funcionario,
   type Inspecao,
@@ -111,6 +112,11 @@ export function ChecklistShell({ context, draftKey, preloaded, onBackToIdentific
 
       // Persist after state update is defined
       if (nextInsp) {
+        // O rascunho de slot único (draftKey) é a fonte que ResultadoShell lê
+        // no fluxo padrão "Finalizar e ver resultado" (sem ?id= na URL) — sem
+        // isso aqui, respostas ficam presas no historico/DB mas o resultado
+        // exibido logo em seguida usa a versão vazia salva na criação.
+        await saveRascunho(nextInsp, effectiveContext, draftKey);
         const newCloudUpdatedAt = await saveToHistorico(nextInsp, effectiveContext);
         // saveToHistorico compares insp.cloudUpdatedAt against the cloud row to
         // detect concurrent edits. Without feeding the fresh timestamp back into
