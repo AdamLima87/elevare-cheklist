@@ -27,7 +27,11 @@ export function ComplianceTrendChart({ data }: ComplianceTrendChartProps) {
 
   const chartData = data.map((p) => ({
     ...p,
-    label: new Date(p.date + "T00:00:00").toLocaleDateString("pt-BR"),
+    // `p.date` vem de inspecoes.data_conclusao (timestamptz) — já é um ISO
+    // completo. Só concatenamos "T00:00:00" para datas puras (YYYY-MM-DD),
+    // evitando o shift de fuso horário do parse em UTC; um timestamp
+    // completo nunca deve ser concatenado, ou o parse falha (Invalid Date).
+    label: new Date(p.date.includes("T") ? p.date : `${p.date}T00:00:00`).toLocaleDateString("pt-BR"),
   }));
 
   return (
