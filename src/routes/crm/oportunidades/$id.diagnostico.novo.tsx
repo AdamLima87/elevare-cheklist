@@ -4,8 +4,9 @@ import { AppShell } from "@/components/elevare/AppShell";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Button } from "@/components/ui/button";
 import { NovaInspecaoForm } from "@/components/elevare/NovaInspecaoForm";
+import { ChecklistModeloPicker } from "@/components/elevare/ChecklistModeloPicker";
 import { DiagnosticoNaoEncontrado } from "@/components/elevare/DiagnosticoNaoEncontrado";
-import { useCrmOportunidade, useObterOuCriarDiagnostico } from "@/hooks/useCrmOportunidades";
+import { useCrmDiagnostico, useCrmOportunidade, useObterOuCriarDiagnostico } from "@/hooks/useCrmOportunidades";
 import { useCrmEmpresa, type CrmEmpresa } from "@/hooks/useCrmEmpresas";
 import { loadInspecao, type Estabelecimento, type Inspecao } from "@/lib/storage";
 import { describeInspectionSaveError } from "@/lib/inspection-error";
@@ -41,46 +42,52 @@ function CrmDiagnosticoNovoPage() {
   const { id } = useParams({ from: "/crm/oportunidades/$id/diagnostico/novo" });
   const { data: oportunidade, isLoading: loadingOportunidade } = useCrmOportunidade(id);
   const { data: conta } = useCrmEmpresa(oportunidade?.crm_empresa_id);
+  const { data: diagnosticoExistente, isLoading: loadingExistente } = useCrmDiagnostico(id);
   const obterOuCriar = useObterOuCriarDiagnostico();
 
-  const [status, setStatus] = useState<"loading" | "form" | "erro">("loading");
+  const [status, setStatus] = useState<"loading" | "modelo" | "form" | "erro">("loading");
   const [inspecaoId, setInspecaoId] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const resultado = await obterOuCriar.mutateAsync(id);
-        if (cancelled) return;
+  const obterOuCriarCom = async (checklistModeloVersaoId?: string) => {
+    try {
+      const resultado = await obterOuCriar.mutateAsync({ crmOportunidadeId: id, checklistModeloVersaoId });
 
-        // Se a identificação já foi preenchida antes (retomando um
-        // diagnóstico existente), pula direto pro checklist — este form é
-        // só a etapa de identificação, não deve reaparecer sempre.
-        const loaded = await loadInspecao(resultado.inspecao_id);
-        if (cancelled) return;
-        if (loaded?.insp.estabelecimento) {
-          navigate({
-            to: "/crm/oportunidades/$id/diagnostico/checklist",
-            params: { id },
-            search: { inspecaoId: resultado.inspecao_id },
-            replace: true,
-          });
-          return;
-        }
-
-        setInspecaoId(resultado.inspecao_id);
-        setStatus("form");
-      } catch (error) {
-        console.error("Erro ao obter/criar diagnóstico:", error);
-        toast.error(describeInspectionSaveError(error));
-        if (!cancelled) setStatus("erro");
+      // Se a identificação já foi preenchida antes (retomando um
+      // diagnóstico existente), pula direto pro checklist — este form é
+      // só a etapa de identificação, não deve reaparecer sempre.
+      const loaded = await loadInspecao(resultado.inspecao_id);
+      if (loaded?.insp.estabelecimento) {
+        navigate({
+          to: "/crm/oportunidades/$id/diagnostico/checklist",
+          params: { id },
+          search: { inspecaoId: resultado.inspecao_id },
+          replace: true,
+        });
+        return;
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
+
+      setInspecaoId(resultado.inspecao_id);
+      setStatus("form");
+    } catch (error) {
+      console.error("Erro ao obter/criar diagnóstico:", error);
+      toast.error(describeInspectionSaveError(error));
+      setStatus("erro");
+    }
+  };
+
+  useEffect(() => {
+    if (loadingExistente) return;
+    // Diagnóstico já existe (retomando) — a RPC é idempotente e ignora o
+    // modelo pra linhas já criadas, então não precisa escolher de novo.
+    if (diagnosticoExistente && diagnosticoExistente.rows.length > 0) {
+      obterOuCriarCom();
+      return;
+    }
+    // Nenhum diagnóstico ainda — Fase 8.B: escolhe a legislação/modelo antes
+    // de criar a inspeção (auto-seleciona sozinho se só houver 1 modelo).
+    setStatus("modelo");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, loadingExistente, diagnosticoExistente]);
 
   const voltarOportunidade = () => navigate({ to: "/crm/oportunidades/$id", params: { id } });
 
@@ -105,6 +112,7 @@ function CrmDiagnosticoNovoPage() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       )}
+      {status === "modelo" && <ChecklistModeloPicker onSelecionar={obterOuCriarCom} />}
       {status === "erro" && <DiagnosticoNaoEncontrado onVoltar={voltarOportunidade} />}
       {status === "form" && inspecaoId && (
         <NovaInspecaoForm

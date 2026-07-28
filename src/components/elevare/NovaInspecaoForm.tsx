@@ -44,9 +44,19 @@ interface NovaInspecaoFormProps {
   crmContext?: { crmOportunidadeId: string; inspecaoId: string };
   /** Sobrepõe a navegação padrão (`/checklist`) após iniciar/salvar com sucesso. */
   onIniciado?: (insp: Inspecao) => void;
+  /** Fase 8.B: modelo de checklist escolhido no passo anterior (ChecklistModeloPicker).
+   * Sem isso, createNewInspecao() cai no modelo padrão global. */
+  checklistModeloVersaoId?: string;
 }
 
-export function NovaInspecaoForm({ clienteId, prefill, editFromUrl = false, crmContext, onIniciado }: NovaInspecaoFormProps) {
+export function NovaInspecaoForm({
+  clienteId,
+  prefill,
+  editFromUrl = false,
+  crmContext,
+  onIniciado,
+  checklistModeloVersaoId,
+}: NovaInspecaoFormProps) {
   const navigate = useNavigate();
   const [estab, setEstab] = useState<Estabelecimento>(() => ({
     ...emptyEstabelecimento(),
@@ -337,7 +347,7 @@ export function NovaInspecaoForm({ clienteId, prefill, editFromUrl = false, crmC
         return;
       } else {
         const { createNewInspecao } = await import("@/lib/storage");
-        insp = await createNewInspecao();
+        insp = await createNewInspecao(checklistModeloVersaoId);
         insp.dados.estabelecimento = estab;
         insp.estabelecimento = estab.nomeFantasia || estab.razaoSocial;
       }

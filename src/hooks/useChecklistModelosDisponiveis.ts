@@ -6,6 +6,7 @@ export interface ChecklistModeloDisponivel {
   modeloId: string;
   nome: string;
   codigo: string;
+  descricao: string | null;
 }
 
 /**
@@ -20,7 +21,7 @@ export function useChecklistModelosDisponiveis() {
     queryFn: async (): Promise<ChecklistModeloDisponivel[]> => {
       const { data, error } = await supabase
         .from("checklist_modelo_versoes")
-        .select("id, modelo_id, is_versao_atual, checklist_modelos(id, codigo, nome, ativo)")
+        .select("id, modelo_id, is_versao_atual, checklist_modelos(id, codigo, nome, descricao, ativo)")
         .eq("is_versao_atual", true)
         .eq("ativo", true)
         .not("publicado_em", "is", null);
@@ -32,6 +33,7 @@ export function useChecklistModelosDisponiveis() {
           modeloId: row.modelo_id,
           nome: row.checklist_modelos.nome,
           codigo: row.checklist_modelos.codigo,
+          descricao: row.checklist_modelos.descricao ?? null,
         }));
     },
     staleTime: 5 * 60 * 1000,

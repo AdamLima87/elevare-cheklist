@@ -36,6 +36,7 @@ import { toTrendPoints } from "@/lib/compliance-trend";
 import { ComplianceTrendChart } from "@/components/elevare/ComplianceTrendChart";
 import { ComparativoInspecoes } from "@/components/elevare/ComparativoInspecoes";
 import { NovaInspecaoForm } from "@/components/elevare/NovaInspecaoForm";
+import { ChecklistModeloPicker } from "@/components/elevare/ChecklistModeloPicker";
 import { ReinspecaoCard } from "@/components/elevare/ReinspecaoCard";
 import { useReinspecaoProgramacoesCliente } from "@/hooks/useReinspecaoProgramacoes";
 import { useCliente, ETAPAS_FUNIL, useUpdateClienteFunil, useConverterProspectEmCliente } from "@/hooks/useClientes";
@@ -102,6 +103,7 @@ function ClienteDetailPage() {
   const { data: modelos } = useChecklistModelos(
     rows.map((r: any) => r.checklist_modelo_versao_id),
   );
+  const [novaInspecaoModeloId, setNovaInspecaoModeloId] = useState<string | null>(null);
 
   const isLoading = loadingCliente || loadingInspecoes || loadingEmAndamento;
   const isProspect = cliente?.status === "prospeccao";
@@ -314,15 +316,20 @@ function ClienteDetailPage() {
               </TabsContent>
 
               <TabsContent value="nova-inspecao">
-                <NovaInspecaoForm
-                  clienteId={id}
-                  prefill={{
-                    razaoSocial: cliente?.nome ?? "",
-                    nomeFantasia: cliente?.nome ?? "",
-                    cnpj: cliente?.cnpj ?? "",
-                    atividade: cliente?.categoria ?? "",
-                  }}
-                />
+                {novaInspecaoModeloId ? (
+                  <NovaInspecaoForm
+                    clienteId={id}
+                    checklistModeloVersaoId={novaInspecaoModeloId}
+                    prefill={{
+                      razaoSocial: cliente?.nome ?? "",
+                      nomeFantasia: cliente?.nome ?? "",
+                      cnpj: cliente?.cnpj ?? "",
+                      atividade: cliente?.categoria ?? "",
+                    }}
+                  />
+                ) : (
+                  <ChecklistModeloPicker onSelecionar={setNovaInspecaoModeloId} />
+                )}
               </TabsContent>
 
               <TabsContent value="planos">

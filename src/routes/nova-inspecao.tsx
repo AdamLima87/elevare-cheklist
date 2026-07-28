@@ -11,6 +11,7 @@ import { syncFromCloud } from "@/lib/sync";
 import { ClipboardCheck, Search, Building2, ArrowLeft, Loader2 } from "lucide-react";
 import { SyncStatus } from "@/components/elevare/SyncStatus";
 import { useClientes, type Cliente } from "@/hooks/useClientes";
+import { ChecklistModeloPicker } from "@/components/elevare/ChecklistModeloPicker";
 
 export const Route = createFileRoute("/nova-inspecao")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -39,6 +40,7 @@ function IndexPage() {
   const { edit } = Route.useSearch();
   const [syncing, setSyncing] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
+  const [modeloVersaoId, setModeloVersaoId] = useState<string | null>(null);
 
   useEffect(() => {
     handleSync(true); // silent na entrada
@@ -88,6 +90,30 @@ function IndexPage() {
 
       {edit ? (
         <NovaInspecaoForm editFromUrl />
+      ) : selectedCliente && modeloVersaoId ? (
+        <>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mb-4 gap-1.5"
+            onClick={() => {
+              setSelectedCliente(null);
+              setModeloVersaoId(null);
+            }}
+          >
+            <ArrowLeft className="h-4 w-4" /> Trocar cliente
+          </Button>
+          <NovaInspecaoForm
+            clienteId={selectedCliente.id}
+            checklistModeloVersaoId={modeloVersaoId}
+            prefill={{
+              razaoSocial: selectedCliente.nome,
+              nomeFantasia: selectedCliente.nome,
+              cnpj: selectedCliente.cnpj ?? "",
+              atividade: selectedCliente.categoria ?? "",
+            }}
+          />
+        </>
       ) : selectedCliente ? (
         <>
           <Button
@@ -98,15 +124,7 @@ function IndexPage() {
           >
             <ArrowLeft className="h-4 w-4" /> Trocar cliente
           </Button>
-          <NovaInspecaoForm
-            clienteId={selectedCliente.id}
-            prefill={{
-              razaoSocial: selectedCliente.nome,
-              nomeFantasia: selectedCliente.nome,
-              cnpj: selectedCliente.cnpj ?? "",
-              atividade: selectedCliente.categoria ?? "",
-            }}
-          />
+          <ChecklistModeloPicker onSelecionar={setModeloVersaoId} />
         </>
       ) : (
         <ClientePicker onSelect={setSelectedCliente} />

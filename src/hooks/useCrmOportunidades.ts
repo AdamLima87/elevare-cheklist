@@ -242,14 +242,18 @@ export interface ObterOuCriarDiagnosticoResultado {
 export function useObterOuCriarDiagnostico() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (crmOportunidadeId: string) => {
+    mutationFn: async (input: string | { crmOportunidadeId: string; checklistModeloVersaoId?: string }) => {
+      const { crmOportunidadeId, checklistModeloVersaoId } =
+        typeof input === "string" ? { crmOportunidadeId: input, checklistModeloVersaoId: undefined } : input;
       const { data, error } = await supabase.rpc("crm_obter_ou_criar_diagnostico", {
         p_oportunidade_id: crmOportunidadeId,
+        p_checklist_modelo_versao_id: checklistModeloVersaoId,
       });
       if (error) throw error;
       return (data as ObterOuCriarDiagnosticoResultado[])[0];
     },
-    onSuccess: (_data, crmOportunidadeId) => {
+    onSuccess: (_data, input) => {
+      const crmOportunidadeId = typeof input === "string" ? input : input.crmOportunidadeId;
       queryClient.invalidateQueries({ queryKey: ["crm-diagnostico", crmOportunidadeId] });
       queryClient.invalidateQueries({ queryKey: ["crm-timeline"] });
     },

@@ -58,10 +58,13 @@ export function ChecklistModeloPicker({
           <Button
             key={modelo.modeloVersaoId}
             variant="outline"
-            className="justify-start"
+            className="h-auto flex-col items-start gap-0.5 whitespace-normal py-3 text-left"
             onClick={() => onSelecionar(modelo.modeloVersaoId)}
           >
-            {modelo.nome}
+            <span className="font-medium">{modelo.nome}</span>
+            {modelo.descricao && (
+              <span className="text-xs font-normal text-muted-foreground">{modelo.descricao}</span>
+            )}
           </Button>
         ))}
       </CardContent>
