@@ -37,7 +37,7 @@ import { cn } from "@/lib/utils";
 import { useNavigate } from "@tanstack/react-router";
 import { classificacao } from "@/lib/storage";
 import { contarNCCriticasModelo } from "@/lib/checklist-modelo-service";
-import { useChecklistModeloPadrao } from "@/hooks/useChecklistModeloPadrao";
+import { useChecklistModelos } from "@/hooks/useChecklistModelos";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { useConsultants } from "@/hooks/useConsultants";
 import { useInspecoesQuery, useInspecoesStats } from "@/hooks/useInspecoesQuery";
@@ -61,7 +61,6 @@ function RelatoriosPage() {
   const isAdmin = profile?.perfil === "admin" || profile?.perfil === "super_admin";
   const { data: consultants = {} } = useConsultants(isAdmin);
   const resendEmail = useResendInspectionEmail();
-  const { data: modeloPadrao } = useChecklistModeloPadrao();
 
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
@@ -108,6 +107,10 @@ function RelatoriosPage() {
         );
       })
     : rows;
+
+  const { data: modelos } = useChecklistModelos(
+    visibleRows.map((r: any) => r.checklist_modelo_versao_id),
+  );
 
   const updateFilter = (patch: Partial<typeof filters>) => {
     setFilters((f) => ({ ...f, ...patch }));
@@ -278,9 +281,10 @@ function RelatoriosPage() {
                     </TableHeader>
                     <TableBody>
                       {visibleRows.map((insp: any) => {
+                        const modelo = modelos?.get(insp.checklist_modelo_versao_id);
                         const cls = classificacao(
                           Number(insp.conformidade),
-                          modeloPadrao ? contarNCCriticasModelo(modeloPadrao, insp.respostas) : 0,
+                          modelo ? contarNCCriticasModelo(modelo, insp.respostas) : 0,
                         );
                         const isSending =
                           resendEmail.isPending && resendEmail.variables?.id === insp.id;

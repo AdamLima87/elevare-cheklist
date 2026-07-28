@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { carregarChecklistModelo } from "@/lib/checklist-modelo-service";
-import { resolverChecklistModeloPadrao, type AcaoCorretiva } from "@/lib/storage";
+import { carregarChecklistModelos } from "@/lib/checklist-modelo-service";
+import type { AcaoCorretiva } from "@/lib/storage";
 
 export interface PlanoAcaoRow extends AcaoCorretiva {
   itemId: string;
@@ -18,25 +18,30 @@ export function usePlanosAcaoCliente(clienteId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("inspecoes")
-        .select("id, numero_sequencial, data_conclusao, dados")
+        .select("id, numero_sequencial, data_conclusao, dados, checklist_modelo_versao_id")
         .eq("cliente_id", clienteId as string)
         .order("data_conclusao", { ascending: false });
       if (error) throw error;
 
-      // Fase 7 — mesmo trade-off documentado em useChecklistModeloPadrao.ts:
-      // esta lista agrega planos de ação de várias inspeções do cliente, sem
-      // ser uma tela de execução de uma inspeção específica.
-      const modeloVersaoIdPadrao = await resolverChecklistModeloPadrao();
-      const modelo = await carregarChecklistModelo(supabase, modeloVersaoIdPadrao);
-      const itemLookup = new Map<string, { text: string; secao: string }>();
-      modelo.secoes.forEach((secao) => {
-        secao.items.forEach((item) => {
-          itemLookup.set(item.id, { text: item.text, secao: secao.title });
-        });
-      });
+      // Fase 8.B — cada inspeção resolve o texto do item pelo SEU PRÓPRIO
+      // modelo (não mais pelo modelo padrão global): um cliente com
+      // inspeções em RDC 275 e RDC 216 tem itens com o mesmo id ("8.1" etc.)
+      // significando coisas diferentes em cada modelo.
+      const modelosPorId = await carregarChecklistModelos(
+        supabase,
+        (data ?? []).map((insp: any) => insp.checklist_modelo_versao_id),
+      );
 
       const rows: PlanoAcaoRow[] = [];
       (data ?? []).forEach((insp: any) => {
+        const modelo = modelosPorId.get(insp.checklist_modelo_versao_id);
+        const itemLookup = new Map<string, { text: string; secao: string }>();
+        modelo?.secoes.forEach((secao) => {
+          secao.items.forEach((item) => {
+            itemLookup.set(item.id, { text: item.text, secao: secao.title });
+          });
+        });
+
         const planoAcao: Record<string, AcaoCorretiva> = insp.dados?.planoAcao ?? {};
         Object.entries(planoAcao).forEach(([itemId, acao]) => {
           const meta = itemLookup.get(itemId);

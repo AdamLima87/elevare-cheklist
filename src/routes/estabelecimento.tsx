@@ -15,7 +15,7 @@ import { Loader2, FileText, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { classificacao } from "@/lib/storage";
 import { contarNCCriticasModelo } from "@/lib/checklist-modelo-service";
-import { useChecklistModeloPadrao } from "@/hooks/useChecklistModeloPadrao";
+import { useChecklistModelos } from "@/hooks/useChecklistModelos";
 import { toTrendPoints } from "@/lib/compliance-trend";
 import { ComplianceTrendChart } from "@/components/elevare/ComplianceTrendChart";
 import { useInspecoesQuery } from "@/hooks/useInspecoesQuery";
@@ -36,8 +36,6 @@ export const Route = createFileRoute("/estabelecimento")({
 function EstabelecimentoPage() {
   const navigate = useNavigate();
   const search = useSearch({ from: "/estabelecimento" }) as { cnpj?: string };
-  const { data: modeloPadrao } = useChecklistModeloPadrao();
-
   const { data, isLoading } = useInspecoesQuery({
     cnpj: search.cnpj,
     status: "concluida",
@@ -48,6 +46,9 @@ function EstabelecimentoPage() {
 
   const rows = data?.rows ?? [];
   const mostRecent = rows[0] as any;
+  const { data: modelos } = useChecklistModelos(
+    rows.map((r: any) => r.checklist_modelo_versao_id),
+  );
 
   if (!search.cnpj) {
     return (
@@ -115,9 +116,10 @@ function EstabelecimentoPage() {
                     </TableHeader>
                     <TableBody>
                       {rows.map((insp: any) => {
+                        const modelo = modelos?.get(insp.checklist_modelo_versao_id);
                         const cls = classificacao(
                           Number(insp.conformidade),
-                          modeloPadrao ? contarNCCriticasModelo(modeloPadrao, insp.respostas) : 0,
+                          modelo ? contarNCCriticasModelo(modelo, insp.respostas) : 0,
                         );
                         return (
                           <TableRow key={insp.id}>

@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { useUpcomingVisitas } from "@/hooks/useVisitas";
 import { useExpiringDocumentos } from "@/hooks/useDocumentos";
 import { calcularSecoes, classificacao, resolverChecklistModeloPadrao } from "@/lib/storage";
-import { carregarChecklistModelo, contarNCCriticasModelo } from "@/lib/checklist-modelo-service";
+import { carregarChecklistModelos, contarNCCriticasModelo } from "@/lib/checklist-modelo-service";
 import { toTrendPoints } from "@/lib/compliance-trend";
 import { DashboardSummaryCards } from "@/components/elevare/DashboardSummaryCards";
 
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 const DASHBOARD_COLUMNS =
-  "id, status, conformidade, cnpj, estabelecimento_nome, data_inicio, data_conclusao, consultor_id, dados, respostas, tipo_execucao";
+  "id, status, conformidade, cnpj, estabelecimento_nome, data_inicio, data_conclusao, consultor_id, dados, respostas, tipo_execucao, checklist_modelo_versao_id";
 
 async function fetchDashboardStats() {
   const [
@@ -41,11 +41,17 @@ async function fetchDashboardStats() {
 
   if (error) throw error;
 
-  // Fase 7 — dashboard é uma tela de resumo agregado, não por-inspeção; usa o
-  // modelo padrão (hoje o único em uso) pra rankings/contagens de seção. Ver
-  // nota em useChecklistModeloPadrao.ts sobre o mesmo trade-off em outras telas.
-  const checklistModelo = await carregarChecklistModelo(supabase, modeloVersaoIdPadrao);
-  const checklistSections = checklistModelo.secoes;
+  // Fase 8.B — carrega TODOS os modelos em uso (não só o padrão), pra
+  // resolver cada inspeção pelo seu próprio checklist_modelo_versao_id.
+  // Rankings/agregados de seção são chaveados por modelo+seção pra nunca
+  // fundir seções homônimas de legislações diferentes.
+  const modeloIds = [
+    ...new Set((inspections ?? []).map((i) => i.checklist_modelo_versao_id).filter(Boolean) as string[]),
+  ];
+  const modelosPorId = await carregarChecklistModelos(supabase, modeloIds);
+  const checklistModelo = modelosPorId.get(modeloVersaoIdPadrao);
+  const checklistSections = checklistModelo?.secoes ?? [];
+  const multiplosModelos = modelosPorId.size > 1;
 
   const consultantMap = (consultants || []).reduce((acc: any, c: any) => {
     acc[c.id] = c.nome;
@@ -98,24 +104,30 @@ async function fetchDashboardStats() {
     { name: "Ruim", value: classifications.ruim, color: "#ef4444" },
   ].filter((d) => d.value > 0);
 
-  // Non-conformities ranking
-  const sectionNonConf: any = {};
-  checklistSections.forEach((s) => (sectionNonConf[s.id] = { id: s.id, title: s.title, count: 0 }));
-
+  // Non-conformities ranking — chaveado por modelo+seção (Fase 8.B) pra não
+  // fundir seções homônimas de modelos diferentes (ex.: "Manipuladores" na
+  // RDC 275 e na RDC 216).
+  const sectionNonConf: Record<string, { id: string; title: string; count: number }> = {};
   inspections?.forEach((i) => {
+    const modelo = modelosPorId.get(i.checklist_modelo_versao_id as string);
     const respostas = i.respostas as any;
-    if (respostas) {
-      checklistSections.forEach((sec) => {
-        sec.items.forEach((item) => {
-          if (respostas[item.id] === "N") {
-            sectionNonConf[sec.id].count++;
-          }
-        });
+    if (!modelo || !respostas) return;
+    modelo.secoes.forEach((sec) => {
+      const key = `${modelo.modeloVersaoId}::${sec.id}`;
+      if (!sectionNonConf[key]) {
+        sectionNonConf[key] = {
+          id: key,
+          title: multiplosModelos ? `${sec.title} (${modelo.modeloNome})` : sec.title,
+          count: 0,
+        };
+      }
+      sec.items.forEach((item) => {
+        if (respostas[item.id] === "N") sectionNonConf[key].count++;
       });
-    }
+    });
   });
   const rankingNonConf = Object.values(sectionNonConf)
-    .sort((a: any, b: any) => b.count - a.count)
+    .sort((a, b) => b.count - a.count)
     .slice(0, 8);
 
   // Bottom 5 establishments
@@ -194,14 +206,21 @@ async function fetchDashboardStats() {
   concluded.forEach((i) => {
     const respostas = i.respostas as any;
     if (!respostas) return;
-    calcularSecoes(respostas, checklistModelo).forEach((sec) => {
-      if (sec.percentual !== null) {
-        sectionAgg[sec.id].sumPct += sec.percentual;
-        sectionAgg[sec.id].count++;
-      }
-    });
+    const modelo = modelosPorId.get(i.checklist_modelo_versao_id as string);
+    if (!modelo) return;
+    // Categorias do resumo (categoryBreakdown) são específicas do modelo
+    // padrão (chaves fixas em CATEGORY_IDS) — inspeções de outros modelos
+    // não entram nessa agregação pra não misturar seções incompatíveis.
+    if (modelo.modeloVersaoId === checklistModelo?.modeloVersaoId) {
+      calcularSecoes(respostas, modelo).forEach((sec) => {
+        if (sec.percentual !== null && sectionAgg[sec.id]) {
+          sectionAgg[sec.id].sumPct += sec.percentual;
+          sectionAgg[sec.id].count++;
+        }
+      });
+    }
     totalNC += Object.values(respostas).filter((r) => r === "N").length;
-    totalCriticalNC += contarNCCriticasModelo(checklistModelo, respostas);
+    totalCriticalNC += contarNCCriticasModelo(modelo, respostas);
   });
 
   const categoryBreakdown = CATEGORY_IDS.map((id) => {

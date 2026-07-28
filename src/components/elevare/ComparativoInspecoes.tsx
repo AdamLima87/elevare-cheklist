@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useChecklistModelo } from "@/hooks/useChecklistModelo";
@@ -20,6 +20,7 @@ interface InspecaoOption {
   numero_sequencial: number;
   data_conclusao: string | null;
   conformidade: number | null;
+  checklist_modelo_versao_id: string | null;
 }
 
 function useRespostas(inspecaoId: string | undefined) {
@@ -50,17 +51,32 @@ export function ComparativoInspecoes({ inspecoes }: { inspecoes: InspecaoOption[
     [inspecoes],
   );
 
-  const [anteriorId, setAnteriorId] = useState<string | undefined>(ordenadas[1]?.id);
   const [atualId, setAtualId] = useState<string | undefined>(ordenadas[0]?.id);
+  const atual = ordenadas.find((i) => i.id === atualId);
+
+  // Comparar através de modelos de checklist diferentes não faz sentido — o
+  // seletor "anterior" só oferece inspeções do MESMO modelo da "atual".
+  const anteriorOptions = useMemo(
+    () =>
+      ordenadas.filter(
+        (i) => i.id !== atualId && i.checklist_modelo_versao_id === atual?.checklist_modelo_versao_id,
+      ),
+    [ordenadas, atualId, atual?.checklist_modelo_versao_id],
+  );
+
+  const [anteriorId, setAnteriorId] = useState<string | undefined>(anteriorOptions[0]?.id);
+
+  useEffect(() => {
+    if (!anteriorOptions.some((i) => i.id === anteriorId)) {
+      setAnteriorId(anteriorOptions[0]?.id);
+    }
+  }, [anteriorOptions, anteriorId]);
 
   const { data: anteriorData, isLoading: loadingAnterior } = useRespostas(anteriorId);
   const { data: atualData, isLoading: loadingAtual } = useRespostas(atualId);
-  // Comparar através de modelos de checklist diferentes não faz sentido —
-  // usa o modelo da inspeção ATUAL como referência de seções/itens.
   const { data: modelo, isLoading: loadingModelo } = useChecklistModelo(atualData?.checklistModeloVersaoId);
 
   const anterior = ordenadas.find((i) => i.id === anteriorId);
-  const atual = ordenadas.find((i) => i.id === atualId);
 
   const diffs = useMemo(() => {
     if (!anteriorData || !atualData || !modelo) return [];
@@ -109,12 +125,12 @@ export function ComparativoInspecoes({ inspecoes }: { inspecoes: InspecaoOption[
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Inspeção anterior</label>
-          <Select value={anteriorId} onValueChange={setAnteriorId}>
+          <Select value={anteriorId} onValueChange={setAnteriorId} disabled={anteriorOptions.length === 0}>
             <SelectTrigger>
               <SelectValue placeholder="Selecione" />
             </SelectTrigger>
             <SelectContent>
-              {ordenadas.map((insp) => (
+              {anteriorOptions.map((insp) => (
                 <SelectItem key={insp.id} value={insp.id}>
                   {formatNumero(insp.numero_sequencial)} —{" "}
                   {insp.data_conclusao ? new Date(insp.data_conclusao).toLocaleDateString("pt-BR") : "—"}
@@ -141,7 +157,13 @@ export function ComparativoInspecoes({ inspecoes }: { inspecoes: InspecaoOption[
         </div>
       </div>
 
-      {loadingAnterior || loadingAtual || loadingModelo ? (
+      {anteriorOptions.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-8 text-center">
+          Não há outra inspeção concluída com o mesmo modelo de checklist da inspeção atual
+          para comparar. Inspeções em modelos diferentes (ex.: legislações distintas) não são
+          comparáveis entre si.
+        </p>
+      ) : loadingAnterior || loadingAtual || loadingModelo ? (
         <div className="flex justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
