@@ -98,17 +98,23 @@ export function NovaInspecaoForm({
       return;
     }
 
-    // Dentro da aba de um cliente: só carrega automaticamente se o rascunho já
-    // for desse mesmo cliente (mesmo CNPJ). Rascunho de outro cliente fica
-    // intocado até o usuário confirmar que quer substituí-lo (ver `iniciar`).
+    // Dentro da aba de um cliente: só retoma automaticamente se o rascunho já
+    // for desse mesmo cliente (mesmo CNPJ), ainda estiver em andamento (não
+    // concluído) e pertencer ao mesmo modelo de checklist selecionado nesta
+    // sessão (Fase 8.B picker). Rascunho de outro cliente, já concluído, ou
+    // de outro modelo fica intocado — `iniciar()` cria uma inspeção nova
+    // nesse caso em vez de reabrir/sobrescrever silenciosamente a existente.
     const existingCnpj = existing.dados?.estabelecimento?.cnpj?.replace(/\D/g, "") ?? "";
     const prefillCnpj = (prefill?.cnpj ?? "").replace(/\D/g, "");
-    if (clienteId && prefillCnpj && existingCnpj === prefillCnpj) {
+    const sameCliente = Boolean(clienteId && prefillCnpj && existingCnpj === prefillCnpj);
+    const aindaEmAndamento = existing.status === "em_andamento";
+    const mesmoModelo = !checklistModeloVersaoId || existing.checklistModeloVersaoId === checklistModeloVersaoId;
+    if (sameCliente && aindaEmAndamento && mesmoModelo) {
       setRascunho(existing);
       if (existing.dados?.estabelecimento) setEstab(existing.dados.estabelecimento);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editFromUrl, clienteId]);
+  }, [editFromUrl, clienteId, checklistModeloVersaoId]);
 
   useEffect(() => {
     if (!crmContext) return;
