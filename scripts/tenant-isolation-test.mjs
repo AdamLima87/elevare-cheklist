@@ -1149,11 +1149,29 @@ async function main() {
 
     console.log("\nFase 7 — imutabilidade de checklist (legislações/modelos):");
 
+    // Fase 8.B — pode existir mais de um modelo com is_versao_atual=true
+    // simultaneamente (cada legislação tem a sua própria "versão atual"), então
+    // este teste sempre ancora explicitamente na RDC 275, nunca em "a" versão
+    // atual genérica (que deixou de ser única desde que o segundo modelo existe).
     const { data: modeloVersaoAtual } = await admin
       .from("checklist_modelo_versoes")
-      .select("id, modelo_id")
+      .select("id, modelo_id, checklist_modelos!inner(codigo)")
       .eq("is_versao_atual", true)
+      .eq("checklist_modelos.codigo", "RDC_275_2002_PADRAO")
       .single();
+
+    await test("Fase 8.B: resolver_checklist_modelo_padrao() continua na RDC 275 mesmo com outros modelos publicados", async () => {
+      const { data: outrosModelos } = await admin
+        .from("checklist_modelo_versoes")
+        .select("id", { count: "exact" })
+        .eq("is_versao_atual", true);
+      const { data: padraoAtual, error } = await admin.rpc("resolver_checklist_modelo_padrao");
+      if (error) throw error;
+      assert(
+        padraoAtual === modeloVersaoAtual.id,
+        `esperava que o padrão global continuasse sendo a versão da RDC 275 (${modeloVersaoAtual.id}) mesmo com ${outrosModelos?.length ?? "?"} modelo(s) publicado(s), recebeu ${padraoAtual}`,
+      );
+    });
 
     await test("UPDATE em item de versão de checklist publicada falha", async () => {
       const { data: item } = await admin.from("checklist_itens").select("id").eq("modelo_versao_id", modeloVersaoAtual.id).limit(1).single();
