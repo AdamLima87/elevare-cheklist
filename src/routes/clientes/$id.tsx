@@ -47,6 +47,10 @@ import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { useClienteInteracoes, useCreateInteracao } from "@/hooks/useClienteInteracoes";
 import { usePlanosAcaoCliente, useTogglePlanoAcao } from "@/hooks/usePlanosAcaoCliente";
 import { useVisitas, useCreateVisita, useUpdateVisitaStatus } from "@/hooks/useVisitas";
+import { useSegundoEscopoPendente } from "@/hooks/useSegundoEscopoPendente";
+import { useChecklistModelosDisponiveis } from "@/hooks/useChecklistModelosDisponiveis";
+import { AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   useDocumentos,
   useCreateDocumento,
@@ -108,6 +112,46 @@ function ClienteDetailPage() {
   );
   const [novaInspecaoModeloId, setNovaInspecaoModeloId] = useState<string | null>(null);
   const [novaInspecaoSnapshot, setNovaInspecaoSnapshot] = useState<ContextoRecomendacaoSnapshot | null>(null);
+  const [inspecaoOrigemPendenteId, setInspecaoOrigemPendenteId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("geral");
+
+  // Fase 9.G — segundo escopo pendente de uma decisão de múltiplos escopos
+  // anterior (opção "Realizar inspeções separadas"): oferece a ação de
+  // iniciar agora, tanto logo após concluir a primeira inspeção (ver
+  // ResultadoShell) quanto, se o consultor sair sem agir, aqui no hub do
+  // cliente na próxima vez que ele voltar.
+  const { data: escopoPendente } = useSegundoEscopoPendente(id);
+  const { data: modelosDisponiveis } = useChecklistModelosDisponiveis();
+
+  const iniciarEscopoPendente = () => {
+    if (!escopoPendente) return;
+    const modeloValido = modelosDisponiveis?.some(
+      (m) => m.modeloVersaoId === escopoPendente.modeloOuEscopoNaoInspecionado,
+    );
+    setInspecaoOrigemPendenteId(escopoPendente.inspecaoOrigemId);
+    if (modeloValido) {
+      setNovaInspecaoModeloId(escopoPendente.modeloOuEscopoNaoInspecionado);
+      setNovaInspecaoSnapshot({
+        ufConsiderada: escopoPendente.ufConsiderada,
+        ufOrigem: "sugestao_inspecao_anterior_ajustada",
+        atividadesConsideradas: escopoPendente.atividadesConsideradas,
+        atividadesOrigem: "sugestao_inspecao_anterior_ajustada",
+        resultado: {
+          tipo: "unica",
+          modeloRecomendadoId: escopoPendente.modeloOuEscopoNaoInspecionado as string,
+          motivo: "Continuação do segundo escopo identificado em inspeção anterior deste cliente.",
+          usoAntecipado: false,
+        },
+        dataCalculo: new Date().toISOString(),
+        versaoRegra: "9.G-v1",
+      });
+    }
+    // Sem modelo válido (raro — nenhuma legislação foi sugerida
+    // automaticamente pra esse escopo na decisão original): só troca de aba
+    // e deixa o ContextoLegislacaoPicker normal decidir, sem pré-selecionar
+    // nada incorreto.
+    setActiveTab("nova-inspecao");
+  };
 
   const isLoading = loadingCliente || loadingInspecoes || loadingEmAndamento;
   const isProspect = cliente?.status === "prospeccao";
@@ -175,7 +219,23 @@ function ClienteDetailPage() {
               </p>
             </div>
 
-            <Tabs defaultValue="geral">
+            {escopoPendente && (
+              <Alert className="mb-6">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Segundo escopo regulatório pendente</AlertTitle>
+                <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                  <span>
+                    Uma inspeção anterior deste cliente identificou mais de um escopo (comércio/serviço e
+                    produção/industrialização) e este segundo escopo ainda não foi inspecionado.
+                  </span>
+                  <Button size="sm" variant="outline" onClick={iniciarEscopoPendente}>
+                    Iniciar agora
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList>
                 <TabsTrigger value="geral">Visão Geral</TabsTrigger>
                 <TabsTrigger value="nova-inspecao">Nova Inspeção</TabsTrigger>
@@ -325,6 +385,7 @@ function ClienteDetailPage() {
                     clienteId={id}
                     checklistModeloVersaoId={novaInspecaoModeloId}
                     recomendacaoSnapshot={novaInspecaoSnapshot ?? undefined}
+                    inspecaoOrigemPendenteId={inspecaoOrigemPendenteId ?? undefined}
                     prefill={{
                       razaoSocial: cliente?.nome ?? "",
                       nomeFantasia: cliente?.nome ?? "",
@@ -336,6 +397,11 @@ function ClienteDetailPage() {
                   <ContextoLegislacaoPicker
                     clienteId={id}
                     onSelecionar={(modeloId, snapshot) => {
+                      // Escolha manual/normal — não é a continuação de um
+                      // escopo pendente, mesmo que uma tenha sido iniciada
+                      // antes nesta mesma sessão (evita vincular por engano
+                      // uma inspeção nova a uma pendência de outra decisão).
+                      setInspecaoOrigemPendenteId(null);
                       setNovaInspecaoModeloId(modeloId);
                       setNovaInspecaoSnapshot(snapshot);
                     }}

@@ -36,8 +36,47 @@ export interface Sugestao {
 
 export type ResultadoRecomendacao =
   | { tipo: "unica"; modeloRecomendadoId: string; motivo: string; usoAntecipado: boolean }
-  | { tipo: "multiplos_escopos"; sugestoes: Sugestao[]; alerta: string }
+  | { tipo: "multiplos_escopos"; sugestoes: Sugestao[]; titulo: string; alerta: string }
   | { tipo: "nenhuma" };
+
+/**
+ * Fase 9.G — decisão explícita exigida do consultor quando o motor detecta
+ * múltiplos escopos regulatórios (comércio/serviço + produção/industrialização).
+ * O sistema nunca escolhe uma norma sozinho nesse cenário; o avanço fica
+ * bloqueado até uma destas 4 opções ser resolvida (ver MultiplosEscoposDecisao.tsx).
+ */
+export type DecisaoMultiplosEscopos =
+  | "escopo_comercio_servico"
+  | "escopo_producao"
+  | "duas_inspecoes"
+  | "prosseguir_com_justificativa";
+
+/**
+ * Motivos estruturados pra não inspecionar o outro escopo agora (exigidos
+ * nas opções 1, 2 e 4). Nunca inclui "atividade pequena/secundária/baixa
+ * escala" como motivo — isso não é, por si só, uma exceção normativa
+ * comprovada (instrução explícita do usuário).
+ */
+export type JustificativaCodigo =
+  | "atividade_nao_realizada_nesta_unidade"
+  | "atividade_em_unidade_separada"
+  | "fora_do_escopo_contratado"
+  | "inspecao_separada_existente_ou_programada"
+  | "enquadramento_confirmado_licenciamento"
+  | "orientacao_vigilancia_sanitaria"
+  | "regulamento_tecnico_especifico"
+  | "outro";
+
+export const JUSTIFICATIVA_OPCOES: { codigo: JustificativaCodigo; label: string }[] = [
+  { codigo: "atividade_nao_realizada_nesta_unidade", label: "A outra atividade não é realizada nesta unidade" },
+  { codigo: "atividade_em_unidade_separada", label: "A outra atividade é realizada em unidade separada" },
+  { codigo: "fora_do_escopo_contratado", label: "O processo não foi incluído no escopo contratado para esta inspeção" },
+  { codigo: "inspecao_separada_existente_ou_programada", label: "Existe inspeção separada já realizada ou programada" },
+  { codigo: "enquadramento_confirmado_licenciamento", label: "Enquadramento confirmado pelo licenciamento sanitário" },
+  { codigo: "orientacao_vigilancia_sanitaria", label: "Orientação da Vigilância Sanitária competente" },
+  { codigo: "regulamento_tecnico_especifico", label: "Aplicação de regulamento técnico específico" },
+  { codigo: "outro", label: "Outro motivo" },
+];
 
 export interface RecomendarModeloInput {
   ufConsiderada: string | null;
@@ -121,8 +160,10 @@ export function recomendarModelo(input: RecomendarModeloInput): ResultadoRecomen
     return {
       tipo: "multiplos_escopos",
       sugestoes,
+      titulo: "Possível incidência de mais de uma norma sanitária",
       alerta:
-        "Este estabelecimento parece ter mais de um escopo regulatório (comércio/serviço de alimentação e produção/industrialização). Considere realizar inspeções separadas — uma para cada escopo — em vez de uma única inspeção combinada.",
+        "As atividades informadas abrangem comércio ou serviço de alimentação e também produção ou industrialização. Cada atividade pode estar sujeita a requisitos sanitários distintos.\n\n" +
+        "Avalie o licenciamento, o processo produtivo, a destinação dos alimentos e a orientação da Vigilância Sanitária competente. Quando os escopos forem distintos, realize inspeções separadas para cada norma.",
     };
   }
 

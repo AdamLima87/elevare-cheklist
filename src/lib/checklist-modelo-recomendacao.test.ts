@@ -111,7 +111,20 @@ describe("recomendarModelo", () => {
     if (r.tipo === "multiplos_escopos") {
       expect(r.sugestoes).toHaveLength(2);
       expect(r.sugestoes.map((s) => s.modeloId).sort()).toEqual(["id-cvs3", "id-rdc275"].sort());
-      expect(r.alerta).toMatch(/mais de um escopo/i);
+      // Fase 9.G — título e corpo do alerta exigidos pelo usuário, texto integral.
+      expect(r.titulo).toBe("Possível incidência de mais de uma norma sanitária");
+      expect(r.alerta).toContain(
+        "As atividades informadas abrangem comércio ou serviço de alimentação e também produção ou industrialização. Cada atividade pode estar sujeita a requisitos sanitários distintos.",
+      );
+      expect(r.alerta).toContain(
+        "Avalie o licenciamento, o processo produtivo, a destinação dos alimentos e a orientação da Vigilância Sanitária competente. Quando os escopos forem distintos, realize inspeções separadas para cada norma.",
+      );
+      // Regra: nunca afirmar que uma norma substitui/prevalece sobre a outra,
+      // nem que a seleção torna duas inspeções sempre obrigatórias, nem usar
+      // "o consultor pode escolher qualquer norma".
+      expect(r.alerta).not.toMatch(/prevalece|substitui/i);
+      expect(r.alerta).not.toMatch(/sempre (será|serão) necessárias duas inspeções/i);
+      expect(r.alerta).not.toMatch(/escolher qualquer norma/i);
     }
   });
 

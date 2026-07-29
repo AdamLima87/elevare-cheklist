@@ -1,25 +1,28 @@
 import { useEffect } from "react";
-import { AlertTriangle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2 } from "lucide-react";
 import { useChecklistModelosDisponiveis } from "@/hooks/useChecklistModelosDisponiveis";
 import type { ResultadoRecomendacao } from "@/lib/checklist-modelo-recomendacao";
+import { MultiplosEscoposDecisao, type DecisaoMultiplosEscoposPayload } from "@/components/elevare/MultiplosEscoposDecisao";
 
 /**
  * Passo de seleção de legislação/modelo antes de abrir o checklist. Com uma
  * única opção disponível, seleciona automaticamente sem exigir clique
  * extra. Com 2+ opções, mostra a lista — e, a partir da Fase 9.D, pode
- * destacar uma recomendação (badge + motivo) e alertar sobre múltiplos
- * escopos regulatórios. A recomendação nunca escolhe por conta própria:
- * todos os botões continuam clicáveis em qualquer cenário.
+ * destacar uma recomendação (badge + motivo). A recomendação nunca escolhe
+ * por conta própria: os botões continuam clicáveis em qualquer cenário de
+ * escolha única/nenhuma. Exceção (Fase 9.G): quando há múltiplos escopos
+ * regulatórios, a escolha manual livre é substituída por
+ * `MultiplosEscoposDecisao` — o avanço fica bloqueado até uma decisão
+ * explícita (com confirmação/justificativa, quando exigidas) ser resolvida.
  */
 export function ChecklistModeloPicker({
   onSelecionar,
   recomendacao,
 }: {
-  onSelecionar: (modeloVersaoId: string) => void;
+  onSelecionar: (modeloVersaoId: string, decisaoMultiplosEscopos?: DecisaoMultiplosEscoposPayload) => void;
   /** Fase 9.D — resultado do motor de recomendação, já calculado pelo chamador. */
   recomendacao?: ResultadoRecomendacao;
 }) {
@@ -55,13 +58,25 @@ export function ChecklistModeloPicker({
     );
   }
 
+  // Fase 9.G — múltiplos escopos exige uma decisão explícita (com
+  // confirmação/justificativa, quando aplicável) em vez da lista simples de
+  // botões abaixo. `onSelecionar` recebe o payload completo da decisão pra
+  // virar campos do snapshot em ContextoLegislacaoPicker.
+  if (recomendacao?.tipo === "multiplos_escopos") {
+    return (
+      <MultiplosEscoposDecisao
+        recomendacao={recomendacao}
+        modelos={modelos}
+        onContinuar={(payload) => onSelecionar(payload.modeloVersaoId, payload)}
+      />
+    );
+  }
+
   const sugestaoPorModeloId = new Map<string, string>();
   let usoAntecipadoModeloId: string | null = null;
   if (recomendacao?.tipo === "unica") {
     sugestaoPorModeloId.set(recomendacao.modeloRecomendadoId, recomendacao.motivo);
     if (recomendacao.usoAntecipado) usoAntecipadoModeloId = recomendacao.modeloRecomendadoId;
-  } else if (recomendacao?.tipo === "multiplos_escopos") {
-    for (const s of recomendacao.sugestoes) sugestaoPorModeloId.set(s.modeloId, s.motivo);
   }
 
   return (
@@ -70,12 +85,6 @@ export function ChecklistModeloPicker({
         <CardTitle className="text-base">Selecione a legislação</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-3">
-        {recomendacao?.tipo === "multiplos_escopos" && (
-          <Alert>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>{recomendacao.alerta}</AlertDescription>
-          </Alert>
-        )}
         <div className="grid gap-2">
           {modelos.map((modelo) => {
             const motivo = sugestaoPorModeloId.get(modelo.modeloVersaoId);

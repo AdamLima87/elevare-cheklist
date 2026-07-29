@@ -38,7 +38,9 @@ import { ChecklistModeloNaoEncontrado } from "@/components/elevare/ChecklistMode
 import { useProgramacaoReinspecao } from "@/hooks/useReinspecaoProgramacoes";
 import { ReinspecaoCard } from "@/components/elevare/ReinspecaoCard";
 import { ProgramarReinspecaoDialog } from "@/components/elevare/ProgramarReinspecaoDialog";
-import { CalendarPlus } from "lucide-react";
+import { CalendarPlus, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useNavigate } from "@tanstack/react-router";
 import type { InspectionContext } from "@/lib/inspection-context";
 import type { ReactNode } from "react";
 
@@ -79,6 +81,7 @@ export function ResultadoShell({
   onNovaInspecao,
   onConcluido,
 }: ResultadoShellProps) {
+  const navigate = useNavigate();
   const [insp, setInsp] = useState<Inspecao | null>(null);
   const [loading, setLoading] = useState(false);
   const [planoAcao, setPlanoAcao] = useState<Record<string, AcaoCorretiva>>({});
@@ -411,6 +414,29 @@ export function ResultadoShell({
         <h1 className="font-display text-3xl font-semibold mt-1">{insp.estabelecimento}</h1>
         <p className="text-sm text-muted-foreground">{insp.dados.estabelecimento.razaoSocial}</p>
       </div>
+
+      {insp.dados.recomendacaoLegislacao?.segundoEscopoPendente &&
+        !insp.dados.recomendacaoLegislacao?.segundaInspecaoId &&
+        effectiveContext.kind === "cliente" &&
+        effectiveContext.clienteId && (
+          <Alert className="mb-6">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Segundo escopo regulatório pendente</AlertTitle>
+            <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+              <span>
+                Esta inspeção identificou mais de um escopo regulatório. O segundo escopo ainda não foi
+                inspecionado — nenhum resultado foi fundido entre eles.
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => navigate({ to: "/clientes/$id", params: { id: effectiveContext.clienteId! } })}
+              >
+                Iniciar segunda inspeção
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
       <div className="bg-paper relative rounded-lg border border-border p-8 overflow-hidden">
         {/* RDCheck seal top-right */}

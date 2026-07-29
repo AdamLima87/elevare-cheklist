@@ -11,6 +11,7 @@ import { useAtividadeTags } from "@/hooks/useAtividadeTags";
 import { useChecklistModelosDisponiveis } from "@/hooks/useChecklistModelosDisponiveis";
 import { recomendarModelo, type ResultadoRecomendacao } from "@/lib/checklist-modelo-recomendacao";
 import { ChecklistModeloPicker } from "@/components/elevare/ChecklistModeloPicker";
+import type { DecisaoMultiplosEscoposPayload } from "@/components/elevare/MultiplosEscoposDecisao";
 import type { RecomendacaoLegislacaoSnapshot } from "@/lib/storage";
 
 /** O que este componente já sabe calcular — `modeloEscolhidoId`/`seguiuRecomendacao`
@@ -21,6 +22,7 @@ export type ContextoRecomendacaoSnapshot = Omit<
 >;
 
 const VERSAO_REGRA = "9.D-v1";
+const VERSAO_REGRA_DECISAO = "9.G-v1";
 
 /**
  * Fase 9.D — bloco de contexto (UF + atividades desta inspeção) + picker de
@@ -115,7 +117,7 @@ export function ContextoLegislacaoPicker({
     });
   }, [modelos, uf, atividades]);
 
-  const handleSelecionarModelo = (modeloVersaoId: string) => {
+  const handleSelecionarModelo = (modeloVersaoId: string, decisaoMultiplosEscopos?: DecisaoMultiplosEscoposPayload) => {
     onSelecionar(modeloVersaoId, {
       ufConsiderada: uf,
       ufOrigem,
@@ -124,6 +126,24 @@ export function ContextoLegislacaoPicker({
       resultado,
       dataCalculo: new Date().toISOString(),
       versaoRegra: VERSAO_REGRA,
+      ...(decisaoMultiplosEscopos
+        ? {
+            multiplosEscoposIdentificados: true,
+            escoposIdentificados: atividades.filter((a) =>
+              ["servico_alimentacao", "comercio_alimentos", "producao_industrializacao"].includes(a),
+            ),
+            decisaoMultiplosEscopos: decisaoMultiplosEscopos.decisao,
+            modeloSelecionadoParaInspecaoAtual: decisaoMultiplosEscopos.modeloSelecionadoParaInspecaoAtual,
+            modelosSugeridos: decisaoMultiplosEscopos.modelosSugeridos,
+            modeloOuEscopoNaoInspecionado: decisaoMultiplosEscopos.modeloOuEscopoNaoInspecionado,
+            justificativaCodigo: decisaoMultiplosEscopos.justificativaCodigo,
+            justificativaTexto: decisaoMultiplosEscopos.justificativaTexto,
+            segundoEscopoPendente: decisaoMultiplosEscopos.segundoEscopoPendente,
+            segundaInspecaoId: null,
+            decisaoDataHora: new Date().toISOString(),
+            versaoRegraDecisao: VERSAO_REGRA_DECISAO,
+          }
+        : {}),
     });
   };
 

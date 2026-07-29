@@ -4,12 +4,17 @@ import { isCloudNewer } from "./conflict";
 import { findOrCreateCliente } from "@/hooks/useClientes";
 import { tipoExecucaoFor, type InspectionContext } from "./inspection-context";
 import type { ChecklistModeloResolvido } from "./checklist-modelo-service";
-import type { ResultadoRecomendacao } from "./checklist-modelo-recomendacao";
+import type { DecisaoMultiplosEscopos, JustificativaCodigo, ResultadoRecomendacao, Sugestao } from "./checklist-modelo-recomendacao";
 
 export type Resposta = "S" | "N" | "NA" | null;
 
 /** Fase 9.D — snapshot histórico e imutável do contexto que gerou (ou não)
- * uma recomendação de legislação, gravado só na criação da inspeção. */
+ * uma recomendação de legislação, gravado só na criação da inspeção.
+ *
+ * Fase 9.G adiciona campos opcionais pra registrar a decisão explícita do
+ * consultor quando `resultado.tipo === "multiplos_escopos"` — todos
+ * opcionais e retrocompatíveis: snapshots gravados antes da Fase 9.G nunca
+ * tiveram esses campos e continuam sendo lidos normalmente (undefined). */
 export interface RecomendacaoLegislacaoSnapshot {
   ufConsiderada: string | null;
   ufOrigem: "inspecao_atual" | "sugestao_inspecao_anterior_ajustada" | "crm_conta" | null;
@@ -20,6 +25,29 @@ export interface RecomendacaoLegislacaoSnapshot {
   versaoRegra: string;
   modeloEscolhidoId: string | null;
   seguiuRecomendacao: boolean | null;
+  /** Fase 9.G — só presente quando resultado.tipo === "multiplos_escopos". */
+  multiplosEscoposIdentificados?: boolean;
+  /** Códigos de atividade_tags que dispararam os múltiplos escopos (ex.: ["servico_alimentacao", "producao_industrializacao"]). */
+  escoposIdentificados?: string[];
+  decisaoMultiplosEscopos?: DecisaoMultiplosEscopos;
+  /** modeloVersaoId escolhido para a inspeção que está sendo criada agora. */
+  modeloSelecionadoParaInspecaoAtual?: string | null;
+  /** As sugestões independentes (uma por escopo) apresentadas no momento da decisão — cópia de resultado.sugestoes, preservada mesmo se a recomendação mudar no futuro. */
+  modelosSugeridos?: Sugestao[];
+  /** modeloVersaoId (ou descrição do escopo, quando não há modelo automático) que NÃO está sendo inspecionado agora. */
+  modeloOuEscopoNaoInspecionado?: string | null;
+  justificativaCodigo?: JustificativaCodigo | null;
+  /** Texto livre — obrigatório só quando justificativaCodigo === "outro". */
+  justificativaTexto?: string | null;
+  /** true só na opção "duas_inspecoes" — sinaliza que o segundo escopo ainda precisa ser inspecionado. */
+  segundoEscopoPendente?: boolean;
+  /** Preenchido depois, quando a segunda inspeção (do escopo pendente) é de fato criada — nunca no momento desta gravação inicial. */
+  segundaInspecaoId?: string | null;
+  /** ID do usuário (profiles.id) que tomou a decisão de múltiplos escopos. */
+  decisaoPorUsuarioId?: string;
+  decisaoDataHora?: string;
+  /** Versão da regra de decisão (independente de `versaoRegra`, que versiona o motor de recomendação). */
+  versaoRegraDecisao?: string;
 }
 
 export interface Estabelecimento {

@@ -1247,6 +1247,149 @@ async function main() {
       assert(criticosCount === 73, `esperava 73 itens críticos na CVS 3/2026 (v2), recebeu ${criticosCount}`);
     });
 
+    await test("Fase 9.G: snapshot de decisão de múltiplos escopos grava e lê todos os campos novos (opção 'duas_inspecoes')", async () => {
+      const { data: cvs3Modelo, error: erroModelo } = await admin
+        .from("checklist_modelo_versoes")
+        .select("id, checklist_modelos!inner(codigo)")
+        .eq("is_versao_atual", true)
+        .eq("checklist_modelos.codigo", "CVS_3_2026_PADRAO")
+        .single();
+      if (erroModelo) throw erroModelo;
+
+      const { data: numero, error: numeroErr } = await A.client.rpc("get_next_numero_inspecao");
+      if (numeroErr) throw numeroErr;
+
+      const recomendacaoLegislacao = {
+        ufConsiderada: "SP",
+        atividadesConsideradas: ["comercio_alimentos", "producao_industrializacao"],
+        multiplosEscoposIdentificados: true,
+        escoposIdentificados: ["comercio_alimentos", "producao_industrializacao"],
+        decisaoMultiplosEscopos: "duas_inspecoes",
+        modeloSelecionadoParaInspecaoAtual: cvs3Modelo.id,
+        modelosSugeridos: [
+          { modeloId: cvs3Modelo.id, motivo: "SP + comércio de alimentos" },
+          { modeloId: modeloVersaoAtual.id, motivo: "produção/industrialização" },
+        ],
+        modeloOuEscopoNaoInspecionado: modeloVersaoAtual.id,
+        justificativaCodigo: null,
+        justificativaTexto: null,
+        segundoEscopoPendente: true,
+        segundaInspecaoId: null,
+        decisaoPorUsuarioId: A.userId,
+        decisaoDataHora: new Date().toISOString(),
+        versaoRegraDecisao: "9.G-v1",
+      };
+
+      const { data: insp, error } = await A.client
+        .from("inspecoes")
+        .insert({
+          empresa_id: A.empresaId,
+          cliente_id: clienteA,
+          numero_sequencial: numero,
+          checklist_modelo_versao_id: cvs3Modelo.id,
+          dados: { recomendacaoLegislacao },
+        })
+        .select("id, dados")
+        .single();
+      if (error) throw error;
+
+      assert(
+        insp.dados.recomendacaoLegislacao.decisaoMultiplosEscopos === "duas_inspecoes",
+        "decisaoMultiplosEscopos não round-tripou corretamente",
+      );
+      assert(insp.dados.recomendacaoLegislacao.segundoEscopoPendente === true, "segundoEscopoPendente não round-tripou");
+      assert(
+        insp.dados.recomendacaoLegislacao.modelosSugeridos.length === 2,
+        "modelosSugeridos não round-tripou com as 2 sugestões",
+      );
+      assert(
+        insp.dados.recomendacaoLegislacao.modeloOuEscopoNaoInspecionado === modeloVersaoAtual.id,
+        "modeloOuEscopoNaoInspecionado não round-tripou",
+      );
+
+      // Write-back: simula o início da segunda inspeção (RDC 275, produção),
+      // vinculando de volta segundaInspecaoId sem tocar em mais nada do snapshot.
+      const { data: numero2, error: numero2Err } = await A.client.rpc("get_next_numero_inspecao");
+      if (numero2Err) throw numero2Err;
+      const { data: segundaInsp, error: erro2 } = await A.client
+        .from("inspecoes")
+        .insert({
+          empresa_id: A.empresaId,
+          cliente_id: clienteA,
+          numero_sequencial: numero2,
+          checklist_modelo_versao_id: modeloVersaoAtual.id,
+          dados: {},
+        })
+        .select("id")
+        .single();
+      if (erro2) throw erro2;
+
+      const { error: erroWriteback } = await A.client
+        .from("inspecoes")
+        .update({
+          dados: {
+            recomendacaoLegislacao: { ...recomendacaoLegislacao, segundaInspecaoId: segundaInsp.id },
+          },
+        })
+        .eq("id", insp.id);
+      if (erroWriteback) throw erroWriteback;
+
+      const { data: inspAtualizada, error: erroLeitura } = await A.client
+        .from("inspecoes")
+        .select("dados, checklist_modelo_versao_id")
+        .eq("id", insp.id)
+        .single();
+      if (erroLeitura) throw erroLeitura;
+      assert(
+        inspAtualizada.dados.recomendacaoLegislacao.segundaInspecaoId === segundaInsp.id,
+        "write-back de segundaInspecaoId não persistiu",
+      );
+      // Cada inspeção permanece vinculada a exatamente um checklist_modelo_versao_id —
+      // a decisão de múltiplos escopos nunca funde os dois modelos numa só inspeção.
+      assert(
+        inspAtualizada.checklist_modelo_versao_id === cvs3Modelo.id,
+        "checklist_modelo_versao_id da primeira inspeção não deveria mudar após o write-back",
+      );
+    });
+
+    await test("Fase 9.G: snapshot antigo (sem campos de múltiplos escopos) lê sem erro — retrocompatibilidade", async () => {
+      const { data: numero, error: numeroErr } = await A.client.rpc("get_next_numero_inspecao");
+      if (numeroErr) throw numeroErr;
+
+      // Formato pré-9.G: só os campos já existentes desde a Fase 9.C/9.D.
+      const snapshotAntigo = {
+        ufConsiderada: "RJ",
+        atividadesConsideradas: ["servico_alimentacao"],
+        resultado: { tipo: "unica", modeloRecomendadoId: modeloVersaoAtual.id, motivo: "fora de SP", usoAntecipado: false },
+        modeloEscolhidoId: modeloVersaoAtual.id,
+        seguiuRecomendacao: true,
+        dataCalculo: new Date().toISOString(),
+        versaoRegra: "9.D-v1",
+      };
+
+      const { data: insp, error } = await A.client
+        .from("inspecoes")
+        .insert({
+          empresa_id: A.empresaId,
+          cliente_id: clienteA,
+          numero_sequencial: numero,
+          checklist_modelo_versao_id: modeloVersaoAtual.id,
+          dados: { recomendacaoLegislacao: snapshotAntigo },
+        })
+        .select("dados")
+        .single();
+      if (error) throw error;
+
+      assert(
+        insp.dados.recomendacaoLegislacao.modeloEscolhidoId === modeloVersaoAtual.id,
+        "leitura de snapshot antigo falhou",
+      );
+      assert(
+        insp.dados.recomendacaoLegislacao.decisaoMultiplosEscopos === undefined,
+        "snapshot antigo não deveria ganhar campos novos sozinho",
+      );
+    });
+
     await test("UPDATE em item de versão de checklist publicada falha", async () => {
       const { data: item } = await admin.from("checklist_itens").select("id").eq("modelo_versao_id", modeloVersaoAtual.id).limit(1).single();
       const { error } = await admin.from("checklist_itens").update({ texto: "hackeado" }).eq("id", item.id);

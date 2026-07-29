@@ -52,6 +52,12 @@ interface NovaInspecaoFormProps {
    * ContextoLegislacaoPicker no passo anterior — gravado em dados.recomendacaoLegislacao
    * só na criação de uma inspeção nova, nunca reescrito depois. */
   recomendacaoSnapshot?: ContextoRecomendacaoSnapshot;
+  /** Fase 9.G: presente quando esta inspeção está completando o "segundo
+   * escopo pendente" de uma decisão de múltiplos escopos anterior. Depois de
+   * criar esta inspeção com sucesso, grava `segundaInspecaoId` de volta na
+   * inspeção de origem (write-back único, não altera mais nada do snapshot
+   * histórico dela). */
+  inspecaoOrigemPendenteId?: string;
 }
 
 export function NovaInspecaoForm({
@@ -62,6 +68,7 @@ export function NovaInspecaoForm({
   onIniciado,
   checklistModeloVersaoId,
   recomendacaoSnapshot,
+  inspecaoOrigemPendenteId,
 }: NovaInspecaoFormProps) {
   const navigate = useNavigate();
   const [estab, setEstab] = useState<Estabelecimento>(() => ({
@@ -370,6 +377,10 @@ export function NovaInspecaoForm({
               recomendacaoSnapshot.resultado.tipo === "unica"
                 ? recomendacaoSnapshot.resultado.modeloRecomendadoId === checklistModeloVersaoId
                 : null,
+            // Fase 9.G — quem tomou a decisão de múltiplos escopos (quando aplicável).
+            ...(recomendacaoSnapshot.multiplosEscoposIdentificados && profile?.id
+              ? { decisaoPorUsuarioId: profile.id as string }
+              : {}),
           };
         }
       }
@@ -377,6 +388,32 @@ export function NovaInspecaoForm({
       const key = crmContext ? draftKey(context, insp.id) : undefined;
       await saveRascunho(insp, undefined, key);
       await saveToHistorico(insp, context);
+
+      // Fase 9.G — esta inspeção completa um "segundo escopo pendente" de
+      // uma decisão de múltiplos escopos anterior: grava só o vínculo
+      // (segundaInspecaoId) de volta na inspeção de origem, sem tocar em
+      // mais nenhum campo do snapshot histórico dela.
+      if (inspecaoOrigemPendenteId) {
+        const { data: origem } = await supabase
+          .from("inspecoes")
+          .select("dados")
+          .eq("id", inspecaoOrigemPendenteId)
+          .maybeSingle();
+        if (origem?.dados?.recomendacaoLegislacao) {
+          await supabase
+            .from("inspecoes")
+            .update({
+              dados: {
+                ...origem.dados,
+                recomendacaoLegislacao: {
+                  ...origem.dados.recomendacaoLegislacao,
+                  segundaInspecaoId: insp.id,
+                },
+              },
+            })
+            .eq("id", inspecaoOrigemPendenteId);
+        }
+      }
 
       // Auto-create client if email is present — só no fluxo operacional.
       if (context.kind === "cliente" && emailResponsavel && estab.cnpj) {
