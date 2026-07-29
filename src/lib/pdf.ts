@@ -93,6 +93,19 @@ export async function gerarPDF(
   doc.setTextColor(50, 50, 50);
   doc.text("Relatório de Inspeção", pageWidth - 20, 45, { align: "right" });
 
+  // A logo é sempre a do RDCheck (produto) — a consultoria (tenant) aparece
+  // como texto no cabeçalho, não como logo própria. Só exibe a linha quando
+  // a consultoria configurou um nome (evita repetir "RDCheck" embaixo do
+  // próprio logo do RDCheck quando ninguém personalizou ainda).
+  let headerSubtitleY = 58;
+  if (marcaNome && marcaNome !== BRAND.name) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(80, 80, 80);
+    doc.text(marcaNome, pageWidth - 20, headerSubtitleY, { align: "right" });
+    headerSubtitleY += 13;
+  }
+
   // Fase 8.B — identifica a legislação/modelo usado nesta inspeção
   // específica (nunca assume "a" legislação, já que mais de um modelo pode
   // estar em uso simultaneamente no tenant).
@@ -100,7 +113,7 @@ export async function gerarPDF(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(120, 120, 120);
-    doc.text(modelo.modeloNome, pageWidth - 20, 58, { align: "right" });
+    doc.text(modelo.modeloNome, pageWidth - 20, headerSubtitleY, { align: "right" });
   }
 
   y = 90;

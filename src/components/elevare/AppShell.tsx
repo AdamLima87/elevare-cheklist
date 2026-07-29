@@ -9,6 +9,7 @@ import { useExpiringDocumentos } from "@/hooks/useDocumentos";
 import { useTenantAccessStatus } from "@/hooks/useTenantAccessStatus";
 import { CalendarClock, FileWarning, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BRAND } from "@/lib/brand";
 
 const VISITAS_ALERT_KEY = "elevare_visitas_alert_shown";
 const DOCUMENTOS_ALERT_KEY = "elevare_documentos_alert_shown";
@@ -157,7 +158,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <footer className="py-6 text-center text-[10px] text-muted-foreground uppercase tracking-widest border-t bg-background">
-          RDCheck · Segurança dos Alimentos · RDC 216 & 275 ANVISA
+          {BRAND.name} · Segurança dos Alimentos · {BRAND.legal}
         </footer>
       </main>
     </div>

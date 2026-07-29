@@ -5,7 +5,7 @@
 export const BRAND = {
   name: "RDCheck",
   tagline: "Checklists digitais. Segurança de verdade.",
-  legal: "RDC 216 & 275 ANVISA",
+  legal: "RDC 216 & 275 ANVISA · CVS 3/2026-SP",
   // Fallback do timbre quando a consultoria (tenant) ainda não configurou o seu.
   defaultRemetente: {
     nome: "RDCheck",
