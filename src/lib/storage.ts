@@ -4,8 +4,23 @@ import { isCloudNewer } from "./conflict";
 import { findOrCreateCliente } from "@/hooks/useClientes";
 import { tipoExecucaoFor, type InspectionContext } from "./inspection-context";
 import type { ChecklistModeloResolvido } from "./checklist-modelo-service";
+import type { ResultadoRecomendacao } from "./checklist-modelo-recomendacao";
 
 export type Resposta = "S" | "N" | "NA" | null;
+
+/** Fase 9.D — snapshot histórico e imutável do contexto que gerou (ou não)
+ * uma recomendação de legislação, gravado só na criação da inspeção. */
+export interface RecomendacaoLegislacaoSnapshot {
+  ufConsiderada: string | null;
+  ufOrigem: "inspecao_atual" | "sugestao_inspecao_anterior_ajustada" | "crm_conta" | null;
+  atividadesConsideradas: string[];
+  atividadesOrigem: "inspecao_atual" | "sugestao_inspecao_anterior_ajustada" | null;
+  resultado: ResultadoRecomendacao;
+  dataCalculo: string;
+  versaoRegra: string;
+  modeloEscolhidoId: string | null;
+  seguiuRecomendacao: boolean | null;
+}
 
 export interface Estabelecimento {
   razaoSocial: string;
@@ -77,6 +92,8 @@ export interface Inspecao {
     fotos: Record<string, string[]>;
     /** Corrective action plan per non-conforming item, keyed by checklist item id. */
     planoAcao?: Record<string, AcaoCorretiva>;
+    /** Fase 9.D — snapshot do contexto de recomendação de legislação, gravado só na criação. */
+    recomendacaoLegislacao?: RecomendacaoLegislacaoSnapshot;
   };
   respostas: Record<string, Resposta>;
   /** Fase 7 — qual versão de modelo de checklist esta inspeção usa. Sempre

@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Cliente } from "@/hooks/useClientes";
 import { ArrowRight, Loader2 } from "lucide-react";
 import type { InspectionContext } from "@/lib/inspection-context";
+import type { ContextoRecomendacaoSnapshot } from "@/components/elevare/ContextoLegislacaoPicker";
 
 export function formatCNPJ(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 14);
@@ -47,6 +48,10 @@ interface NovaInspecaoFormProps {
   /** Fase 8.B: modelo de checklist escolhido no passo anterior (ChecklistModeloPicker).
    * Sem isso, createNewInspecao() cai no modelo padrão global. */
   checklistModeloVersaoId?: string;
+  /** Fase 9.D: snapshot do contexto (UF/atividades/recomendação) calculado pelo
+   * ContextoLegislacaoPicker no passo anterior — gravado em dados.recomendacaoLegislacao
+   * só na criação de uma inspeção nova, nunca reescrito depois. */
+  recomendacaoSnapshot?: ContextoRecomendacaoSnapshot;
 }
 
 export function NovaInspecaoForm({
@@ -56,6 +61,7 @@ export function NovaInspecaoForm({
   crmContext,
   onIniciado,
   checklistModeloVersaoId,
+  recomendacaoSnapshot,
 }: NovaInspecaoFormProps) {
   const navigate = useNavigate();
   const [estab, setEstab] = useState<Estabelecimento>(() => ({
@@ -356,6 +362,16 @@ export function NovaInspecaoForm({
         insp = await createNewInspecao(checklistModeloVersaoId);
         insp.dados.estabelecimento = estab;
         insp.estabelecimento = estab.nomeFantasia || estab.razaoSocial;
+        if (recomendacaoSnapshot) {
+          insp.dados.recomendacaoLegislacao = {
+            ...recomendacaoSnapshot,
+            modeloEscolhidoId: checklistModeloVersaoId ?? null,
+            seguiuRecomendacao:
+              recomendacaoSnapshot.resultado.tipo === "unica"
+                ? recomendacaoSnapshot.resultado.modeloRecomendadoId === checklistModeloVersaoId
+                : null,
+          };
+        }
       }
 
       const key = crmContext ? draftKey(context, insp.id) : undefined;

@@ -1173,6 +1173,39 @@ async function main() {
       );
     });
 
+    await test("Fase 9.C: atividade_tags tem os 11 códigos aprovados, todos ativos", async () => {
+      const { data: tags, error } = await admin.from("atividade_tags").select("codigo, ativo").order("codigo");
+      if (error) throw error;
+      const esperados = [
+        "alimentos_crus_mal_cozidos",
+        "comercio_alimentos",
+        "comercio_atacadista",
+        "culinaria_japonesa",
+        "manipula_perecivel_origem_animal",
+        "producao_industrializacao",
+        "realiza_delivery",
+        "servico_alimentacao",
+        "servico_alimentacao_coletiva",
+        "transporta_alimentos",
+        "venda_a_granel",
+      ];
+      const codigos = (tags ?? []).map((t) => t.codigo).sort();
+      assert(
+        JSON.stringify(codigos) === JSON.stringify(esperados),
+        `esperava exatamente os 11 códigos aprovados, recebeu ${JSON.stringify(codigos)}`,
+      );
+      assert((tags ?? []).every((t) => t.ativo === true), "todos os códigos deveriam estar ativo=true");
+    });
+
+    await test("Fase 9.D: resolver_checklist_modelo_padrao() continua na RDC 275 com o catálogo de atividades presente", async () => {
+      const { data: padraoAtual, error } = await admin.rpc("resolver_checklist_modelo_padrao");
+      if (error) throw error;
+      assert(
+        padraoAtual === modeloVersaoAtual.id,
+        `esperava que o padrão global continuasse sendo a versão da RDC 275 (${modeloVersaoAtual.id}) mesmo com atividade_tags/legislacao_versoes.publicada_em presentes, recebeu ${padraoAtual}`,
+      );
+    });
+
     await test("UPDATE em item de versão de checklist publicada falha", async () => {
       const { data: item } = await admin.from("checklist_itens").select("id").eq("modelo_versao_id", modeloVersaoAtual.id).limit(1).single();
       const { error } = await admin.from("checklist_itens").update({ texto: "hackeado" }).eq("id", item.id);

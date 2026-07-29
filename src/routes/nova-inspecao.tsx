@@ -11,7 +11,10 @@ import { syncFromCloud } from "@/lib/sync";
 import { ClipboardCheck, Search, Building2, ArrowLeft, Loader2 } from "lucide-react";
 import { SyncStatus } from "@/components/elevare/SyncStatus";
 import { useClientes, type Cliente } from "@/hooks/useClientes";
-import { ChecklistModeloPicker } from "@/components/elevare/ChecklistModeloPicker";
+import {
+  ContextoLegislacaoPicker,
+  type ContextoRecomendacaoSnapshot,
+} from "@/components/elevare/ContextoLegislacaoPicker";
 
 export const Route = createFileRoute("/nova-inspecao")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -41,6 +44,7 @@ function IndexPage() {
   const [syncing, setSyncing] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
   const [modeloVersaoId, setModeloVersaoId] = useState<string | null>(null);
+  const [recomendacaoSnapshot, setRecomendacaoSnapshot] = useState<ContextoRecomendacaoSnapshot | null>(null);
 
   useEffect(() => {
     handleSync(true); // silent na entrada
@@ -99,6 +103,7 @@ function IndexPage() {
             onClick={() => {
               setSelectedCliente(null);
               setModeloVersaoId(null);
+              setRecomendacaoSnapshot(null);
             }}
           >
             <ArrowLeft className="h-4 w-4" /> Trocar cliente
@@ -106,6 +111,7 @@ function IndexPage() {
           <NovaInspecaoForm
             clienteId={selectedCliente.id}
             checklistModeloVersaoId={modeloVersaoId}
+            recomendacaoSnapshot={recomendacaoSnapshot ?? undefined}
             prefill={{
               razaoSocial: selectedCliente.nome,
               nomeFantasia: selectedCliente.nome,
@@ -124,7 +130,13 @@ function IndexPage() {
           >
             <ArrowLeft className="h-4 w-4" /> Trocar cliente
           </Button>
-          <ChecklistModeloPicker onSelecionar={setModeloVersaoId} />
+          <ContextoLegislacaoPicker
+            clienteId={selectedCliente.id}
+            onSelecionar={(id, snapshot) => {
+              setModeloVersaoId(id);
+              setRecomendacaoSnapshot(snapshot);
+            }}
+          />
         </>
       ) : (
         <ClientePicker onSelect={setSelectedCliente} />

@@ -4,10 +4,14 @@ import { AppShell } from "@/components/elevare/AppShell";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Button } from "@/components/ui/button";
 import { NovaInspecaoForm } from "@/components/elevare/NovaInspecaoForm";
-import { ChecklistModeloPicker } from "@/components/elevare/ChecklistModeloPicker";
+import {
+  ContextoLegislacaoPicker,
+  type ContextoRecomendacaoSnapshot,
+} from "@/components/elevare/ContextoLegislacaoPicker";
 import { DiagnosticoNaoEncontrado } from "@/components/elevare/DiagnosticoNaoEncontrado";
 import { useCrmDiagnostico, useCrmOportunidade, useObterOuCriarDiagnostico } from "@/hooks/useCrmOportunidades";
 import { useCrmEmpresa, type CrmEmpresa } from "@/hooks/useCrmEmpresas";
+import { supabase } from "@/integrations/supabase/client";
 import { loadInspecao, type Estabelecimento, type Inspecao } from "@/lib/storage";
 import { describeInspectionSaveError } from "@/lib/inspection-error";
 import { toast } from "sonner";
@@ -48,9 +52,40 @@ function CrmDiagnosticoNovoPage() {
   const [status, setStatus] = useState<"loading" | "modelo" | "form" | "erro">("loading");
   const [inspecaoId, setInspecaoId] = useState<string | null>(null);
 
-  const obterOuCriarCom = async (checklistModeloVersaoId?: string) => {
+  const obterOuCriarCom = async (
+    checklistModeloVersaoId?: string,
+    snapshot?: ContextoRecomendacaoSnapshot,
+  ) => {
     try {
       const resultado = await obterOuCriar.mutateAsync({ crmOportunidadeId: id, checklistModeloVersaoId });
+
+      // Fase 9.D — grava o snapshot de recomendação só na criação (nunca ao
+      // retomar um diagnóstico existente, quando `snapshot` não é passado).
+      if (snapshot) {
+        const { data: atual } = await supabase
+          .from("inspecoes")
+          .select("dados")
+          .eq("id", resultado.inspecao_id)
+          .maybeSingle();
+        if (atual) {
+          await supabase
+            .from("inspecoes")
+            .update({
+              dados: {
+                ...(atual.dados as Record<string, unknown>),
+                recomendacaoLegislacao: {
+                  ...snapshot,
+                  modeloEscolhidoId: checklistModeloVersaoId ?? null,
+                  seguiuRecomendacao:
+                    snapshot.resultado.tipo === "unica"
+                      ? snapshot.resultado.modeloRecomendadoId === checklistModeloVersaoId
+                      : null,
+                },
+              },
+            })
+            .eq("id", resultado.inspecao_id);
+        }
+      }
 
       // Se a identificação já foi preenchida antes (retomando um
       // diagnóstico existente), pula direto pro checklist — este form é
@@ -112,7 +147,12 @@ function CrmDiagnosticoNovoPage() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       )}
-      {status === "modelo" && <ChecklistModeloPicker onSelecionar={obterOuCriarCom} />}
+      {status === "modelo" && (
+        <ContextoLegislacaoPicker
+          ufPrefillCrm={conta?.estado ?? null}
+          onSelecionar={(modeloId, snapshot) => obterOuCriarCom(modeloId, snapshot)}
+        />
+      )}
       {status === "erro" && <DiagnosticoNaoEncontrado onVoltar={voltarOportunidade} />}
       {status === "form" && inspecaoId && (
         <NovaInspecaoForm

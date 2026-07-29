@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, CalendarClock, PlayCircle, XCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, CalendarClock, PlayCircle, XCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -12,6 +14,52 @@ import {
   type ReinspecaoProgramacao,
 } from "@/hooks/useReinspecaoProgramacoes";
 import { loadInspecao, saveRascunho } from "@/lib/storage";
+import { supabase } from "@/integrations/supabase/client";
+import { useChecklistModelosDisponiveis } from "@/hooks/useChecklistModelosDisponiveis";
+import { recomendarModelo } from "@/lib/checklist-modelo-recomendacao";
+
+/** Fase 9.D — recalcula a recomendação com o contexto da inspeção de origem
+ * e avisa (sem trocar nada sozinho) quando ela diverge do modelo que a
+ * reinspeção vai herdar. `iniciar_reinspecao` continua herdando o modelo da
+ * origem incondicionalmente — este aviso é só informativo. */
+function useAvisoDivergenciaModelo(inspecaoOrigemId: string) {
+  const { data: modelos } = useChecklistModelosDisponiveis();
+  const { data: origem } = useQuery({
+    queryKey: ["reinspecao-origem-contexto", inspecaoOrigemId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("inspecoes")
+        .select("checklist_modelo_versao_id, dados")
+        .eq("id", inspecaoOrigemId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: Boolean(inspecaoOrigemId),
+  });
+
+  if (!modelos || !origem) return null;
+
+  const uf: string | null =
+    origem.dados?.recomendacaoLegislacao?.ufConsiderada ?? origem.dados?.estabelecimento?.uf ?? null;
+  const atividades: string[] = origem.dados?.recomendacaoLegislacao?.atividadesConsideradas ?? [];
+
+  const resultado = recomendarModelo({
+    ufConsiderada: uf,
+    atividadesConsideradas: atividades,
+    dataInspecao: new Date().toISOString(),
+    modelosDisponiveis: modelos.map((m) => ({
+      modeloVersaoId: m.modeloVersaoId,
+      codigo: m.codigo,
+      vigenteDesde: m.vigenteDesde,
+    })),
+  });
+
+  if (resultado.tipo !== "unica") return null;
+  if (resultado.modeloRecomendadoId === origem.checklist_modelo_versao_id) return null;
+
+  const nomeRecomendado = modelos.find((m) => m.modeloVersaoId === resultado.modeloRecomendadoId)?.nome;
+  return `A legislação recomendada hoje para este estabelecimento (${nomeRecomendado ?? "outro modelo"}) é diferente da usada na inspeção original. A reinspeção vai herdar o modelo original — se preferir aplicar a legislação atualmente recomendada, inicie uma inspeção nova em vez desta reinspeção.`;
+}
 
 const STATUS_LABEL: Record<ReinspecaoProgramacao["status"], string> = {
   programada: "Programada",
@@ -41,6 +89,7 @@ export function ReinspecaoCard({ programacao }: { programacao: ReinspecaoProgram
   const iniciar = useIniciarReinspecao();
 
   const podeGerenciar = programacao.status === "programada" || programacao.status === "reagendada";
+  const avisoDivergencia = useAvisoDivergenciaModelo(programacao.inspecao_origem_id);
 
   const handleReagendar = () => {
     if (!novaData) return;
@@ -128,6 +177,13 @@ export function ReinspecaoCard({ programacao }: { programacao: ReinspecaoProgram
           </p>
         )}
         {programacao.observacao && <p className="text-xs text-muted-foreground">{programacao.observacao}</p>}
+
+        {avisoDivergencia && podeGerenciar && (
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="text-xs">{avisoDivergencia}</AlertDescription>
+          </Alert>
+        )}
 
         {podeGerenciar && !reagendando && (
           <div className="flex flex-wrap gap-2 pt-1">
