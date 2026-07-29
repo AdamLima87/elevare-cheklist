@@ -48,6 +48,7 @@ const esfera = args.esfera ?? "federal";
 const uf = args.uf ?? null;
 const versaoDescricao = args["versao-descricao"] ?? "Texto original da RDC 275/2002";
 const vigenteDesde = args["vigente-desde"] ?? null;
+const publicadaEm = args["publicada-em"] ?? null; // Fase 9.C — data oficial de publicação no DOE, distinta de vigente_desde
 const modeloCodigo = args["modelo-codigo"] ?? "RDC_275_2002_PADRAO";
 const modeloNome = args["modelo-nome"] ?? "Checklist RDC 275/2002 - Padrão RDCheck";
 const modeloDescricao = args["modelo-descricao"] ?? null; // omitido = coluna não entra na INSERT (guard de regressão da 275)
@@ -93,11 +94,24 @@ lines.push(
   `  (${sqlLiteral(legislacaoId)}, ${sqlLiteral(codigo)}, ${sqlLiteral(nome)}, ${sqlLiteral(esfera)}, ${sqlLiteral(uf)}, true)`,
   `ON CONFLICT (codigo) DO NOTHING;`,
   "",
-  `INSERT INTO public.legislacao_versoes (id, legislacao_id, numero_versao, descricao, vigente_desde, ativo) VALUES`,
-  `  (${sqlLiteral(legislacaoVersaoId)}, ${sqlLiteral(legislacaoId)}, 1, ${sqlLiteral(versaoDescricao)}, ${sqlLiteral(vigenteDesde)}, true)`,
-  `ON CONFLICT (legislacao_id, numero_versao) DO NOTHING;`,
-  "",
 );
+
+if (publicadaEm !== null) {
+  lines.push(
+    `INSERT INTO public.legislacao_versoes (id, legislacao_id, numero_versao, descricao, vigente_desde, publicada_em, ativo) VALUES`,
+    `  (${sqlLiteral(legislacaoVersaoId)}, ${sqlLiteral(legislacaoId)}, 1, ${sqlLiteral(versaoDescricao)}, ${sqlLiteral(vigenteDesde)}, ${sqlLiteral(publicadaEm)}, true)`,
+    `ON CONFLICT (legislacao_id, numero_versao) DO NOTHING;`,
+    "",
+  );
+} else {
+  // Sem --publicada-em: coluna não entra na INSERT (guard de regressão da 275/216, seedadas antes da Fase 9.C).
+  lines.push(
+    `INSERT INTO public.legislacao_versoes (id, legislacao_id, numero_versao, descricao, vigente_desde, ativo) VALUES`,
+    `  (${sqlLiteral(legislacaoVersaoId)}, ${sqlLiteral(legislacaoId)}, 1, ${sqlLiteral(versaoDescricao)}, ${sqlLiteral(vigenteDesde)}, true)`,
+    `ON CONFLICT (legislacao_id, numero_versao) DO NOTHING;`,
+    "",
+  );
+}
 
 const modeloColumns = modeloDescricao !== null
   ? "id, legislacao_versao_id, codigo, nome, descricao, ativo"

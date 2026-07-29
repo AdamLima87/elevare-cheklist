@@ -1206,6 +1206,47 @@ async function main() {
       );
     });
 
+    await test("Fase 9.F: CVS_3_2026_PADRAO seedado com 19 seções/255 itens e resolver_checklist_modelo_padrao() continua na RDC 275", async () => {
+      const { data: padraoAtual, error } = await admin.rpc("resolver_checklist_modelo_padrao");
+      if (error) throw error;
+      assert(
+        padraoAtual === modeloVersaoAtual.id,
+        `esperava que o padrão global continuasse sendo a versão da RDC 275 (${modeloVersaoAtual.id}) mesmo com a CVS 3/2026 publicada, recebeu ${padraoAtual}`,
+      );
+
+      const { data: cvs3Modelo, error: erroModelo } = await admin
+        .from("checklist_modelo_versoes")
+        .select("id, modelo_id, checklist_modelos!inner(codigo, legislacao_versoes(vigente_desde, publicada_em, legislacoes(uf, esfera)))")
+        .eq("is_versao_atual", true)
+        .eq("checklist_modelos.codigo", "CVS_3_2026_PADRAO")
+        .single();
+      if (erroModelo) throw erroModelo;
+      const legislacao = cvs3Modelo.checklist_modelos.legislacao_versoes;
+      assert(legislacao.vigente_desde === "2026-10-04", `vigente_desde esperado 2026-10-04, recebeu ${legislacao.vigente_desde}`);
+      assert(legislacao.publicada_em === "2026-07-06", `publicada_em esperado 2026-07-06, recebeu ${legislacao.publicada_em}`);
+      assert(legislacao.legislacoes.uf === "SP", `uf esperada SP, recebeu ${legislacao.legislacoes.uf}`);
+      assert(legislacao.legislacoes.esfera === "estadual", `esfera esperada estadual, recebeu ${legislacao.legislacoes.esfera}`);
+
+      const { count: secoesCount } = await admin
+        .from("checklist_secoes")
+        .select("id", { count: "exact", head: true })
+        .eq("modelo_versao_id", cvs3Modelo.id);
+      assert(secoesCount === 19, `esperava 19 seções na CVS 3/2026, recebeu ${secoesCount}`);
+
+      const { count: itensCount } = await admin
+        .from("checklist_itens")
+        .select("id", { count: "exact", head: true })
+        .eq("modelo_versao_id", cvs3Modelo.id);
+      assert(itensCount === 255, `esperava 255 itens na CVS 3/2026, recebeu ${itensCount}`);
+
+      const { count: criticosCount } = await admin
+        .from("checklist_itens")
+        .select("id", { count: "exact", head: true })
+        .eq("modelo_versao_id", cvs3Modelo.id)
+        .eq("critico", true);
+      assert(criticosCount === 73, `esperava 73 itens críticos na CVS 3/2026 (v2), recebeu ${criticosCount}`);
+    });
+
     await test("UPDATE em item de versão de checklist publicada falha", async () => {
       const { data: item } = await admin.from("checklist_itens").select("id").eq("modelo_versao_id", modeloVersaoAtual.id).limit(1).single();
       const { error } = await admin.from("checklist_itens").update({ texto: "hackeado" }).eq("id", item.id);
