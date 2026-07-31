@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/elevare/AppShell";
+import { BRAND } from "@/lib/brand";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { UserManagement } from "@/components/admin/UserManagement";
 import { supabase } from "@/integrations/supabase/client";
@@ -240,7 +241,7 @@ function GeralTab() {
             <span className="font-semibold">Versão:</span>
             <span>1.0.0</span>
             <span className="font-semibold">Base Legal:</span>
-            <span className="text-xs">RDC nº 275/2002 e RDC nº 216/2004 — ANVISA</span>
+            <span className="text-xs">{BRAND.legal}</span>
           </div>
         </CardContent>
       </Card>

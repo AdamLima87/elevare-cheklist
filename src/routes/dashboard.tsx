@@ -45,8 +45,15 @@ async function fetchDashboardStats() {
   // resolver cada inspeção pelo seu próprio checklist_modelo_versao_id.
   // Rankings/agregados de seção são chaveados por modelo+seção pra nunca
   // fundir seções homônimas de legislações diferentes.
+  // Padrão é sempre incluído mesmo sem nenhuma inspeção usá-lo ainda —
+  // senão checklistSections fica vazio pra um tenant novo (0 inspeções) e
+  // categoryBreakdown quebra ao tentar ler o título de uma seção inexistente.
   const modeloIds = [
-    ...new Set((inspections ?? []).map((i) => i.checklist_modelo_versao_id).filter(Boolean) as string[]),
+    ...new Set(
+      [modeloVersaoIdPadrao, ...(inspections ?? []).map((i) => i.checklist_modelo_versao_id)].filter(
+        Boolean,
+      ) as string[],
+    ),
   ];
   const modelosPorId = await carregarChecklistModelos(supabase, modeloIds);
   const checklistModelo = modelosPorId.get(modeloVersaoIdPadrao);
@@ -227,8 +234,8 @@ async function fetchDashboardStats() {
     const agg = sectionAgg[id];
     return {
       id,
-      title: agg.title.split(",")[0].slice(0, 18),
-      percentual: agg.count > 0 ? agg.sumPct / agg.count : 0,
+      title: agg ? agg.title.split(",")[0].slice(0, 18) : id,
+      percentual: agg && agg.count > 0 ? agg.sumPct / agg.count : 0,
     };
   });
 

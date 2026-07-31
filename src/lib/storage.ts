@@ -392,12 +392,30 @@ export async function pushInspecaoToCloud(
   // conversão da oportunidade (Fase 3, crm_fechar_oportunidade_ganha).
   if (context.kind === "cliente" && insp.estabelecimento) {
     try {
-      const cliente = await findOrCreateCliente({
-        empresa_id: empresaId,
-        nome: insp.estabelecimento,
-        cnpj: cleanCnpj,
-      });
-      clienteId = cliente.id;
+      if (context.clienteId) {
+        // Inspeção iniciada a partir do hub de um cliente já existente — usa
+        // esse registro diretamente. Buscar/criar por CNPJ aqui duplicava o
+        // cliente sempre que o cadastro original não tinha CNPJ ainda (o
+        // caso mais comum) e o CNPJ era só capturado agora, na inspeção.
+        clienteId = context.clienteId;
+        if (cleanCnpj) {
+          const { data: clienteAtual } = await supabase
+            .from("clientes")
+            .select("cnpj")
+            .eq("id", context.clienteId)
+            .maybeSingle();
+          if (clienteAtual && !clienteAtual.cnpj) {
+            await supabase.from("clientes").update({ cnpj: cleanCnpj }).eq("id", context.clienteId);
+          }
+        }
+      } else {
+        const cliente = await findOrCreateCliente({
+          empresa_id: empresaId,
+          nome: insp.estabelecimento,
+          cnpj: cleanCnpj,
+        });
+        clienteId = cliente.id;
+      }
     } catch (err) {
       console.error("Failed to find/create cliente:", err);
     }
