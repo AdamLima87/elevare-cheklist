@@ -39,6 +39,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      atividade_tags: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          nome: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          nome: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          nome?: string
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           actor_id: string | null
@@ -379,7 +400,6 @@ export type Database = {
           empresa_id: string
           enviar_email_cliente: boolean | null
           id: string
-          logo_base64: string | null
           nome_empresa: string
           notificar_admin: boolean | null
           site: string | null
@@ -392,7 +412,6 @@ export type Database = {
           empresa_id: string
           enviar_email_cliente?: boolean | null
           id?: string
-          logo_base64?: string | null
           nome_empresa?: string
           notificar_admin?: boolean | null
           site?: string | null
@@ -405,7 +424,6 @@ export type Database = {
           empresa_id?: string
           enviar_email_cliente?: boolean | null
           id?: string
-          logo_base64?: string | null
           nome_empresa?: string
           notificar_admin?: boolean | null
           site?: string | null
@@ -1668,6 +1686,7 @@ export type Database = {
           id: string
           legislacao_id: string
           numero_versao: number
+          publicada_em: string | null
           vigente_desde: string | null
         }
         Insert: {
@@ -1677,6 +1696,7 @@ export type Database = {
           id?: string
           legislacao_id: string
           numero_versao: number
+          publicada_em?: string | null
           vigente_desde?: string | null
         }
         Update: {
@@ -1686,6 +1706,7 @@ export type Database = {
           id?: string
           legislacao_id?: string
           numero_versao?: number
+          publicada_em?: string | null
           vigente_desde?: string | null
         }
         Relationships: [
