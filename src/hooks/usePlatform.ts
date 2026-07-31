@@ -22,6 +22,11 @@ import {
   listCupons,
   criarCupom,
   atualizarCupomAtivo,
+  getSuperAdmins,
+  buscarUsuarioPorEmail,
+  promoverSuperAdmin,
+  rebaixarSuperAdmin,
+  getIntegracoesResumo,
 } from "@/lib/platform/platformService";
 
 export function usePlatformDashboardMetrics() {
@@ -219,5 +224,44 @@ export function useAtualizarCupomAtivo() {
   return useMutation({
     mutationFn: (input: { cupomId: string; ativo: boolean }) => atualizarCupomAtivo(input.cupomId, input.ativo),
     onSuccess: invalidate,
+  });
+}
+
+export function usePlatformSuperAdmins() {
+  return useQuery({
+    queryKey: ["platform", "super-admins"],
+    queryFn: getSuperAdmins,
+  });
+}
+
+function useInvalidatePlatformSuperAdmins() {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: ["platform", "super-admins"] });
+}
+
+export function useBuscarUsuarioPorEmail() {
+  return useMutation({ mutationFn: buscarUsuarioPorEmail });
+}
+
+export function usePromoverSuperAdmin() {
+  const invalidate = useInvalidatePlatformSuperAdmins();
+  return useMutation({
+    mutationFn: promoverSuperAdmin,
+    onSuccess: invalidate,
+  });
+}
+
+export function useRebaixarSuperAdmin() {
+  const invalidate = useInvalidatePlatformSuperAdmins();
+  return useMutation({
+    mutationFn: rebaixarSuperAdmin,
+    onSuccess: invalidate,
+  });
+}
+
+export function usePlatformIntegracoesResumo() {
+  return useQuery({
+    queryKey: ["platform", "integracoes-resumo"],
+    queryFn: getIntegracoesResumo,
   });
 }

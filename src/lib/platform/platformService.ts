@@ -299,3 +299,59 @@ export async function atualizarCupomAtivo(cupomId: string, ativo: boolean): Prom
   const { error } = await supabase.from("saas_cupons").update({ ativo }).eq("id", cupomId);
   if (error) throw error;
 }
+
+export interface PlatformSuperAdmin {
+  id: string;
+  nome: string;
+  email: string;
+  empresa_id: string | null;
+  empresa_nome: string | null;
+  ativo: boolean;
+  created_at: string;
+  ultimo_acesso: string | null;
+}
+
+export async function getSuperAdmins(): Promise<PlatformSuperAdmin[]> {
+  const { data, error } = await supabase.rpc("platform_super_admins_lista");
+  if (error) throw error;
+  return (data ?? []) as PlatformSuperAdmin[];
+}
+
+export interface PlatformUsuarioBusca {
+  id: string;
+  nome: string;
+  email: string;
+  perfil: string;
+  empresa_nome: string | null;
+}
+
+export async function buscarUsuarioPorEmail(email: string): Promise<PlatformUsuarioBusca | null> {
+  const { data, error } = await supabase.rpc("platform_buscar_usuario_por_email", { p_email: email });
+  if (error) throw error;
+  return (data?.[0] as PlatformUsuarioBusca | undefined) ?? null;
+}
+
+export async function promoverSuperAdmin(userId: string): Promise<void> {
+  const { error } = await supabase.rpc("platform_promover_super_admin", { p_user_id: userId });
+  if (error) throw error;
+}
+
+export async function rebaixarSuperAdmin(userId: string): Promise<void> {
+  const { error } = await supabase.rpc("platform_rebaixar_super_admin", { p_user_id: userId });
+  if (error) throw error;
+}
+
+export interface PlatformIntegracoesResumo {
+  empresas_total: number;
+  google_places_tenants_byo: number;
+  google_places_tenants_rdcheck: number;
+  google_places_tenants_invalido: number;
+  google_places_leads_total: number;
+  email_tenants_habilitados: number;
+}
+
+export async function getIntegracoesResumo(): Promise<PlatformIntegracoesResumo> {
+  const { data, error } = await supabase.rpc("platform_integracoes_resumo").single();
+  if (error) throw error;
+  return data as PlatformIntegracoesResumo;
+}

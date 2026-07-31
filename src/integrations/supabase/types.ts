@@ -3178,6 +3178,16 @@ export type Database = {
         Args: { p_empresa_id: string; p_motivo: string }
         Returns: undefined
       }
+      platform_buscar_usuario_por_email: {
+        Args: { p_email: string }
+        Returns: {
+          email: string
+          empresa_nome: string
+          id: string
+          nome: string
+          perfil: string
+        }[]
+      }
       platform_dashboard_metrics: {
         Args: never
         Returns: {
@@ -3244,9 +3254,41 @@ export type Database = {
           trial_leads_usados: number
         }[]
       }
+      platform_integracoes_resumo: {
+        Args: never
+        Returns: {
+          email_tenants_habilitados: number
+          empresas_total: number
+          google_places_leads_total: number
+          google_places_tenants_byo: number
+          google_places_tenants_invalido: number
+          google_places_tenants_rdcheck: number
+        }[]
+      }
       platform_marcar_evento_para_reprocessar: {
         Args: { p_evento_id: string }
         Returns: undefined
+      }
+      platform_promover_super_admin: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
+      platform_rebaixar_super_admin: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
+      platform_super_admins_lista: {
+        Args: never
+        Returns: {
+          ativo: boolean
+          created_at: string
+          email: string
+          empresa_id: string
+          empresa_nome: string
+          id: string
+          nome: string
+          ultimo_acesso: string
+        }[]
       }
       provision_tenant: {
         Args: {
