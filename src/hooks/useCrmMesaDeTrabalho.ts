@@ -61,7 +61,11 @@ export function useCrmMesaDeTrabalho() {
         { data: saude, error: errSaude },
       ] = await Promise.all([
         supabase.from("crm_empresas").select("id, razao_social, nome_fantasia, responsavel_id, created_at").eq("status", "lead"),
-        supabase.from("crm_timeline").select("crm_empresa_id"),
+        // Só eventos de contato registrados por um usuário (origem='usuario')
+        // contam como "primeiro contato" — eventos de sistema (ex.:
+        // lead_importado_google, gravados no instante da importação) não
+        // representam nenhuma interação humana com o lead.
+        supabase.from("crm_timeline").select("crm_empresa_id").eq("origem", "usuario"),
         supabase
           .from("crm_atividades")
           .select("*, crm_empresas(razao_social, nome_fantasia), crm_tipos_atividade(nome)")
@@ -75,7 +79,7 @@ export function useCrmMesaDeTrabalho() {
           .lte("vencimento", hojeFim.toISOString()),
         supabase
           .from("crm_oportunidades")
-          .select("*, crm_empresas(razao_social, nome_fantasia), crm_etapas(nome, tipo)")
+          .select("*, crm_empresas(razao_social, nome_fantasia), crm_etapas(nome, tipo, eh_proposta)")
           .is("fechada_em", null),
         supabase.from("crm_atividades").select("crm_oportunidade_id").eq("status", "pendente"),
         supabase
@@ -98,8 +102,8 @@ export function useCrmMesaDeTrabalho() {
         (o: any) => o.crm_etapas?.tipo === "aberta" && !oportunidadesComAtividadePendente.has(o.id),
       );
 
-      const propostasAguardando = (oportunidadesAbertas ?? []).filter((o: any) =>
-        o.crm_etapas?.nome?.toLowerCase().includes("proposta"),
+      const propostasAguardando = (oportunidadesAbertas ?? []).filter(
+        (o: any) => o.crm_etapas?.eh_proposta === true,
       );
 
       const negociacoesEstagnadas = (saude ?? []).filter((o: any) => !o.tem_atividade_vencida);

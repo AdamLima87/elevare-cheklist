@@ -101,6 +101,23 @@ export function CrmEtapasCard() {
     }
   };
 
+  const handleToggleProposta = async (etapa: CrmEtapa) => {
+    try {
+      await upsertEtapa.mutateAsync({
+        id: etapa.id,
+        empresa_id: etapa.empresa_id,
+        pipeline_id: etapa.pipeline_id,
+        nome: etapa.nome,
+        ordem: etapa.ordem,
+        cor: etapa.cor,
+        tipo: etapa.tipo,
+        eh_proposta: !etapa.eh_proposta,
+      });
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao atualizar etapa");
+    }
+  };
+
   const handleToggleDiagnostico = (etapa: CrmEtapa) => {
     if (!pipeline?.id) return;
 
@@ -176,6 +193,17 @@ export function CrmEtapasCard() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor={`proposta-${etapa.id}`} className="text-xs font-normal text-muted-foreground">
+                      Etapa de Proposta
+                    </Label>
+                    <Switch
+                      id={`proposta-${etapa.id}`}
+                      checked={etapa.eh_proposta}
+                      disabled={!podeEditar || upsertEtapa.isPending}
+                      onCheckedChange={() => handleToggleProposta(etapa)}
+                    />
+                  </div>
                   <div
                     className="flex items-center gap-2"
                     title={

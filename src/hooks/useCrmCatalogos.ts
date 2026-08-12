@@ -24,6 +24,8 @@ export interface CrmEtapa {
   created_at: string;
   /** Fase 2: flag independente de `tipo` — não altera comportamento até a Fase 5 (toggle de configuração). */
   gera_diagnostico: boolean;
+  /** Marca a(s) etapa(s) que representam "proposta enviada" — usado pela Mesa de Trabalho em vez de casar texto no nome. */
+  eh_proposta: boolean;
 }
 
 export interface CrmCatalogoItem {
@@ -87,6 +89,7 @@ export function useUpsertCrmEtapa() {
       ordem: number;
       tipo?: CrmEtapaTipo;
       cor?: string | null;
+      eh_proposta?: boolean;
     }) => {
       const { data, error } = await supabase.from("crm_etapas").upsert(input).select().single();
       if (error) throw error;

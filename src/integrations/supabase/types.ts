@@ -713,6 +713,7 @@ export type Database = {
         Row: {
           cor: string | null
           created_at: string
+          eh_proposta: boolean
           empresa_id: string
           gera_diagnostico: boolean
           id: string
@@ -724,6 +725,7 @@ export type Database = {
         Insert: {
           cor?: string | null
           created_at?: string
+          eh_proposta?: boolean
           empresa_id: string
           gera_diagnostico?: boolean
           id?: string
@@ -735,6 +737,7 @@ export type Database = {
         Update: {
           cor?: string | null
           created_at?: string
+          eh_proposta?: boolean
           empresa_id?: string
           gera_diagnostico?: boolean
           id?: string
