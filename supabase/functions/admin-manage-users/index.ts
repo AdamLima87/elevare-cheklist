@@ -101,8 +101,8 @@ serve(async (req) => {
       throw new Error('Invalid JSON body');
     }
     
-    console.log('Request received body:', body)
     const { action, userData, queueId } = body
+    console.log('Request received. action:', action)
 
     const authHeader = req.headers.get('Authorization')
     let isAuthorized = false

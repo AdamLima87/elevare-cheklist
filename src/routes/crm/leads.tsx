@@ -54,10 +54,11 @@ interface ImportForm {
 }
 
 function CrmLeadsPage() {
-  const { data: profile } = useCurrentProfile();
-  const { data: pipeline } = useCrmPipelinePadrao();
-  const { data: etapas = [] } = useCrmEtapas(pipeline?.id);
+  const { data: profile, isLoading: profileLoading } = useCurrentProfile();
+  const { data: pipeline, isLoading: pipelineLoading } = useCrmPipelinePadrao();
+  const { data: etapas = [], isLoading: etapasLoading } = useCrmEtapas(pipeline?.id);
   const etapaInicial = useMemo(() => etapas.find((e) => e.tipo === "aberta"), [etapas]);
+  const contextoImportacaoCarregando = profileLoading || pipelineLoading || etapasLoading;
 
   const { data: usage, isLoading: usageLoading } = useLeadFinderUsage();
   const { data: nichos = [] } = useCrmLeadsNichos();
@@ -131,6 +132,10 @@ function CrmLeadsPage() {
   };
 
   const confirmarImportacaoLote = async () => {
+    if (contextoImportacaoCarregando) {
+      toast.error("Ainda carregando dados do CRM, aguarde um instante e tente novamente.");
+      return;
+    }
     if (!pipeline?.id || !etapaInicial?.id || !profile?.userId) {
       toast.error("Pipeline padrão do CRM não encontrado.");
       return;
@@ -372,8 +377,12 @@ function CrmLeadsPage() {
               <Button variant="outline" onClick={() => setBatchOpen(false)}>
                 Fechar
               </Button>
-              <Button onClick={confirmarImportacaoLote} disabled={importLead.isPending}>
-                {importLead.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar e importar"}
+              <Button onClick={confirmarImportacaoLote} disabled={importLead.isPending || contextoImportacaoCarregando}>
+                {importLead.isPending || contextoImportacaoCarregando ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Confirmar e importar"
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>

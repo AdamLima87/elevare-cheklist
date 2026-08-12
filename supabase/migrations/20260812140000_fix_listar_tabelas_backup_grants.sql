@@ -1,0 +1,22 @@
+-- Achado de auditoria de segurança (2026-08-12): listar_tabelas_backup()
+-- foi criada em 20260812130000_db_backup_infra.sql com um
+-- `REVOKE ALL ... FROM PUBLIC`, presumindo que isso bastaria pra restringir
+-- o acesso só ao service role (que a Edge Function db-backup usa). Isso
+-- estava errado: o Supabase concede EXECUTE por padrão, via
+-- ALTER DEFAULT PRIVILEGES, diretamente às roles nomeadas `anon` e
+-- `authenticated` em toda função nova do schema public — revogar de PUBLIC
+-- não desfaz um grant direto a uma role nomeada. Na prática, qualquer
+-- visitante não autenticado (role anon, coberta só pela anon key, que é
+-- pública por design) conseguia chamar essa função e listar os nomes das
+-- 53 tabelas de public — não vaza dado nenhum (só metadados de schema),
+-- mas viola o que o comentário da função já afirmava.
+--
+-- Fix: revoga EXECUTE explicitamente das roles nomeadas (não só de
+-- PUBLIC), deixando a função utilizável apenas por quem já tem privilégio
+-- de bypass de GRANT (postgres/service_role).
+REVOKE EXECUTE ON FUNCTION public.listar_tabelas_backup() FROM anon, authenticated;
+
+-- Verify after applying:
+--   SELECT has_function_privilege('anon', 'public.listar_tabelas_backup()', 'EXECUTE');          -- deve ser false
+--   SELECT has_function_privilege('authenticated', 'public.listar_tabelas_backup()', 'EXECUTE');  -- deve ser false
+--   SELECT has_function_privilege('service_role', 'public.listar_tabelas_backup()', 'EXECUTE');   -- deve continuar true
