@@ -41,7 +41,7 @@ export function CrmEtapasCard() {
   // novo aqui — a RPC/RLS continuam sendo a autoridade real.
   const podeEditar = profile?.perfil === "admin" || profile?.perfil === "super_admin";
 
-  const { data: pipeline, isLoading: loadingPipeline } = useCrmPipelinePadrao();
+  const { data: pipeline, isLoading: loadingPipeline } = useCrmPipelinePadrao(profile?.empresa_id);
   const { data: etapas = [], isLoading: loadingEtapas } = useCrmEtapas(pipeline?.id);
   const upsertEtapa = useUpsertCrmEtapa();
   const deleteEtapa = useDeleteCrmEtapa();

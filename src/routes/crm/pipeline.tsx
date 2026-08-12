@@ -65,7 +65,7 @@ function formatMoeda(valor: number | null) {
 function CrmPipelinePage() {
   const navigate = useNavigate();
   const { data: profile } = useCurrentProfile();
-  const { data: pipeline, isLoading: loadingPipeline } = useCrmPipelinePadrao();
+  const { data: pipeline, isLoading: loadingPipeline } = useCrmPipelinePadrao(profile?.empresa_id);
   const { data: etapas = [], isLoading: loadingEtapas } = useCrmEtapas(pipeline?.id);
   const { data: oportunidades = [], isLoading: loadingOportunidades } = useCrmOportunidades(pipeline?.id);
   const { data: contas = [] } = useCrmEmpresas();

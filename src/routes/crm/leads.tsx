@@ -55,7 +55,7 @@ interface ImportForm {
 
 function CrmLeadsPage() {
   const { data: profile, isLoading: profileLoading } = useCurrentProfile();
-  const { data: pipeline, isLoading: pipelineLoading } = useCrmPipelinePadrao();
+  const { data: pipeline, isLoading: pipelineLoading } = useCrmPipelinePadrao(profile?.empresa_id);
   const { data: etapas = [], isLoading: etapasLoading } = useCrmEtapas(pipeline?.id);
   const etapaInicial = useMemo(() => etapas.find((e) => e.tipo === "aberta"), [etapas]);
   const contextoImportacaoCarregando = profileLoading || pipelineLoading || etapasLoading;

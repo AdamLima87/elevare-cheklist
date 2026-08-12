@@ -35,18 +35,20 @@ export interface CrmCatalogoItem {
   created_at: string;
 }
 
-export function useCrmPipelinePadrao() {
+export function useCrmPipelinePadrao(empresaId: string | undefined) {
   return useQuery({
-    queryKey: ["crm-pipeline-padrao"],
+    queryKey: ["crm-pipeline-padrao", empresaId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("crm_pipelines")
         .select("*")
         .eq("padrao", true)
+        .eq("empresa_id", empresaId as string)
         .maybeSingle();
       if (error) throw error;
       return data as CrmPipeline | null;
     },
+    enabled: !!empresaId,
   });
 }
 
