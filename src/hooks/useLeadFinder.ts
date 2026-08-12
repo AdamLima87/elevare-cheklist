@@ -42,7 +42,24 @@ export interface LeadFinderCredencial {
 
 async function invokeLeadFinder<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke("lead-finder", { body });
-  if (error) throw error;
+  if (error) {
+    // supabase-js só expõe uma mensagem genérica ("Edge Function returned a
+    // non-2xx status code") em `error.message` — o corpo JSON real
+    // ({ error: "..." }) que a função sempre devolve fica em
+    // `error.context`, uma Response não lida. Tenta extrair a mensagem real
+    // antes de cair no genérico.
+    const context = (error as { context?: Response }).context;
+    let mensagemReal: string | null = null;
+    if (context) {
+      try {
+        const body = await context.clone().json();
+        if (typeof body?.error === "string") mensagemReal = body.error;
+      } catch {
+        // corpo não era JSON ou já foi consumido — segue com o erro genérico
+      }
+    }
+    throw mensagemReal ? new Error(mensagemReal) : error;
+  }
   if (data?.error) throw new Error(data.error);
   return data as T;
 }
