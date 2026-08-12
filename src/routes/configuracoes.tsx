@@ -14,11 +14,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2,
   Save,
-  Download,
   Building,
   Bell,
   Info,
-  Database,
   Plus,
   Trash2,
   CheckCircle2,
@@ -193,29 +191,6 @@ function GeralTab() {
     }
   };
 
-  const handleExportData = async () => {
-    try {
-      toast.loading("Preparando exportação...");
-      const { data: inspections, error } = await supabase.from("inspecoes").select("*");
-
-      if (error) throw error;
-
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(inspections, null, 2));
-      const downloadAnchorNode = document.createElement("a");
-      downloadAnchorNode.setAttribute("href", dataStr);
-      downloadAnchorNode.setAttribute("download", `rdcheck_backup_${new Date().toISOString().split("T")[0]}.json`);
-      document.body.appendChild(downloadAnchorNode);
-      downloadAnchorNode.click();
-      downloadAnchorNode.remove();
-
-      toast.dismiss();
-      toast.success("Dados exportados com sucesso!");
-    } catch (error) {
-      console.error("Error exporting data:", error);
-      toast.error("Erro ao exportar dados");
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
@@ -327,25 +302,6 @@ function GeralTab() {
             Salvar alterações
           </Button>
         </CardFooter>
-      </Card>
-
-      <Card className="md:col-span-2 border-dashed">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Database className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg">Dados e Armazenamento</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-sm">
-            <p className="font-medium">Sincronização na Nuvem</p>
-            <p className="text-muted-foreground">Todas as inspeções são armazenadas com segurança via Supabase.</p>
-          </div>
-          <Button variant="outline" onClick={handleExportData}>
-            <Download className="h-4 w-4 mr-2" />
-            Exportar todos os dados (JSON)
-          </Button>
-        </CardContent>
       </Card>
     </div>
   );
