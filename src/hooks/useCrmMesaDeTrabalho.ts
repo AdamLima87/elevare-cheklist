@@ -54,6 +54,7 @@ export function useCrmMesaDeTrabalho() {
       const [
         { data: leads, error: errLeads },
         { data: comContato, error: errContato },
+        { data: comAtividadeConcluida, error: errConcluida },
         { data: atividadesAtrasadas, error: errAtrasadas },
         { data: followUpsHoje, error: errFollowUps },
         { data: oportunidadesAbertas, error: errOportunidades },
@@ -61,11 +62,19 @@ export function useCrmMesaDeTrabalho() {
         { data: saude, error: errSaude },
       ] = await Promise.all([
         supabase.from("crm_empresas").select("id, razao_social, nome_fantasia, responsavel_id, created_at").eq("status", "lead"),
-        // Só eventos de contato registrados por um usuário (origem='usuario')
-        // contam como "primeiro contato" — eventos de sistema (ex.:
-        // lead_importado_google, gravados no instante da importação) não
-        // representam nenhuma interação humana com o lead.
-        supabase.from("crm_timeline").select("crm_empresa_id").eq("origem", "usuario"),
+        // "Primeiro contato" conta com qualquer um destes sinais: (1) nota
+        // manual registrada por um usuário (origem='usuario' — nunca eventos
+        // automáticos como o de importação); (2) a oportunidade já mudou de
+        // etapa pelo menos uma vez (evento 'mudanca_etapa', gravado pelo
+        // trigger em toda troca de etapa real, incluindo drag-and-drop no
+        // Pipeline — só não existe na criação inicial da oportunidade).
+        supabase
+          .from("crm_timeline")
+          .select("crm_empresa_id")
+          .or("origem.eq.usuario,evento_tipo.eq.mudanca_etapa"),
+        // (3) existe pelo menos uma atividade concluída (ligação/e-mail/
+        // reunião de fato realizada) vinculada à conta.
+        supabase.from("crm_atividades").select("crm_empresa_id").eq("status", "concluida"),
         supabase
           .from("crm_atividades")
           .select("*, crm_empresas(razao_social, nome_fantasia), crm_tipos_atividade(nome)")
@@ -89,10 +98,20 @@ export function useCrmMesaDeTrabalho() {
       ]);
 
       const error =
-        errLeads || errContato || errAtrasadas || errFollowUps || errOportunidades || errPendentes || errSaude;
+        errLeads ||
+        errContato ||
+        errConcluida ||
+        errAtrasadas ||
+        errFollowUps ||
+        errOportunidades ||
+        errPendentes ||
+        errSaude;
       if (error) throw error;
 
-      const contasComContato = new Set((comContato ?? []).map((t) => t.crm_empresa_id));
+      const contasComContato = new Set([
+        ...(comContato ?? []).map((t) => t.crm_empresa_id),
+        ...(comAtividadeConcluida ?? []).map((a) => a.crm_empresa_id),
+      ]);
       const leadsSemContato = (leads ?? []).filter((l) => !contasComContato.has(l.id));
 
       const oportunidadesComAtividadePendente = new Set(
