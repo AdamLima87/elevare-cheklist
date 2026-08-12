@@ -9,7 +9,7 @@ import { draftKey, loadInspecao, type Inspecao } from "@/lib/storage";
 import type { InspectionContext } from "@/lib/inspection-context";
 import { Loader2 } from "lucide-react";
 
-export const Route = createFileRoute("/crm/oportunidades/$id/diagnostico/resultado")({
+export const Route = createFileRoute("/crm/oportunidades/$id_/diagnostico/resultado")({
   validateSearch: (search: Record<string, unknown>) => ({
     inspecaoId: String(search.inspecaoId ?? ""),
   }),
@@ -32,8 +32,8 @@ const AVISO_DIAGNOSTICO = (
 
 function CrmDiagnosticoResultadoPage() {
   const navigate = useNavigate();
-  const { id } = useParams({ from: "/crm/oportunidades/$id/diagnostico/resultado" });
-  const { inspecaoId } = useSearch({ from: "/crm/oportunidades/$id/diagnostico/resultado" });
+  const { id } = useParams({ from: "/crm/oportunidades/$id_/diagnostico/resultado" });
+  const { inspecaoId } = useSearch({ from: "/crm/oportunidades/$id_/diagnostico/resultado" });
 
   const [status, setStatus] = useState<"loading" | "ok" | "erro">("loading");
   const [insp, setInsp] = useState<Inspecao | null>(null);

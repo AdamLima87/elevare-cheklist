@@ -17,7 +17,7 @@ import { describeInspectionSaveError } from "@/lib/inspection-error";
 import { toast } from "sonner";
 import { ArrowLeft, Loader2 } from "lucide-react";
 
-export const Route = createFileRoute("/crm/oportunidades/$id/diagnostico/novo")({
+export const Route = createFileRoute("/crm/oportunidades/$id_/diagnostico/novo")({
   head: () => ({ meta: [{ title: "Diagnóstico Inicial · CRM Comercial · RDCheck" }] }),
   component: () => (
     <ProtectedRoute allowedProfiles={["admin", "consultor"]}>
@@ -43,7 +43,7 @@ function crmEmpresaToEstabelecimentoPrefill(conta: CrmEmpresa): Partial<Estabele
 
 function CrmDiagnosticoNovoPage() {
   const navigate = useNavigate();
-  const { id } = useParams({ from: "/crm/oportunidades/$id/diagnostico/novo" });
+  const { id } = useParams({ from: "/crm/oportunidades/$id_/diagnostico/novo" });
   const { data: oportunidade, isLoading: loadingOportunidade } = useCrmOportunidade(id);
   const { data: conta } = useCrmEmpresa(oportunidade?.crm_empresa_id);
   const { data: diagnosticoExistente, isLoading: loadingExistente } = useCrmDiagnostico(id);
