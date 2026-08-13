@@ -544,6 +544,35 @@ export type Database = {
           },
         ]
       }
+      crm_comercial_config: {
+        Row: {
+          created_at: string
+          empresa_id: string
+          ganha_exige: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          empresa_id: string
+          ganha_exige?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          empresa_id?: string
+          ganha_exige?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_comercial_config_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: true
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_contatos: {
         Row: {
           cargo: string | null
@@ -608,18 +637,258 @@ export type Database = {
           },
         ]
       }
-      crm_empresas: {
+      crm_contrato_templates: {
         Row: {
-          cidade: string | null
-          cliente_id: string | null
-          cnpj: string | null
+          ativo: boolean
+          conteudo: Json
           created_at: string
           empresa_id: string
+          id: string
+          nome: string
+          updated_at: string
+          versao: number
+        }
+        Insert: {
+          ativo?: boolean
+          conteudo: Json
+          created_at?: string
+          empresa_id: string
+          id?: string
+          nome: string
+          updated_at?: string
+          versao?: number
+        }
+        Update: {
+          ativo?: boolean
+          conteudo?: Json
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_contrato_templates_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_contratos: {
+        Row: {
+          arquivo_assinado_path: string | null
+          assinado_em: string | null
+          assinado_por: string | null
+          cancelado_em: string | null
+          cancelado_motivo: string | null
+          created_at: string
+          crm_contrato_template_id: string
+          crm_empresa_id: string
+          crm_oportunidade_id: string
+          crm_proposta_id: string
+          dados: Json | null
+          empresa_id: string
+          enviado_em: string | null
+          gerado_em: string | null
+          id: string
+          justificativa_sem_arquivo: string | null
+          origem_assinatura: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          arquivo_assinado_path?: string | null
+          assinado_em?: string | null
+          assinado_por?: string | null
+          cancelado_em?: string | null
+          cancelado_motivo?: string | null
+          created_at?: string
+          crm_contrato_template_id: string
+          crm_empresa_id: string
+          crm_oportunidade_id: string
+          crm_proposta_id: string
+          dados?: Json | null
+          empresa_id: string
+          enviado_em?: string | null
+          gerado_em?: string | null
+          id?: string
+          justificativa_sem_arquivo?: string | null
+          origem_assinatura?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          arquivo_assinado_path?: string | null
+          assinado_em?: string | null
+          assinado_por?: string | null
+          cancelado_em?: string | null
+          cancelado_motivo?: string | null
+          created_at?: string
+          crm_contrato_template_id?: string
+          crm_empresa_id?: string
+          crm_oportunidade_id?: string
+          crm_proposta_id?: string
+          dados?: Json | null
+          empresa_id?: string
+          enviado_em?: string | null
+          gerado_em?: string | null
+          id?: string
+          justificativa_sem_arquivo?: string | null
+          origem_assinatura?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_contratos_assinado_por_fkey"
+            columns: ["assinado_por", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id", "empresa_id"]
+          },
+          {
+            foreignKeyName: "crm_contratos_crm_empresa_fkey"
+            columns: ["crm_empresa_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "crm_empresas"
+            referencedColumns: ["id", "empresa_id"]
+          },
+          {
+            foreignKeyName: "crm_contratos_crm_empresa_fkey"
+            columns: ["crm_empresa_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "crm_empresas_score"
+            referencedColumns: ["id", "empresa_id"]
+          },
+          {
+            foreignKeyName: "crm_contratos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_contratos_oportunidade_fkey"
+            columns: ["crm_oportunidade_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "crm_oportunidades"
+            referencedColumns: ["id", "empresa_id"]
+          },
+          {
+            foreignKeyName: "crm_contratos_oportunidade_fkey"
+            columns: ["crm_oportunidade_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "crm_oportunidades_saude"
+            referencedColumns: ["id", "empresa_id"]
+          },
+          {
+            foreignKeyName: "crm_contratos_proposta_fkey"
+            columns: ["crm_proposta_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "crm_propostas"
+            referencedColumns: ["id", "empresa_id"]
+          },
+          {
+            foreignKeyName: "crm_contratos_template_fkey"
+            columns: ["crm_contrato_template_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contrato_templates"
+            referencedColumns: ["id", "empresa_id"]
+          },
+        ]
+      }
+      crm_documentos_links: {
+        Row: {
+          contrato_id: string | null
+          created_at: string
+          created_by: string | null
+          empresa_id: string
+          expira_em: string
+          id: string
+          proposta_id: string | null
+          revogado_em: string | null
+          tipo: string
+          token_hash: string
+        }
+        Insert: {
+          contrato_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          empresa_id: string
+          expira_em: string
+          id?: string
+          proposta_id?: string | null
+          revogado_em?: string | null
+          tipo: string
+          token_hash: string
+        }
+        Update: {
+          contrato_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          empresa_id?: string
+          expira_em?: string
+          id?: string
+          proposta_id?: string | null
+          revogado_em?: string | null
+          tipo?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_documentos_links_contrato_fkey"
+            columns: ["contrato_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contratos"
+            referencedColumns: ["id", "empresa_id"]
+          },
+          {
+            foreignKeyName: "crm_documentos_links_created_by_fkey"
+            columns: ["created_by", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id", "empresa_id"]
+          },
+          {
+            foreignKeyName: "crm_documentos_links_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_documentos_links_proposta_fkey"
+            columns: ["proposta_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "crm_propostas"
+            referencedColumns: ["id", "empresa_id"]
+          },
+        ]
+      }
+      crm_empresas: {
+        Row: {
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
+          cidade_endereco: string | null
+          cliente_id: string | null
+          cnpj: string | null
+          complemento: string | null
+          cpf: string | null
+          created_at: string
+          empresa_id: string
+          endereco: string | null
           estado: string | null
           google_place_id: string | null
           id: string
           instagram: string | null
+          nome_completo_pf: string | null
           nome_fantasia: string | null
+          numero: string | null
           numero_unidades: number | null
           observacoes: string | null
           origem_id: string | null
@@ -629,20 +898,30 @@ export type Database = {
           site: string | null
           status: string
           tags: string[]
+          tipo_pessoa: string | null
+          uf_endereco: string | null
           updated_at: string
           whatsapp: string | null
         }
         Insert: {
+          bairro?: string | null
+          cep?: string | null
           cidade?: string | null
+          cidade_endereco?: string | null
           cliente_id?: string | null
           cnpj?: string | null
+          complemento?: string | null
+          cpf?: string | null
           created_at?: string
           empresa_id: string
+          endereco?: string | null
           estado?: string | null
           google_place_id?: string | null
           id?: string
           instagram?: string | null
+          nome_completo_pf?: string | null
           nome_fantasia?: string | null
+          numero?: string | null
           numero_unidades?: number | null
           observacoes?: string | null
           origem_id?: string | null
@@ -652,20 +931,30 @@ export type Database = {
           site?: string | null
           status?: string
           tags?: string[]
+          tipo_pessoa?: string | null
+          uf_endereco?: string | null
           updated_at?: string
           whatsapp?: string | null
         }
         Update: {
+          bairro?: string | null
+          cep?: string | null
           cidade?: string | null
+          cidade_endereco?: string | null
           cliente_id?: string | null
           cnpj?: string | null
+          complemento?: string | null
+          cpf?: string | null
           created_at?: string
           empresa_id?: string
+          endereco?: string | null
           estado?: string | null
           google_place_id?: string | null
           id?: string
           instagram?: string | null
+          nome_completo_pf?: string | null
           nome_fantasia?: string | null
+          numero?: string | null
           numero_unidades?: number | null
           observacoes?: string | null
           origem_id?: string | null
@@ -675,6 +964,8 @@ export type Database = {
           site?: string | null
           status?: string
           tags?: string[]
+          tipo_pessoa?: string | null
+          uf_endereco?: string | null
           updated_at?: string
           whatsapp?: string | null
         }
@@ -1255,6 +1546,303 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "crm_pipelines_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_proposta_itens: {
+        Row: {
+          created_at: string
+          descricao: string | null
+          empresa_id: string
+          id: string
+          nome: string
+          ordem: number
+          proposta_id: string
+          servico_catalogo_id: string | null
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          descricao?: string | null
+          empresa_id: string
+          id?: string
+          nome: string
+          ordem?: number
+          proposta_id: string
+          servico_catalogo_id?: string | null
+          valor?: number
+        }
+        Update: {
+          created_at?: string
+          descricao?: string | null
+          empresa_id?: string
+          id?: string
+          nome?: string
+          ordem?: number
+          proposta_id?: string
+          servico_catalogo_id?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_proposta_itens_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_proposta_itens_proposta_fkey"
+            columns: ["proposta_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "crm_propostas"
+            referencedColumns: ["id", "empresa_id"]
+          },
+          {
+            foreignKeyName: "crm_proposta_itens_servico_fkey"
+            columns: ["servico_catalogo_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "crm_servicos_catalogo"
+            referencedColumns: ["id", "empresa_id"]
+          },
+        ]
+      }
+      crm_propostas: {
+        Row: {
+          aceite_em: string | null
+          aceite_evidencia_path: string | null
+          aceite_forma: string | null
+          aceite_observacao: string | null
+          aceite_por: string | null
+          cancelada_em: string | null
+          cancelada_motivo: string | null
+          created_at: string
+          crm_empresa_id: string
+          crm_oportunidade_id: string
+          empresa_id: string
+          enviada_em: string | null
+          gerada_em: string | null
+          grupo_proposta_id: string
+          id: string
+          numero_revisao: number
+          recusada_em: string | null
+          recusada_motivo: string | null
+          revisao_anterior_id: string | null
+          status: string
+          updated_at: string
+          valor_total: number
+        }
+        Insert: {
+          aceite_em?: string | null
+          aceite_evidencia_path?: string | null
+          aceite_forma?: string | null
+          aceite_observacao?: string | null
+          aceite_por?: string | null
+          cancelada_em?: string | null
+          cancelada_motivo?: string | null
+          created_at?: string
+          crm_empresa_id: string
+          crm_oportunidade_id: string
+          empresa_id: string
+          enviada_em?: string | null
+          gerada_em?: string | null
+          grupo_proposta_id: string
+          id?: string
+          numero_revisao?: number
+          recusada_em?: string | null
+          recusada_motivo?: string | null
+          revisao_anterior_id?: string | null
+          status?: string
+          updated_at?: string
+          valor_total?: number
+        }
+        Update: {
+          aceite_em?: string | null
+          aceite_evidencia_path?: string | null
+          aceite_forma?: string | null
+          aceite_observacao?: string | null
+          aceite_por?: string | null
+          cancelada_em?: string | null
+          cancelada_motivo?: string | null
+          created_at?: string
+          crm_empresa_id?: string
+          crm_oportunidade_id?: string
+          empresa_id?: string
+          enviada_em?: string | null
+          gerada_em?: string | null
+          grupo_proposta_id?: string
+          id?: string
+          numero_revisao?: number
+          recusada_em?: string | null
+          recusada_motivo?: string | null
+          revisao_anterior_id?: string | null
+          status?: string
+          updated_at?: string
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_propostas_aceite_por_fkey"
+            columns: ["aceite_por", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id", "empresa_id"]
+          },
+          {
+            foreignKeyName: "crm_propostas_crm_empresa_fkey"
+            columns: ["crm_empresa_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "crm_empresas"
+            referencedColumns: ["id", "empresa_id"]
+          },
+          {
+            foreignKeyName: "crm_propostas_crm_empresa_fkey"
+            columns: ["crm_empresa_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "crm_empresas_score"
+            referencedColumns: ["id", "empresa_id"]
+          },
+          {
+            foreignKeyName: "crm_propostas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_propostas_oportunidade_fkey"
+            columns: ["crm_oportunidade_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "crm_oportunidades"
+            referencedColumns: ["id", "empresa_id"]
+          },
+          {
+            foreignKeyName: "crm_propostas_oportunidade_fkey"
+            columns: ["crm_oportunidade_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "crm_oportunidades_saude"
+            referencedColumns: ["id", "empresa_id"]
+          },
+          {
+            foreignKeyName: "crm_propostas_revisao_anterior_fkey"
+            columns: ["revisao_anterior_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "crm_propostas"
+            referencedColumns: ["id", "empresa_id"]
+          },
+        ]
+      }
+      crm_representantes: {
+        Row: {
+          ativo: boolean
+          cargo: string | null
+          cpf: string | null
+          created_at: string
+          crm_empresa_id: string
+          email: string | null
+          empresa_id: string
+          id: string
+          nome_completo: string
+          principal: boolean
+          rg: string | null
+          telefone: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cargo?: string | null
+          cpf?: string | null
+          created_at?: string
+          crm_empresa_id: string
+          email?: string | null
+          empresa_id: string
+          id?: string
+          nome_completo: string
+          principal?: boolean
+          rg?: string | null
+          telefone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cargo?: string | null
+          cpf?: string | null
+          created_at?: string
+          crm_empresa_id?: string
+          email?: string | null
+          empresa_id?: string
+          id?: string
+          nome_completo?: string
+          principal?: boolean
+          rg?: string | null
+          telefone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_representantes_crm_empresa_fkey"
+            columns: ["crm_empresa_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "crm_empresas"
+            referencedColumns: ["id", "empresa_id"]
+          },
+          {
+            foreignKeyName: "crm_representantes_crm_empresa_fkey"
+            columns: ["crm_empresa_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "crm_empresas_score"
+            referencedColumns: ["id", "empresa_id"]
+          },
+          {
+            foreignKeyName: "crm_representantes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_servicos_catalogo: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          empresa_id: string
+          id: string
+          nome: string
+          ordem: number
+          updated_at: string
+          valor_padrao: number | null
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          empresa_id: string
+          id?: string
+          nome: string
+          ordem?: number
+          updated_at?: string
+          valor_padrao?: number | null
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          empresa_id?: string
+          id?: string
+          nome?: string
+          ordem?: number
+          updated_at?: string
+          valor_padrao?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_servicos_catalogo_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
@@ -2901,6 +3489,10 @@ export type Database = {
         }
         Returns: string
       }
+      crm_atualizar_snapshot_contrato_rascunho: {
+        Args: { p_contrato_id: string }
+        Returns: undefined
+      }
       crm_busca_global: {
         Args: { p_query: string }
         Returns: {
@@ -2910,6 +3502,14 @@ export type Database = {
           tipo: string
           titulo: string
         }[]
+      }
+      crm_cancelar_contrato: {
+        Args: { p_contrato_id: string; p_motivo?: string }
+        Returns: undefined
+      }
+      crm_cancelar_proposta: {
+        Args: { p_motivo?: string; p_proposta_id: string }
+        Returns: undefined
       }
       crm_concluir_atividade: {
         Args: {
@@ -2941,6 +3541,12 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      crm_criar_revisao_proposta: {
+        Args: { p_proposta_id: string }
+        Returns: {
+          proposta_id: string
+        }[]
       }
       crm_definir_etapa_diagnostico: {
         Args: { p_etapa_id?: string; p_pipeline_id: string }
@@ -2992,6 +3598,14 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      crm_gerar_link_documento: {
+        Args: { p_id: string; p_tipo: string; p_validade_dias?: number }
+        Returns: {
+          expira_em: string
+          link_id: string
+          token: string
+        }[]
+      }
       crm_importar_lead_google: {
         Args: {
           p_cidade: string
@@ -3024,6 +3638,34 @@ export type Database = {
           tem_credencial_propria: boolean
           usados: number
         }[]
+      }
+      crm_marcar_contrato_assinado: {
+        Args: {
+          p_arquivo_path?: string
+          p_contrato_id: string
+          p_justificativa?: string
+        }
+        Returns: undefined
+      }
+      crm_marcar_contrato_enviado: {
+        Args: { p_contrato_id: string }
+        Returns: undefined
+      }
+      crm_marcar_contrato_gerado: {
+        Args: { p_contrato_id: string }
+        Returns: undefined
+      }
+      crm_marcar_proposta_enviada: {
+        Args: { p_canal?: string; p_proposta_id: string }
+        Returns: undefined
+      }
+      crm_marcar_proposta_gerada: {
+        Args: { p_proposta_id: string }
+        Returns: undefined
+      }
+      crm_marcar_proposta_recusada: {
+        Args: { p_motivo?: string; p_proposta_id: string }
+        Returns: undefined
       }
       crm_migrar_prospeccao_tenant: {
         Args: { p_empresa_id: string }
@@ -3067,6 +3709,13 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      crm_obter_ou_criar_contrato: {
+        Args: { p_proposta_id: string }
+        Returns: {
+          contrato_id: string
+          criado: boolean
+        }[]
+      }
       crm_obter_ou_criar_diagnostico: {
         Args: {
           p_checklist_modelo_versao_id?: string
@@ -3076,6 +3725,22 @@ export type Database = {
           criado: boolean
           inspecao_id: string
         }[]
+      }
+      crm_obter_ou_criar_proposta: {
+        Args: { p_oportunidade_id: string }
+        Returns: {
+          criado: boolean
+          proposta_id: string
+        }[]
+      }
+      crm_registrar_aceite_proposta: {
+        Args: {
+          p_evidencia_path?: string
+          p_forma: string
+          p_observacao?: string
+          p_proposta_id: string
+        }
+        Returns: undefined
       }
       crm_registrar_timeline_sistema: {
         Args: {
@@ -3096,6 +3761,18 @@ export type Database = {
           sem_responsavel: number
           total_prospeccao: number
         }[]
+      }
+      crm_renderizar_contrato_template: {
+        Args: { p_conteudo: Json; p_variaveis: Json }
+        Returns: Json
+      }
+      crm_revogar_link_documento: {
+        Args: { p_link_id: string }
+        Returns: undefined
+      }
+      crm_salvar_itens_proposta: {
+        Args: { p_itens: Json; p_proposta_id: string }
+        Returns: undefined
       }
       crm_seed_catalogos_padrao: {
         Args: { p_empresa_id: string }
@@ -3131,6 +3808,12 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
+      listar_tabelas_backup: {
+        Args: never
+        Returns: {
+          tabela: string
+        }[]
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string

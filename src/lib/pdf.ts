@@ -4,14 +4,16 @@ import { calcularPercentual, calcularSecoes, classificacao, type Inspecao } from
 import { contarNCCriticasModelo, type ChecklistModeloResolvido } from "./checklist-modelo-service";
 import { ensurePlanoAcao } from "./plano-acao";
 import { BRAND } from "./brand";
-import logoUrl from "@/assets/rdcheck-logo-full.png";
+import {
+  BRAND_BLUE,
+  BRAND_GREEN,
+  aplicarLayoutEmTodasAsPaginas,
+  carregarLogoDataUrl,
+  resolverMarca,
+  type MarcaRelatorio,
+} from "./pdf-layout";
 
-// Timbre do relatório: por padrão a marca do produto (RDCheck), mas cada
-// consultoria (tenant) pode sobrepor com seu nome/contato via Configurações.
-export interface MarcaRelatorio {
-  nome?: string;
-  contato?: string;
-}
+export type { MarcaRelatorio };
 
 // Fase 7 — quem chama gerarPDF já carregou o modelo resolvido (via
 // carregarChecklistModelo, nunca via hook — pdf.ts não é um componente
@@ -26,55 +28,11 @@ export async function gerarPDF(
   const ncCriticas = contarNCCriticasModelo(modelo, insp.respostas);
   const cls = classificacao(score.percentual, ncCriticas);
   const reincidencias = opts?.reincidencias ?? {};
-  const marcaNome = opts?.marca?.nome?.trim() || BRAND.name;
-  const marcaContato = opts?.marca?.contato?.trim() || BRAND.defaultRemetente.contato;
+  const { nome: marcaNome, contato: marcaContato } = resolverMarca(opts?.marca);
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
 
-  // Cores
-  // Paleta RDCheck: azul = cromia da marca; verde = semântica de conformidade.
-  const BRAND_BLUE: [number, number, number] = [24, 72, 120]; // #184878
-  const BRAND_GREEN: [number, number, number] = [24, 168, 96]; // #18a860
-
-  // Função para adicionar rodapé e faixa de topo (presente em todas as páginas)
-  const addLayoutElements = (pageDoc: jsPDF, pageIndex: number, totalPages: number) => {
-    pageDoc.setPage(pageIndex);
-
-    // 1.1 Faixa colorida no topo (8px)
-    pageDoc.setFillColor(...BRAND_BLUE);
-    pageDoc.rect(0, 0, pageWidth, 8, "F");
-
-    // Rodapé
-    pageDoc.setDrawColor(...BRAND_BLUE);
-    pageDoc.setLineWidth(0.5);
-    pageDoc.line(20, pageHeight - 40, pageWidth - 20, pageHeight - 40);
-
-    pageDoc.setFontSize(8);
-    pageDoc.setTextColor(100, 100, 100);
-    pageDoc.setFont("helvetica", "normal");
-    pageDoc.text(
-      `${marcaNome} · ${marcaContato}`,
-      20,
-      pageHeight - 25,
-    );
-    pageDoc.text(`Página ${pageIndex} de ${totalPages}`, pageWidth - 20, pageHeight - 25, {
-      align: "right",
-    });
-  };
-
-  // Carregar Logo (asset local)
-  let logoData = "";
-  try {
-    const response = await fetch(logoUrl);
-    const blob = await response.blob();
-    logoData = await new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.readAsDataURL(blob);
-    });
-  } catch (error) {
-    console.warn("Não foi possível carregar o logo para o PDF", error);
-  }
+  const logoData = await carregarLogoDataUrl();
 
   // 1. Cabeçalho
   let y = 60;
@@ -392,10 +350,7 @@ export async function gerarPDF(
   doc.text(`Data: ${dateStr}`, pageWidth - 20, finalY + 55, { align: "right" });
 
   // Finalização: Adiciona layout em todas as páginas
-  const totalPages = doc.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    addLayoutElements(doc, i, totalPages);
-  }
+  aplicarLayoutEmTodasAsPaginas(doc, marcaNome, marcaContato);
 
   const modeloSlug = modelo.modeloCodigo ? `_${modelo.modeloCodigo}` : "";
   const filename = `Relatorio_RDCheck${modeloSlug}_${(insp.estabelecimento || "inspecao").replace(/\s+/g, "_")}.pdf`;

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export type CrmEmpresaStatus = "lead" | "prospect" | "ativa" | "inativa";
+export type CrmEmpresaTipoPessoa = "juridica" | "fisica";
 
 export interface CrmEmpresa {
   id: string;
@@ -22,6 +23,18 @@ export interface CrmEmpresa {
   status: CrmEmpresaStatus;
   tags: string[];
   cliente_id: string | null;
+  // Dados para contrato (Fase A do módulo comercial) — nenhum obrigatório
+  // aqui, só na hora de gerar um contrato de verdade (Fase D).
+  tipo_pessoa: CrmEmpresaTipoPessoa | null;
+  cpf: string | null;
+  nome_completo_pf: string | null;
+  cep: string | null;
+  endereco: string | null;
+  numero: string | null;
+  complemento: string | null;
+  bairro: string | null;
+  cidade_endereco: string | null;
+  uf_endereco: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -121,6 +134,16 @@ export function useUpsertCrmEmpresa() {
       origem_id?: string | null;
       responsavel_id: string;
       status?: CrmEmpresaStatus;
+      tipo_pessoa?: CrmEmpresaTipoPessoa | null;
+      cpf?: string | null;
+      nome_completo_pf?: string | null;
+      cep?: string | null;
+      endereco?: string | null;
+      numero?: string | null;
+      complemento?: string | null;
+      bairro?: string | null;
+      cidade_endereco?: string | null;
+      uf_endereco?: string | null;
     }) => {
       const { data, error } = await supabase
         .from("crm_empresas")

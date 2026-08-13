@@ -211,6 +211,30 @@ async function seedDiagnostico(tenant, oportunidadeId, extra = {}) {
   return data.id;
 }
 
+// Fase B: leva uma oportunidade até ter uma proposta 'aceita' — pré-requisito
+// novo pra crm_fechar_oportunidade_ganha (gating de ganha_exige). Usa as
+// RPCs reais de ponta a ponta (obter_ou_criar -> salvar_itens -> gerada ->
+// enviada -> aceite), então também serve de smoke test dessas RPCs.
+async function seedPropostaAceita(tenant, oportunidadeId) {
+  const { data: criada, error: e1 } = await tenant.client.rpc("crm_obter_ou_criar_proposta", { p_oportunidade_id: oportunidadeId });
+  if (e1) throw e1;
+  const propostaId = criada[0].proposta_id;
+  const { error: e2 } = await tenant.client.rpc("crm_salvar_itens_proposta", {
+    p_proposta_id: propostaId,
+    p_itens: [{ nome: "Item de teste", descricao: null, valor: 100, ordem: 1 }],
+  });
+  if (e2) throw e2;
+  const { error: e3 } = await tenant.client.rpc("crm_marcar_proposta_gerada", { p_proposta_id: propostaId });
+  if (e3) throw e3;
+  const { error: e4 } = await tenant.client.rpc("crm_marcar_proposta_enviada", { p_proposta_id: propostaId, p_canal: "email" });
+  if (e4) throw e4;
+  const { error: e5 } = await tenant.client.rpc("crm_registrar_aceite_proposta", {
+    p_proposta_id: propostaId, p_forma: "email", p_observacao: null, p_evidencia_path: null,
+  });
+  if (e5) throw e5;
+  return propostaId;
+}
+
 // Ordem importa por causa de FKs (nenhuma tabela abaixo tem ON DELETE CASCADE
 // pra empresas — todas são NO ACTION por desenho, ver Fase 2). "inspecoes"
 // precisa ser limpa antes de "crm_oportunidades" por causa da FK nova
@@ -228,8 +252,16 @@ const CLEANUP_TABLES_IN_ORDER = [
   // cleanupTenant() antes deste laço genérico.
   "reinspecao_programacoes",
   "inspecoes",
+  // Fase B — referenciam crm_oportunidades/crm_propostas/crm_contratos via
+  // FK composta (NO ACTION): links -> contratos -> itens -> propostas,
+  // sempre antes de crm_oportunidades.
+  "crm_documentos_links",
+  "crm_contratos",
+  "crm_proposta_itens",
+  "crm_propostas",
   "crm_oportunidades",
   "crm_contatos",
+  "crm_representantes",
   "crm_empresas",
   "clientes",
   "crm_etapas",
@@ -239,6 +271,11 @@ const CLEANUP_TABLES_IN_ORDER = [
   "crm_origens_lead",
   "crm_leads_nichos",
   "crm_leads_config",
+  // crm_servicos_catalogo/crm_contrato_templates são referenciados por
+  // crm_proposta_itens/crm_contratos (já limpos acima), então podem vir aqui.
+  "crm_servicos_catalogo",
+  "crm_contrato_templates",
+  "crm_comercial_config",
   "configuracoes",
   "numeracao_inspecoes",
 ];
@@ -618,6 +655,7 @@ async function main() {
 
     let clienteConvId;
     await test("Fechamento normal: cria cliente e vincula o diagnóstico da oportunidade", async () => {
+      await seedPropostaAceita(A, oportunidadeConv);
       const { data, error } = await A.client.rpc("crm_fechar_oportunidade_ganha", { p_oportunidade_id: oportunidadeConv });
       if (error) throw error;
       const r = data[0];
@@ -645,6 +683,7 @@ async function main() {
 
     await test("Consultor ativo converte oportunidade da própria empresa mesmo sem ser responsavel_id", async () => {
       const oportunidadeConv2 = await seedOportunidade(A, "Oportunidade Conversão 2");
+      await seedPropostaAceita(A, oportunidadeConv2);
       const { data, error } = await consultorA2Session.client.rpc("crm_fechar_oportunidade_ganha", { p_oportunidade_id: oportunidadeConv2 });
       if (error) throw error;
       assert(!!data[0].cliente_id, "conversão por consultor não-dono deveria ter retornado um cliente_id");
@@ -702,6 +741,7 @@ async function main() {
       const oportunidadeDup = await seedOportunidade(A, "Oportunidade CNPJ Duplicado");
       const { data: opRow } = await admin.from("crm_oportunidades").select("crm_empresa_id").eq("id", oportunidadeDup).single();
       await admin.from("crm_empresas").update({ cliente_id: clienteDupPrioritario.id, cnpj: cnpjDup }).eq("id", opRow.crm_empresa_id);
+      await seedPropostaAceita(A, oportunidadeDup);
       const { data, error } = await A.client.rpc("crm_fechar_oportunidade_ganha", { p_oportunidade_id: oportunidadeDup });
       if (error) throw error;
       assert(data[0].cliente_id === clienteDupPrioritario.id, "deveria ter priorizado o vínculo direto da Conta, não reconsiderado por CNPJ");
@@ -1055,6 +1095,7 @@ async function main() {
 
     await test("Pipeline sem etapa de Diagnóstico configurada mantém o fluxo atual (Tenant B)", async () => {
       const oportunidadeSemConfig = await seedOportunidade(B, "Oportunidade B Sem Config Diagnóstico");
+      await seedPropostaAceita(B, oportunidadeSemConfig);
       const { data, error } = await B.client.rpc("crm_fechar_oportunidade_ganha", { p_oportunidade_id: oportunidadeSemConfig });
       if (error) throw error;
       assert(!!data[0].cliente_id, "conversão deveria ter funcionado normalmente (pipeline sem etapa configurada)");
@@ -1063,6 +1104,7 @@ async function main() {
     await test("Com Diagnóstico concluído, conversão funciona sem exigir motivo", async () => {
       const oportunidadeGanhaOk = await seedOportunidade(A, "Oportunidade Ganha Diagnóstico Concluído");
       await seedDiagnostico(A, oportunidadeGanhaOk, { status: "concluida", conformidade: 90 });
+      await seedPropostaAceita(A, oportunidadeGanhaOk);
       const { data, error } = await A.client.rpc("crm_fechar_oportunidade_ganha", { p_oportunidade_id: oportunidadeGanhaOk });
       if (error) throw error;
       assert(!!data[0].cliente_id, "conversão deveria ter funcionado com diagnóstico concluído");
@@ -1110,6 +1152,7 @@ async function main() {
 
     await test("Motivo válido permite fechar como ganha e registra a exceção na timeline", async () => {
       const oportunidadeComMotivo = await seedOportunidade(A, "Oportunidade Ganha Com Motivo");
+      await seedPropostaAceita(A, oportunidadeComMotivo);
       const { data, error } = await A.client.rpc("crm_fechar_oportunidade_ganha", {
         p_oportunidade_id: oportunidadeComMotivo,
         p_motivo_sem_diagnostico: "Cliente pediu urgência, diagnóstico será feito depois.",
@@ -1514,6 +1557,601 @@ async function main() {
       assert(error !== null, "INSERT deveria falhar — FK composta (empresa_id, inspecao_origem_id) exige mesma empresa");
     });
 
+    console.log("\nFase A do módulo comercial — dados jurídicos / representantes / config comercial:");
+
+    const crmEmpresaFaseA = await seedOportunidade(A, "Oportunidade Fase A Comercial").then(async (oportunidadeId) => {
+      const { data } = await admin.from("crm_oportunidades").select("crm_empresa_id").eq("id", oportunidadeId).single();
+      return data.crm_empresa_id;
+    });
+
+    await test("Criar uma Conta sem nenhum campo jurídico continua funcionando (nada ficou obrigatório)", async () => {
+      const { data } = await admin.from("crm_empresas").select("tipo_pessoa, cpf, cnpj").eq("id", crmEmpresaFaseA).single();
+      assert(data.tipo_pessoa === null, "tipo_pessoa deveria ser null por padrão");
+      assert(data.cpf === null, "cpf deveria ser null por padrão");
+    });
+
+    let representantePrincipalId;
+    let representanteSecundarioId;
+    await test("Primeiro representante criado pode ser marcado como principal", async () => {
+      const { data, error } = await A.client
+        .from("crm_representantes")
+        .insert({ empresa_id: A.empresaId, crm_empresa_id: crmEmpresaFaseA, nome_completo: "Representante Um", principal: true })
+        .select("id")
+        .single();
+      if (error) throw error;
+      representantePrincipalId = data.id;
+    });
+
+    await test("Índice único parcial rejeita um segundo representante 'principal AND ativo' simultâneo", async () => {
+      const { data, error } = await A.client
+        .from("crm_representantes")
+        .insert({ empresa_id: A.empresaId, crm_empresa_id: crmEmpresaFaseA, nome_completo: "Representante Dois", principal: true })
+        .select("id")
+        .single();
+      assert(error !== null, "INSERT deveria ter falhado pelo índice único parcial (2 principais ativos)");
+      const { data: semPrincipal, error: err2 } = await A.client
+        .from("crm_representantes")
+        .insert({ empresa_id: A.empresaId, crm_empresa_id: crmEmpresaFaseA, nome_completo: "Representante Dois", principal: false })
+        .select("id")
+        .single();
+      if (err2) throw err2;
+      representanteSecundarioId = semPrincipal.id;
+    });
+
+    await test("Troca de principal em 2 passos nunca deixa 2 marcados ao mesmo tempo", async () => {
+      const { error: errUnset } = await A.client
+        .from("crm_representantes")
+        .update({ principal: false })
+        .eq("crm_empresa_id", crmEmpresaFaseA)
+        .eq("principal", true);
+      if (errUnset) throw errUnset;
+      const { error: errSet } = await A.client
+        .from("crm_representantes")
+        .update({ principal: true })
+        .eq("id", representanteSecundarioId);
+      if (errSet) throw errSet;
+      const { data: principais } = await admin
+        .from("crm_representantes")
+        .select("id")
+        .eq("crm_empresa_id", crmEmpresaFaseA)
+        .eq("principal", true)
+        .eq("ativo", true);
+      assert(principais.length === 1 && principais[0].id === representanteSecundarioId, "deveria haver exatamente 1 principal, o novo");
+    });
+
+    await test("Soft-remove de representante (ativo=false) preserva a linha", async () => {
+      const { error } = await A.client.from("crm_representantes").update({ ativo: false, principal: false }).eq("id", representantePrincipalId);
+      if (error) throw error;
+      const { data } = await admin.from("crm_representantes").select("id, ativo").eq("id", representantePrincipalId).single();
+      assert(data !== null && data.ativo === false, "representante deveria continuar existindo com ativo=false, nunca ser deletado");
+    });
+
+    await test("Tenant B não lê representantes do Tenant A (RLS)", async () => {
+      const { data } = await B.client.from("crm_representantes").select("id").eq("crm_empresa_id", crmEmpresaFaseA);
+      assert(data.length === 0, "Tenant B não deveria enxergar representantes da Conta do Tenant A");
+    });
+
+    await test("Tenant B não atualiza crm_comercial_config do Tenant A (RLS)", async () => {
+      const { data, error } = await A.client.from("crm_comercial_config").select("ganha_exige").eq("empresa_id", A.empresaId).single();
+      if (error) throw error;
+      const original = data.ganha_exige;
+      const { data: upd, error: updErr } = await B.client
+        .from("crm_comercial_config")
+        .update({ ganha_exige: "contrato_assinado" })
+        .eq("empresa_id", A.empresaId)
+        .select("empresa_id");
+      if (updErr) throw updErr;
+      assert(upd.length === 0, `UPDATE cross-tenant afetou ${upd.length} linha(s), esperado 0`);
+      const { data: check } = await admin.from("crm_comercial_config").select("ganha_exige").eq("empresa_id", A.empresaId).single();
+      assert(check.ganha_exige === original, "ganha_exige do Tenant A foi alterado indevidamente pelo Tenant B");
+    });
+
+    await test("crm_seed_catalogos_padrao criou crm_comercial_config com ganha_exige='proposta_aceita' pro tenant novo", async () => {
+      const { data, error } = await admin.from("crm_comercial_config").select("ganha_exige").eq("empresa_id", A.empresaId).single();
+      if (error) throw error;
+      assert(data.ganha_exige === "proposta_aceita", `esperava 'proposta_aceita' como default, recebeu '${data.ganha_exige}'`);
+    });
+
+    await test("Admin do próprio tenant atualiza ganha_exige normalmente", async () => {
+      const { data, error } = await A.client
+        .from("crm_comercial_config")
+        .update({ ganha_exige: "contrato_assinado" })
+        .eq("empresa_id", A.empresaId)
+        .select("ganha_exige")
+        .single();
+      if (error) throw error;
+      assert(data.ganha_exige === "contrato_assinado", "update não persistiu o novo valor");
+    });
+
+    // Volta ao default antes dos testes de Fase B — o teste acima deixou
+    // ganha_exige='contrato_assinado' pro tenant A.
+    await admin.from("crm_comercial_config").update({ ganha_exige: "proposta_aceita" }).eq("empresa_id", A.empresaId);
+
+    console.log("\nFase B — Catálogo de serviços:");
+
+    await test("crm_seed_catalogos_padrao semeou os 7 serviços de referência com valor_padrao NULL", async () => {
+      const { data, error } = await admin.from("crm_servicos_catalogo").select("nome, valor_padrao, ativo").eq("empresa_id", A.empresaId);
+      if (error) throw error;
+      assert(data.length === 7, `esperava 7 serviços, encontrou ${data.length}`);
+      assert(data.every((s) => s.valor_padrao === null), "valor_padrao deveria nascer NULL em todos os serviços");
+      assert(data.every((s) => s.ativo === true), "todos os serviços deveriam nascer ativos");
+    });
+
+    await test("Tenant B não lê catálogo de serviços do Tenant A (RLS)", async () => {
+      const { data } = await B.client.from("crm_servicos_catalogo").select("id").eq("empresa_id", A.empresaId);
+      assert(data.length === 0, "Tenant B não deveria enxergar o catálogo do Tenant A");
+    });
+
+    console.log("\nFase B — Propostas versionadas:");
+
+    const oportunidadePropB = await seedOportunidade(A, "Oportunidade Fase B Proposta");
+
+    let propostaV1Id;
+    await test("crm_obter_ou_criar_proposta cria a revisão 1 (grupo = próprio id) e é idempotente", async () => {
+      const [r1, r2] = await Promise.all([
+        A.client.rpc("crm_obter_ou_criar_proposta", { p_oportunidade_id: oportunidadePropB }),
+        A.client.rpc("crm_obter_ou_criar_proposta", { p_oportunidade_id: oportunidadePropB }),
+      ]);
+      if (r1.error) throw r1.error;
+      if (r2.error) throw r2.error;
+      assert(r1.data[0].proposta_id === r2.data[0].proposta_id, "chamadas concorrentes deveriam devolver a mesma proposta");
+      propostaV1Id = r1.data[0].proposta_id;
+      const { data: row } = await admin.from("crm_propostas").select("grupo_proposta_id, numero_revisao, status").eq("id", propostaV1Id).single();
+      assert(row.grupo_proposta_id === propostaV1Id, "grupo_proposta_id da 1ª revisão deveria ser o próprio id");
+      assert(row.numero_revisao === 1, `esperava numero_revisao=1, recebeu ${row.numero_revisao}`);
+      assert(row.status === "rascunho", `esperava status=rascunho, recebeu ${row.status}`);
+    });
+
+    await test("crm_salvar_itens_proposta funciona em rascunho e recalcula valor_total", async () => {
+      const { error } = await A.client.rpc("crm_salvar_itens_proposta", {
+        p_proposta_id: propostaV1Id,
+        p_itens: [{ nome: "Consultoria", descricao: "desc", valor: 300, ordem: 1 }, { nome: "Treinamento", descricao: null, valor: 150.5, ordem: 2 }],
+      });
+      if (error) throw error;
+      const { data: row } = await admin.from("crm_propostas").select("valor_total").eq("id", propostaV1Id).single();
+      assert(Number(row.valor_total) === 450.5, `esperava valor_total=450.5, recebeu ${row.valor_total}`);
+    });
+
+    await test("crm_marcar_proposta_gerada falha sem itens (proposta nova vazia)", async () => {
+      const { data: novaVazia } = await A.client.rpc("crm_obter_ou_criar_proposta", { p_oportunidade_id: await seedOportunidade(A, "Oportunidade Proposta Vazia") });
+      const { error } = await A.client.rpc("crm_marcar_proposta_gerada", { p_proposta_id: novaVazia[0].proposta_id });
+      assert(error !== null, "deveria ter rejeitado gerar proposta sem itens");
+      assert(/PROPOSTA_SEM_ITENS/.test(error.message), `mensagem inesperada: ${error.message}`);
+    });
+
+    await test("crm_marcar_proposta_gerada e crm_marcar_proposta_enviada avançam o status", async () => {
+      const { error: e1 } = await A.client.rpc("crm_marcar_proposta_gerada", { p_proposta_id: propostaV1Id });
+      if (e1) throw e1;
+      const { error: e2 } = await A.client.rpc("crm_marcar_proposta_enviada", { p_proposta_id: propostaV1Id, p_canal: "whatsapp" });
+      if (e2) throw e2;
+      const { data: row } = await admin.from("crm_propostas").select("status, gerada_em, enviada_em").eq("id", propostaV1Id).single();
+      assert(row.status === "enviada", `esperava status=enviada, recebeu ${row.status}`);
+      assert(row.gerada_em !== null && row.enviada_em !== null, "gerada_em/enviada_em deveriam estar preenchidos");
+    });
+
+    await test("crm_salvar_itens_proposta falha fora de rascunho (PROPOSTA_NAO_EDITAVEL)", async () => {
+      const { error } = await A.client.rpc("crm_salvar_itens_proposta", { p_proposta_id: propostaV1Id, p_itens: [{ nome: "x", valor: 1, ordem: 1 }] });
+      assert(error !== null, "deveria ter rejeitado editar itens de proposta enviada");
+      assert(/PROPOSTA_NAO_EDITAVEL/.test(error.message), `mensagem inesperada: ${error.message}`);
+    });
+
+    let propostaV2Id;
+    await test("crm_criar_revisao_proposta cria revisão 2, copia itens, marca a v1 como substituida (nunca recusada/cancelada)", async () => {
+      const { data, error } = await A.client.rpc("crm_criar_revisao_proposta", { p_proposta_id: propostaV1Id });
+      if (error) throw error;
+      propostaV2Id = data[0].proposta_id;
+      const { data: v1 } = await admin.from("crm_propostas").select("status").eq("id", propostaV1Id).single();
+      const { data: v2 } = await admin.from("crm_propostas").select("status, numero_revisao, grupo_proposta_id, revisao_anterior_id").eq("id", propostaV2Id).single();
+      assert(v1.status === "substituida", `esperava v1 substituida, recebeu ${v1.status}`);
+      assert(v2.status === "rascunho" && v2.numero_revisao === 2, `v2 inesperada: ${JSON.stringify(v2)}`);
+      assert(v2.grupo_proposta_id === propostaV1Id, "v2 deveria manter o mesmo grupo_proposta_id da v1");
+      assert(v2.revisao_anterior_id === propostaV1Id, "v2.revisao_anterior_id deveria apontar pra v1");
+      const { data: itensV2 } = await admin.from("crm_proposta_itens").select("nome").eq("proposta_id", propostaV2Id);
+      assert(itensV2.length === 2, `esperava 2 itens copiados, encontrou ${itensV2.length}`);
+    });
+
+    await test("v1 (substituida) segue imutável — salvar itens nela ainda falha", async () => {
+      const { error } = await A.client.rpc("crm_salvar_itens_proposta", { p_proposta_id: propostaV1Id, p_itens: [{ nome: "x", valor: 1, ordem: 1 }] });
+      assert(error !== null && /PROPOSTA_NAO_EDITAVEL/.test(error.message), "v1 substituida deveria continuar não-editável");
+    });
+
+    await test("crm_criar_revisao_proposta rejeita a partir de rascunho (só gerada/enviada)", async () => {
+      const { error } = await A.client.rpc("crm_criar_revisao_proposta", { p_proposta_id: propostaV2Id });
+      assert(error !== null, "v2 está em rascunho — criar revisão a partir dela deveria falhar");
+      assert(/PROPOSTA_REVISAO_INVALIDA/.test(error.message), `mensagem inesperada: ${error.message}`);
+    });
+
+    await test("Índice único parcial garante só 1 revisão não-terminal por grupo", async () => {
+      const { data: naoTerminais } = await admin.from("crm_propostas")
+        .select("id").eq("grupo_proposta_id", propostaV1Id).in("status", ["rascunho", "gerada", "enviada"]);
+      assert(naoTerminais.length === 1, `esperava exatamente 1 revisão não-terminal, encontrou ${naoTerminais.length}`);
+    });
+
+    await test("Fluxo completo v2 até aceita marca as demais revisões do grupo como substituida", async () => {
+      await A.client.rpc("crm_salvar_itens_proposta", { p_proposta_id: propostaV2Id, p_itens: [{ nome: "Consultoria v2", valor: 500, ordem: 1 }] });
+      await A.client.rpc("crm_marcar_proposta_gerada", { p_proposta_id: propostaV2Id });
+      await A.client.rpc("crm_marcar_proposta_enviada", { p_proposta_id: propostaV2Id, p_canal: "email" });
+      const { error } = await A.client.rpc("crm_registrar_aceite_proposta", { p_proposta_id: propostaV2Id, p_forma: "whatsapp", p_observacao: "cliente confirmou", p_evidencia_path: null });
+      if (error) throw error;
+      const { data: v2 } = await admin.from("crm_propostas").select("status, aceite_forma, aceite_por").eq("id", propostaV2Id).single();
+      assert(v2.status === "aceita", `esperava aceita, recebeu ${v2.status}`);
+      assert(v2.aceite_forma === "whatsapp" && v2.aceite_por !== null, "dados de aceite não gravados corretamente");
+    });
+
+    await test("crm_criar_revisao_proposta rejeita explicitamente a partir de uma revisão aceita", async () => {
+      const { error } = await A.client.rpc("crm_criar_revisao_proposta", { p_proposta_id: propostaV2Id });
+      assert(error !== null, "não deveria ser possível criar revisão a partir de uma proposta aceita");
+      assert(/PROPOSTA_REVISAO_INVALIDA/.test(error.message), `mensagem inesperada: ${error.message}`);
+    });
+
+    await test("Renegociação pós-aceite cria um grupo NOVO (proposta nova), preservando o histórico aceito intacto", async () => {
+      const { data, error } = await A.client.rpc("crm_obter_ou_criar_proposta", { p_oportunidade_id: oportunidadePropB });
+      if (error) throw error;
+      const novoGrupoId = data[0].proposta_id;
+      assert(novoGrupoId !== propostaV1Id && novoGrupoId !== propostaV2Id, "renegociação deveria ter criado uma proposta com id novo");
+      const { data: novaRow } = await admin.from("crm_propostas").select("grupo_proposta_id, numero_revisao, status").eq("id", novoGrupoId).single();
+      assert(novaRow.grupo_proposta_id === novoGrupoId, "nova proposta deveria iniciar seu PRÓPRIO grupo (não o grupo antigo)");
+      assert(novaRow.numero_revisao === 1 && novaRow.status === "rascunho", "nova proposta deveria nascer como revisão 1 em rascunho");
+      const { data: v2Depois } = await admin.from("crm_propostas").select("status").eq("id", propostaV2Id).single();
+      assert(v2Depois.status === "aceita", "a proposta aceita anterior nunca deveria ser alterada pela renegociação nova");
+    });
+
+    await test("crm_cancelar_proposta só age em rascunho/gerada/enviada", async () => {
+      const { error } = await A.client.rpc("crm_cancelar_proposta", { p_proposta_id: propostaV2Id, p_motivo: "teste" });
+      assert(error !== null && /PROPOSTA_NAO_CANCELAVEL/.test(error.message), "não deveria ser possível cancelar uma proposta aceita");
+    });
+
+    console.log("\nFase B — Contratos:");
+
+    // Conta PJ completa + representante principal, pra passar na validação
+    // de completude jurídica do contrato.
+    const crmEmpresaContrato = await seedOportunidade(A, "Oportunidade Fase B Contrato").then(async (opId) => {
+      const { data } = await admin.from("crm_oportunidades").select("crm_empresa_id").eq("id", opId).single();
+      return { opId, crmEmpresaId: data.crm_empresa_id };
+    });
+    await admin.from("crm_empresas").update({
+      tipo_pessoa: "juridica", cnpj: "11222333000181", cep: "01310100", endereco: "Av. Teste", numero: "100",
+      bairro: "Centro", cidade_endereco: "São Paulo", uf_endereco: "SP",
+    }).eq("id", crmEmpresaContrato.crmEmpresaId);
+    await admin.from("crm_representantes").insert({
+      empresa_id: A.empresaId, crm_empresa_id: crmEmpresaContrato.crmEmpresaId, nome_completo: "Representante Contrato Teste", principal: true,
+    });
+    await seedDiagnostico(A, crmEmpresaContrato.opId, { status: "concluida", conformidade: 90 });
+
+    await test("crm_obter_ou_criar_contrato bloqueia sem proposta aceita (PROPOSTA_NAO_ACEITA)", async () => {
+      const { data: prop } = await A.client.rpc("crm_obter_ou_criar_proposta", { p_oportunidade_id: crmEmpresaContrato.opId });
+      const { error } = await A.client.rpc("crm_obter_ou_criar_contrato", { p_proposta_id: prop[0].proposta_id });
+      assert(error !== null && /PROPOSTA_NAO_ACEITA/.test(error.message), `mensagem inesperada: ${error?.message}`);
+    });
+
+    let propostaContratoId;
+    let contratoId;
+    await test("Setup: leva a proposta da Conta de teste do contrato até aceita", async () => {
+      const { data: prop } = await A.client.rpc("crm_obter_ou_criar_proposta", { p_oportunidade_id: crmEmpresaContrato.opId });
+      propostaContratoId = prop[0].proposta_id;
+      await A.client.rpc("crm_salvar_itens_proposta", { p_proposta_id: propostaContratoId, p_itens: [{ nome: "Serviço Contrato", valor: 1000, ordem: 1 }] });
+      await A.client.rpc("crm_marcar_proposta_gerada", { p_proposta_id: propostaContratoId });
+      await A.client.rpc("crm_marcar_proposta_enviada", { p_proposta_id: propostaContratoId, p_canal: "email" });
+      const { error } = await A.client.rpc("crm_registrar_aceite_proposta", { p_proposta_id: propostaContratoId, p_forma: "email", p_observacao: null, p_evidencia_path: null });
+      if (error) throw error;
+    });
+
+    await test("crm_obter_ou_criar_contrato monta o snapshot (PJ completa) e é idempotente", async () => {
+      const [r1, r2] = await Promise.all([
+        A.client.rpc("crm_obter_ou_criar_contrato", { p_proposta_id: propostaContratoId }),
+        A.client.rpc("crm_obter_ou_criar_contrato", { p_proposta_id: propostaContratoId }),
+      ]);
+      if (r1.error) throw r1.error;
+      if (r2.error) throw r2.error;
+      assert(r1.data[0].contrato_id === r2.data[0].contrato_id, "get-or-create deveria devolver o mesmo contrato");
+      contratoId = r1.data[0].contrato_id;
+      const { data: row } = await admin.from("crm_contratos").select("status, dados").eq("id", contratoId).single();
+      assert(row.status === "rascunho", `esperava rascunho, recebeu ${row.status}`);
+      assert(row.dados?.cliente?.tipo_pessoa === "juridica", "snapshot não capturou tipo_pessoa corretamente");
+      assert(row.dados?.representante?.nome_completo === "Representante Contrato Teste", "snapshot não capturou o representante principal");
+      assert(Array.isArray(row.dados?.conteudo_renderizado), "conteudo_renderizado deveria ser um array de seções");
+      const temPlaceholder = JSON.stringify(row.dados.conteudo_renderizado).includes("{{");
+      assert(!temPlaceholder, "conteudo_renderizado não deveria conter nenhum {{variavel}} não substituída");
+    });
+
+    await test("crm_obter_ou_criar_contrato bloqueia Conta PJ sem representante (CONTRATO_DADOS_INCOMPLETOS)", async () => {
+      const opSemRep = await seedOportunidade(A, "Oportunidade PJ Sem Representante");
+      const { data: opRow } = await admin.from("crm_oportunidades").select("crm_empresa_id").eq("id", opSemRep).single();
+      await admin.from("crm_empresas").update({
+        tipo_pessoa: "juridica", cnpj: "22333444000199", cep: "01310100", endereco: "Rua X", numero: "1",
+        bairro: "Bairro", cidade_endereco: "São Paulo", uf_endereco: "SP",
+      }).eq("id", opRow.crm_empresa_id);
+      const { data: prop } = await A.client.rpc("crm_obter_ou_criar_proposta", { p_oportunidade_id: opSemRep });
+      await A.client.rpc("crm_salvar_itens_proposta", { p_proposta_id: prop[0].proposta_id, p_itens: [{ nome: "x", valor: 10, ordem: 1 }] });
+      await A.client.rpc("crm_marcar_proposta_gerada", { p_proposta_id: prop[0].proposta_id });
+      await A.client.rpc("crm_marcar_proposta_enviada", { p_proposta_id: prop[0].proposta_id, p_canal: "email" });
+      await A.client.rpc("crm_registrar_aceite_proposta", { p_proposta_id: prop[0].proposta_id, p_forma: "email" });
+      const { error } = await A.client.rpc("crm_obter_ou_criar_contrato", { p_proposta_id: prop[0].proposta_id });
+      assert(error !== null && /CONTRATO_DADOS_INCOMPLETOS/.test(error.message) && /representante_principal/.test(error.message),
+        `deveria ter bloqueado por falta de representante: ${error?.message}`);
+    });
+
+    await test("crm_obter_ou_criar_contrato aceita PF sem exigir representante", async () => {
+      const opPF = await seedOportunidade(A, "Oportunidade PF Sem Representante");
+      const { data: opRow } = await admin.from("crm_oportunidades").select("crm_empresa_id").eq("id", opPF).single();
+      await admin.from("crm_empresas").update({
+        tipo_pessoa: "fisica", nome_completo_pf: "Fulano PF Teste", cpf: "12345678901", cep: "01310100", endereco: "Rua Y", numero: "2",
+        bairro: "Bairro", cidade_endereco: "São Paulo", uf_endereco: "SP",
+      }).eq("id", opRow.crm_empresa_id);
+      const { data: prop } = await A.client.rpc("crm_obter_ou_criar_proposta", { p_oportunidade_id: opPF });
+      await A.client.rpc("crm_salvar_itens_proposta", { p_proposta_id: prop[0].proposta_id, p_itens: [{ nome: "x", valor: 10, ordem: 1 }] });
+      await A.client.rpc("crm_marcar_proposta_gerada", { p_proposta_id: prop[0].proposta_id });
+      await A.client.rpc("crm_marcar_proposta_enviada", { p_proposta_id: prop[0].proposta_id, p_canal: "email" });
+      await A.client.rpc("crm_registrar_aceite_proposta", { p_proposta_id: prop[0].proposta_id, p_forma: "email" });
+      const { data, error } = await A.client.rpc("crm_obter_ou_criar_contrato", { p_proposta_id: prop[0].proposta_id });
+      assert(error === null, `PF completa não deveria bloquear: ${error?.message}`);
+      const { data: row } = await admin.from("crm_contratos").select("dados").eq("id", data[0].contrato_id).single();
+      assert(row.dados?.representante === null, "PF não deveria ter representante no snapshot");
+    });
+
+    await test("crm_atualizar_snapshot_contrato_rascunho funciona em rascunho", async () => {
+      const { error } = await A.client.rpc("crm_atualizar_snapshot_contrato_rascunho", { p_contrato_id: contratoId });
+      if (error) throw error;
+    });
+
+    await test("crm_marcar_contrato_gerado congela o snapshot — atualizar depois falha (CONTRATO_NAO_EDITAVEL)", async () => {
+      const { error: eGerar } = await A.client.rpc("crm_marcar_contrato_gerado", { p_contrato_id: contratoId });
+      if (eGerar) throw eGerar;
+      const { error } = await A.client.rpc("crm_atualizar_snapshot_contrato_rascunho", { p_contrato_id: contratoId });
+      assert(error !== null && /CONTRATO_NAO_EDITAVEL/.test(error.message), `deveria estar congelado: ${error?.message}`);
+    });
+
+    await test("crm_marcar_contrato_enviado avança o status", async () => {
+      const { error } = await A.client.rpc("crm_marcar_contrato_enviado", { p_contrato_id: contratoId });
+      if (error) throw error;
+      const { data: row } = await admin.from("crm_contratos").select("status").eq("id", contratoId).single();
+      assert(row.status === "enviado", `esperava enviado, recebeu ${row.status}`);
+    });
+
+    await test("crm_marcar_contrato_assinado bloqueia sem arquivo e sem justificativa", async () => {
+      const { error } = await A.client.rpc("crm_marcar_contrato_assinado", { p_contrato_id: contratoId, p_arquivo_path: null, p_justificativa: null });
+      assert(error !== null && /CONTRATO_ASSINATURA_SEM_EVIDENCIA/.test(error.message), `deveria ter bloqueado: ${error?.message}`);
+    });
+
+    await test("crm_marcar_contrato_assinado aceita só justificativa", async () => {
+      const { error } = await A.client.rpc("crm_marcar_contrato_assinado", { p_contrato_id: contratoId, p_arquivo_path: null, p_justificativa: "assinatura física, arquivo será anexado depois" });
+      if (error) throw error;
+      const { data: row } = await admin.from("crm_contratos").select("status, justificativa_sem_arquivo, arquivo_assinado_path").eq("id", contratoId).single();
+      assert(row.status === "assinado" && row.justificativa_sem_arquivo !== null && row.arquivo_assinado_path === null, "combinação só-justificativa não ficou correta");
+    });
+
+    await test("crm_cancelar_contrato rejeita contrato assinado (CONTRATO_ASSINADO_NAO_CANCELAVEL)", async () => {
+      const { error } = await A.client.rpc("crm_cancelar_contrato", { p_contrato_id: contratoId, p_motivo: "teste" });
+      assert(error !== null && /CONTRATO_ASSINADO_NAO_CANCELAVEL/.test(error.message), `deveria ter bloqueado cancelamento de contrato assinado: ${error?.message}`);
+    });
+
+    let contratoCanceladoId, contratoNovoId;
+    await test("Contrato cancelado (não-assinado) permite gerar um novo pra mesma proposta; nunca 2 simultâneos não-cancelados", async () => {
+      const opCancel = await seedOportunidade(A, "Oportunidade Contrato Cancelavel");
+      const { data: opRow } = await admin.from("crm_oportunidades").select("crm_empresa_id").eq("id", opCancel).single();
+      await admin.from("crm_empresas").update({
+        tipo_pessoa: "fisica", nome_completo_pf: "Ciclo Contrato PF", cpf: "98765432100", cep: "01310100", endereco: "Rua Z", numero: "3",
+        bairro: "Bairro", cidade_endereco: "São Paulo", uf_endereco: "SP",
+      }).eq("id", opRow.crm_empresa_id);
+      const { data: prop } = await A.client.rpc("crm_obter_ou_criar_proposta", { p_oportunidade_id: opCancel });
+      await A.client.rpc("crm_salvar_itens_proposta", { p_proposta_id: prop[0].proposta_id, p_itens: [{ nome: "x", valor: 10, ordem: 1 }] });
+      await A.client.rpc("crm_marcar_proposta_gerada", { p_proposta_id: prop[0].proposta_id });
+      await A.client.rpc("crm_marcar_proposta_enviada", { p_proposta_id: prop[0].proposta_id, p_canal: "email" });
+      await A.client.rpc("crm_registrar_aceite_proposta", { p_proposta_id: prop[0].proposta_id, p_forma: "email" });
+
+      const { data: c1 } = await A.client.rpc("crm_obter_ou_criar_contrato", { p_proposta_id: prop[0].proposta_id });
+      contratoCanceladoId = c1[0].contrato_id;
+      const { error: eCancel } = await A.client.rpc("crm_cancelar_contrato", { p_contrato_id: contratoCanceladoId, p_motivo: "desistiu" });
+      if (eCancel) throw eCancel;
+
+      const { data: c2, error: eNovo } = await A.client.rpc("crm_obter_ou_criar_contrato", { p_proposta_id: prop[0].proposta_id });
+      if (eNovo) throw eNovo;
+      contratoNovoId = c2[0].contrato_id;
+      assert(contratoNovoId !== contratoCanceladoId, "get-or-create pós-cancelamento deveria criar um contrato novo, não devolver o cancelado");
+
+      const { data: naoCancelados } = await admin.from("crm_contratos").select("id").eq("crm_proposta_id", prop[0].proposta_id).neq("status", "cancelado");
+      assert(naoCancelados.length === 1, `esperava exatamente 1 contrato não-cancelado, encontrou ${naoCancelados.length}`);
+    });
+
+    console.log("\nFase B — Storage cross-tenant (crm-comercial-anexos):");
+
+    const pathEvidenciaA = `${A.empresaId}/propostas/${propostaContratoId}/evidencias/teste.txt`;
+    const pathAssinadoA = `${A.empresaId}/contratos/${contratoId}/assinados/teste.pdf`;
+    const fakeFile = new Blob(["conteudo de teste"], { type: "text/plain" });
+
+    await test("Setup: tenant A envia um arquivo de evidência e um de contrato assinado", async () => {
+      const { error: e1 } = await A.client.storage.from("crm-comercial-anexos").upload(pathEvidenciaA, fakeFile, { upsert: true });
+      if (e1) throw e1;
+      const { error: e2 } = await A.client.storage.from("crm-comercial-anexos").upload(pathAssinadoA, fakeFile, { upsert: true });
+      if (e2) throw e2;
+    });
+
+    await test("Tenant B não lista arquivos no prefixo do Tenant A", async () => {
+      const { data, error } = await B.client.storage.from("crm-comercial-anexos").list(`${A.empresaId}/propostas/${propostaContratoId}/evidencias`);
+      assert((data ?? []).length === 0, `Tenant B não deveria listar nada no prefixo do Tenant A (encontrou ${data?.length}), erro: ${error?.message}`);
+    });
+
+    await test("Tenant B não baixa arquivo do prefixo do Tenant A", async () => {
+      const { data, error } = await B.client.storage.from("crm-comercial-anexos").download(pathEvidenciaA);
+      assert(data === null && error !== null, "download cross-tenant deveria ter falhado");
+    });
+
+    await test("Tenant B não envia arquivo pro prefixo do Tenant A", async () => {
+      const { error } = await B.client.storage.from("crm-comercial-anexos").upload(`${A.empresaId}/propostas/${propostaContratoId}/evidencias/intruso.txt`, fakeFile);
+      assert(error !== null, "upload cross-tenant deveria ter sido bloqueado pela RLS de storage.objects");
+    });
+
+    await test("Tenant B não remove arquivo do prefixo do Tenant A", async () => {
+      const { error } = await B.client.storage.from("crm-comercial-anexos").remove([pathAssinadoA]);
+      const { data: aindaExiste } = await admin.storage.from("crm-comercial-anexos").list(`${A.empresaId}/contratos/${contratoId}/assinados`);
+      assert((aindaExiste ?? []).some((f) => pathAssinadoA.endsWith(f.name)), "arquivo do Tenant A não deveria ter sido removido pelo Tenant B");
+    });
+
+    await test("Tenant A lista/baixa normalmente seus próprios arquivos", async () => {
+      const { data: listA } = await A.client.storage.from("crm-comercial-anexos").list(`${A.empresaId}/propostas/${propostaContratoId}/evidencias`);
+      assert((listA ?? []).length >= 1, "Tenant A deveria enxergar seu próprio arquivo");
+      const { data: blob, error } = await A.client.storage.from("crm-comercial-anexos").download(pathEvidenciaA);
+      assert(error === null && blob !== null, "Tenant A deveria conseguir baixar seu próprio arquivo");
+    });
+
+    console.log("\nFase B — Links públicos (metadados e segurança):");
+
+    let linkToken, linkId;
+    await test("crm_gerar_link_documento devolve o token bruto só nesta chamada; token_hash nunca aparece num SELECT normal", async () => {
+      const { data, error } = await A.client.rpc("crm_gerar_link_documento", { p_tipo: "proposta", p_id: propostaContratoId, p_validade_dias: 30 });
+      if (error) throw error;
+      linkToken = data[0].token;
+      linkId = data[0].link_id;
+      assert(typeof linkToken === "string" && linkToken.length >= 32, "token devolvido parece inválido");
+      // SELECT * inclui token_hash na lista de colunas pedida — com o
+      // REVOKE de coluna em vigor, isso deve falhar por permissão (não
+      // silenciosamente omitir a coluna). Selecionar só colunas seguras
+      // continua funcionando normalmente.
+      const { error: selStarErr } = await A.client.from("crm_documentos_links").select("*").eq("id", linkId).single();
+      assert(selStarErr !== null && /permission denied/.test(selStarErr.message), `SELECT * deveria falhar por permissão (token_hash protegido), mas: ${selStarErr?.message ?? "não falhou"}`);
+      const { data: rowSeguro, error: selSeguroErr } = await A.client.from("crm_documentos_links").select("id, tipo, expira_em, revogado_em").eq("id", linkId).single();
+      if (selSeguroErr) throw selSeguroErr;
+      assert(rowSeguro.id === linkId, "SELECT de colunas seguras deveria funcionar normalmente");
+    });
+
+    await test("crm_timeline nunca grava token/URL do link — só token_id", async () => {
+      const { data } = await admin.from("crm_timeline").select("metadata").eq("evento_tipo", "link_documento_criado").order("created_at", { ascending: false }).limit(1);
+      const metaStr = JSON.stringify(data[0]?.metadata ?? {});
+      assert(!metaStr.includes(linkToken), "timeline não deveria conter o token bruto");
+      assert(!metaStr.includes("http"), "timeline não deveria conter nenhuma URL");
+      assert(data[0]?.metadata?.token_id === linkId, "timeline deveria referenciar o token_id");
+    });
+
+    await test("Tenant B não vê o link do Tenant A (RLS)", async () => {
+      const { data } = await B.client.from("crm_documentos_links").select("id").eq("id", linkId);
+      assert(data.length === 0, "Tenant B não deveria enxergar o link do Tenant A");
+    });
+
+    await test("crm_revogar_link_documento marca revogado_em", async () => {
+      const { error } = await A.client.rpc("crm_revogar_link_documento", { p_link_id: linkId });
+      if (error) throw error;
+      const { data: row } = await admin.from("crm_documentos_links").select("revogado_em").eq("id", linkId).single();
+      assert(row.revogado_em !== null, "revogado_em deveria ter sido preenchido");
+    });
+
+    console.log("\nFase B — Edge Function crm-documento-publico:");
+
+    async function chamarDocumentoPublico(token, action) {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/crm-documento-publico`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${ANON_KEY}` },
+        body: JSON.stringify({ token, ...(action ? { action } : {}) }),
+      });
+      return { status: res.status, body: await res.json().catch(() => ({})) };
+    }
+
+    await test("Token inexistente retorna erro genérico 404", async () => {
+      const r = await chamarDocumentoPublico("a".repeat(32));
+      assert(r.status === 404 && /inválido, expirado ou revogado/.test(r.body.error), `resposta inesperada: ${r.status} ${JSON.stringify(r.body)}`);
+    });
+
+    await test("Token revogado (o mesmo linkToken revogado acima) retorna o MESMO erro genérico", async () => {
+      const r = await chamarDocumentoPublico(linkToken);
+      assert(r.status === 404 && /inválido, expirado ou revogado/.test(r.body.error), `resposta inesperada: ${r.status} ${JSON.stringify(r.body)}`);
+    });
+
+    let linkTokenExpirado;
+    await test("Token expirado retorna o MESMO erro genérico", async () => {
+      const { data } = await A.client.rpc("crm_gerar_link_documento", { p_tipo: "proposta", p_id: propostaContratoId, p_validade_dias: 1 });
+      linkTokenExpirado = data[0].token;
+      await admin.from("crm_documentos_links").update({ expira_em: new Date(Date.now() - 1000).toISOString() }).eq("id", data[0].link_id);
+      const r = await chamarDocumentoPublico(linkTokenExpirado);
+      assert(r.status === 404 && /inválido, expirado ou revogado/.test(r.body.error), `resposta inesperada: ${r.status} ${JSON.stringify(r.body)}`);
+    });
+
+    let linkTokenValido, linkIdValido;
+    await test("Token válido resolve os dados da proposta e registra documento_link_acessado (nunca documento_visualizado)", async () => {
+      const { data } = await A.client.rpc("crm_gerar_link_documento", { p_tipo: "proposta", p_id: propostaContratoId, p_validade_dias: 30 });
+      linkTokenValido = data[0].token;
+      linkIdValido = data[0].link_id;
+      const r = await chamarDocumentoPublico(linkTokenValido);
+      assert(r.status === 200 && r.body.success === true, `esperava 200/success, recebeu: ${r.status} ${JSON.stringify(r.body)}`);
+      assert(r.body.tipo === "proposta" && Array.isArray(r.body.itens), "payload da proposta não veio no formato esperado");
+      const { data: eventos } = await admin.from("crm_timeline").select("evento_tipo").eq("crm_oportunidade_id", crmEmpresaContrato.opId).eq("evento_tipo", "documento_link_acessado");
+      assert(eventos.length >= 1, "evento documento_link_acessado não foi gravado");
+      const { data: visualizado } = await admin.from("crm_timeline").select("id").eq("evento_tipo", "documento_visualizado");
+      assert(visualizado.length === 0, "NUNCA deveria existir um evento 'documento_visualizado' — acesso não é prova de leitura");
+    });
+
+    await test("action='baixar' registra documento_pdf_baixado", async () => {
+      const r = await chamarDocumentoPublico(linkTokenValido, "baixar");
+      assert(r.status === 200 && r.body.success === true, `esperava sucesso: ${JSON.stringify(r.body)}`);
+      const { data: eventos } = await admin.from("crm_timeline").select("id").eq("crm_oportunidade_id", crmEmpresaContrato.opId).eq("evento_tipo", "documento_pdf_baixado");
+      assert(eventos.length >= 1, "evento documento_pdf_baixado não foi gravado");
+    });
+
+    await test("Resolução de token público funciona igual para outro tenant (endpoint não é tenant-scoped por auth — só pelo próprio token)", async () => {
+      // O endpoint é público por natureza (sem login) — o "cross-tenant" aqui
+      // significa que só o TOKEN determina o documento, nunca um contexto de
+      // sessão. Confirma que gerar um link no Tenant B e resolvê-lo funciona
+      // igual, e que os dois tokens nunca se confundem (não vaza dado do
+      // outro tenant mesmo compartilhando o mesmo endpoint público).
+      const oportunidadeB2 = await seedOportunidade(B, "Oportunidade B Link Público");
+      const { data: crmEmpresaBRow } = await admin.from("crm_oportunidades").select("crm_empresa_id").eq("id", oportunidadeB2).single();
+      await admin.from("crm_empresas").update({
+        tipo_pessoa: "fisica", nome_completo_pf: "PF Tenant B", cpf: "11122233344", cep: "01310100", endereco: "Rua B", numero: "1",
+        bairro: "Bairro", cidade_endereco: "São Paulo", uf_endereco: "SP",
+      }).eq("id", crmEmpresaBRow.crm_empresa_id);
+      const { data: propB } = await B.client.rpc("crm_obter_ou_criar_proposta", { p_oportunidade_id: oportunidadeB2 });
+      await B.client.rpc("crm_salvar_itens_proposta", { p_proposta_id: propB[0].proposta_id, p_itens: [{ nome: "Serviço B", valor: 42, ordem: 1 }] });
+      const { data: linkB } = await B.client.rpc("crm_gerar_link_documento", { p_tipo: "proposta", p_id: propB[0].proposta_id, p_validade_dias: 30 });
+      const rB = await chamarDocumentoPublico(linkB[0].token);
+      assert(rB.status === 200 && rB.body.clienteNome === "PF Tenant B", `token do Tenant B deveria resolver os dados do Tenant B: ${JSON.stringify(rB.body)}`);
+      const rAComTokenDeB = await chamarDocumentoPublico(linkTokenValido);
+      assert(rAComTokenDeB.body.itens?.[0]?.nome !== "Serviço B", "token do Tenant A não deveria nunca devolver dados do Tenant B");
+    });
+
+    console.log("\nFase B — Gating de Ganha (proposta_aceita / contrato_assinado, escopado à oportunidade):");
+
+    await test("ganha_exige='proposta_aceita': bloqueia sem proposta aceita e libera com ela", async () => {
+      await admin.from("crm_comercial_config").update({ ganha_exige: "proposta_aceita" }).eq("empresa_id", A.empresaId);
+      const opGating1 = await seedOportunidade(A, "Oportunidade Gating Proposta");
+      await seedDiagnostico(A, opGating1, { status: "concluida", conformidade: 90 });
+      const { error: err1 } = await A.client.rpc("crm_fechar_oportunidade_ganha", { p_oportunidade_id: opGating1 });
+      assert(err1 !== null && /PROPOSTA_NAO_ACEITA/.test(err1.message), `deveria ter bloqueado sem proposta aceita: ${err1?.message}`);
+      await seedPropostaAceita(A, opGating1);
+      const { error: err2 } = await A.client.rpc("crm_fechar_oportunidade_ganha", { p_oportunidade_id: opGating1 });
+      assert(err2 === null, `deveria ter fechado com proposta aceita: ${err2?.message}`);
+    });
+
+    await test("ganha_exige='contrato_assinado': bloqueia com só proposta aceita, mesmo sem diagnóstico configurado", async () => {
+      await admin.from("crm_comercial_config").update({ ganha_exige: "contrato_assinado" }).eq("empresa_id", A.empresaId);
+      const opGating2 = await seedOportunidade(A, "Oportunidade Gating Contrato Sem Assinatura");
+      await seedDiagnostico(A, opGating2, { status: "concluida", conformidade: 90 });
+      await seedPropostaAceita(A, opGating2);
+      const { error } = await A.client.rpc("crm_fechar_oportunidade_ganha", { p_oportunidade_id: opGating2 });
+      assert(error !== null && /CONTRATO_NAO_ASSINADO/.test(error.message), `deveria ter bloqueado sem contrato assinado: ${error?.message}`);
+    });
+
+    await test("ganha_exige='contrato_assinado': um contrato assinado de OUTRA oportunidade da mesma Conta não satisfaz o gating", async () => {
+      // contratoId (assinado acima) pertence a crmEmpresaContrato.opId. Testa
+      // fechar uma oportunidade DIFERENTE da mesma Conta — não deveria valer.
+      const { data: crmEmpresaRow } = await admin.from("crm_oportunidades").select("crm_empresa_id, pipeline_id, etapa_id, responsavel_id").eq("id", crmEmpresaContrato.opId).single();
+      const { data: novaOportunidadeMesmaConta, error: eOp } = await A.client.from("crm_oportunidades").insert({
+        empresa_id: A.empresaId, crm_empresa_id: crmEmpresaRow.crm_empresa_id, pipeline_id: crmEmpresaRow.pipeline_id,
+        etapa_id: crmEmpresaRow.etapa_id, nome: "Outra Oportunidade Mesma Conta", responsavel_id: crmEmpresaRow.responsavel_id,
+      }).select("id").single();
+      if (eOp) throw eOp;
+      await seedDiagnostico(A, novaOportunidadeMesmaConta.id, { status: "concluida", conformidade: 90 });
+      await seedPropostaAceita(A, novaOportunidadeMesmaConta.id);
+      const { error } = await A.client.rpc("crm_fechar_oportunidade_ganha", { p_oportunidade_id: novaOportunidadeMesmaConta.id });
+      assert(error !== null && /CONTRATO_NAO_ASSINADO/.test(error.message),
+        `contrato assinado de outra oportunidade da mesma Conta NÃO deveria satisfazer o gating, mas: ${error?.message ?? "fechou com sucesso"}`);
+    });
+
+    await test("ganha_exige='contrato_assinado': libera quando o contrato assinado é da PRÓPRIA oportunidade", async () => {
+      const { error } = await A.client.rpc("crm_fechar_oportunidade_ganha", { p_oportunidade_id: crmEmpresaContrato.opId });
+      assert(error === null, `deveria ter fechado — proposta aceita + contrato assinado da própria oportunidade: ${error?.message}`);
+    });
+
+    await admin.from("crm_comercial_config").update({ ganha_exige: "proposta_aceita" }).eq("empresa_id", A.empresaId);
+    await admin.storage.from("crm-comercial-anexos").remove([pathEvidenciaA, pathAssinadoA]);
+
   } finally {
     console.log("\nLimpeza dos dados de teste...");
     for (const tenant of tenants) {
@@ -1531,7 +2169,15 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error("\nErro fatal no script de testes:", err);
-  process.exit(1);
-});
+// --reset-only: só limpa signup_attempts (contador de rate limit por IP/e-mail)
+// sem rodar a suíte inteira — útil para liberar o cadastro manual via browser
+// depois de rodar este mesmo script, que sozinho já consome o limite de 5/hora.
+if (process.argv.includes("--reset-only")) {
+  await resetRateLimit();
+  console.log("signup_attempts limpo (--reset-only).");
+} else {
+  main().catch((err) => {
+    console.error("\nErro fatal no script de testes:", err);
+    process.exit(1);
+  });
+}

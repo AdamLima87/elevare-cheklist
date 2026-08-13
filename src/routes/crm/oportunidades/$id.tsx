@@ -8,6 +8,8 @@ import { Loader2, ArrowLeft, AlertTriangle } from "lucide-react";
 import { useCrmOportunidade, useCrmDiagnostico } from "@/hooks/useCrmOportunidades";
 import { useCrmEtapas } from "@/hooks/useCrmCatalogos";
 import { supabase } from "@/integrations/supabase/client";
+import { PropostaCard } from "@/components/crm/PropostaCard";
+import { ContratoCard } from "@/components/crm/ContratoCard";
 
 export const Route = createFileRoute("/crm/oportunidades/$id")({
   head: () => ({ meta: [{ title: "Oportunidade · CRM Comercial · RDCheck" }] }),
@@ -133,10 +135,14 @@ function CrmOportunidadeDetailPage() {
               </Card>
 
               {oportunidade && (
-                <DiagnosticoInicialCard
-                  crmOportunidadeId={oportunidade.id}
-                  crmEmpresaId={oportunidade.crm_empresa_id}
-                />
+                <div className="space-y-4">
+                  <DiagnosticoInicialCard
+                    crmOportunidadeId={oportunidade.id}
+                    crmEmpresaId={oportunidade.crm_empresa_id}
+                  />
+                  <PropostaCard oportunidadeId={oportunidade.id} />
+                  <ContratoCard oportunidadeId={oportunidade.id} />
+                </div>
               )}
             </div>
 

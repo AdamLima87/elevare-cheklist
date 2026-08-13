@@ -41,6 +41,11 @@ import {
   type CrmCatalogoItem,
 } from "@/hooks/useCrmCatalogos";
 import { CrmEtapasCard } from "@/components/crm/CrmEtapasCard";
+import { useCrmComercialConfig, useAtualizarCrmComercialConfig, type CrmGanhaExige } from "@/hooks/useCrmComercialConfig";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
+import { useCrmServicosCatalogoTodos, useUpsertCrmServicoCatalogo, useRemoverCrmServicoCatalogo } from "@/hooks/useCrmServicosCatalogo";
+import { useCrmContratoTemplateAtivo, useAtualizarCrmContratoTemplate, type CrmContratoTemplateSecao } from "@/hooks/useCrmContratoTemplates";
 import {
   useLeadFinderUsage,
   useSaveLeadFinderCredential,
@@ -347,10 +352,216 @@ function CrmTab() {
       </div>
 
       <div>
+        <h2 className="mb-3 text-lg font-semibold">Configurações Comerciais</h2>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <ComercialConfigCard />
+          <ServicosCatalogoCard />
+        </div>
+        <div className="mt-6">
+          <ContratoTemplateCard />
+        </div>
+      </div>
+
+      <div>
         <h2 className="mb-3 text-lg font-semibold">Integrações</h2>
         <GooglePlacesIntegrationCard />
       </div>
     </div>
+  );
+}
+
+function ServicosCatalogoCard() {
+  const { data: profile } = useCurrentProfile();
+  const { data: servicos = [], isLoading } = useCrmServicosCatalogoTodos();
+  const upsert = useUpsertCrmServicoCatalogo();
+  const remover = useRemoverCrmServicoCatalogo();
+  const [novoNome, setNovoNome] = useState("");
+  const [novoValor, setNovoValor] = useState("");
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!novoNome.trim() || !profile?.empresa_id) return;
+    try {
+      await upsert.mutateAsync({
+        empresa_id: profile.empresa_id,
+        nome: novoNome.trim(),
+        valor_padrao: novoValor ? Number(novoValor) : null,
+        ordem: servicos.length + 1,
+      });
+      setNovoNome("");
+      setNovoValor("");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao adicionar serviço");
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Catálogo de Serviços</CardTitle>
+        <CardDescription>Usado para montar propostas comerciais. Valor padrão é opcional.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {isLoading ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {servicos.map((s) => (
+              <div key={s.id} className={`flex items-center justify-between rounded border p-2 text-sm ${!s.ativo ? "opacity-50" : ""}`}>
+                <div>
+                  <p className="font-medium">{s.nome}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {s.valor_padrao != null ? s.valor_padrao.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "Sem valor padrão"}
+                  </p>
+                </div>
+                {s.ativo && (
+                  <Button size="sm" variant="ghost" onClick={() => remover.mutate(s.id)}>
+                    Remover
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        <form onSubmit={handleAdd} className="flex gap-2">
+          <Input placeholder="Novo serviço" value={novoNome} onChange={(e) => setNovoNome(e.target.value)} />
+          <Input placeholder="Valor (opcional)" type="number" value={novoValor} onChange={(e) => setNovoValor(e.target.value)} className="w-32" />
+          <Button type="submit" size="sm" disabled={upsert.isPending}>
+            Adicionar
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ContratoTemplateCard() {
+  const { data: template, isLoading } = useCrmContratoTemplateAtivo();
+  const atualizar = useAtualizarCrmContratoTemplate();
+  const [secoes, setSecoes] = useState<CrmContratoTemplateSecao[]>([]);
+  const [carregado, setCarregado] = useState(false);
+
+  if (!carregado && template && secoes.length === 0) {
+    setSecoes(template.conteudo);
+    setCarregado(true);
+  }
+
+  const handleSalvar = async () => {
+    if (!template) return;
+    try {
+      await atualizar.mutateAsync({ id: template.id, conteudo: secoes });
+      toast.success("Template salvo!");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao salvar template");
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Template de Contrato</CardTitle>
+        <CardDescription>
+          Revise este modelo com seu advogado antes de usar em contratos reais. Este é um ponto de partida e não um
+          contrato juridicamente validado para o seu negócio.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isLoading ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          </div>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">
+              Variáveis disponíveis: {"{{contratada.razao_social}}"}, {"{{contratada.cnpj}}"}, {"{{cliente.razao_social}}"},{" "}
+              {"{{cliente.nome_completo_pf}}"}, {"{{cliente.cnpj}}"}, {"{{cliente.cpf}}"}, {"{{cliente.representante_legal}}"},{" "}
+              {"{{proposta.servicos}}"}, {"{{proposta.valor_total}}"}, {"{{contrato.prazo}}"}, {"{{contrato.forma_pagamento}}"}.
+            </p>
+            {secoes.map((secao, i) => (
+              <div key={i} className="space-y-1">
+                <Input
+                  value={secao.titulo}
+                  onChange={(e) => setSecoes((prev) => prev.map((s, idx) => (idx === i ? { ...s, titulo: e.target.value } : s)))}
+                  className="font-medium"
+                />
+                <Textarea
+                  value={secao.corpo}
+                  rows={3}
+                  onChange={(e) => setSecoes((prev) => prev.map((s, idx) => (idx === i ? { ...s, corpo: e.target.value } : s)))}
+                />
+              </div>
+            ))}
+            <div className="flex justify-between">
+              <Button variant="outline" size="sm" onClick={() => setSecoes((prev) => [...prev, { titulo: "Nova cláusula", corpo: "" }])}>
+                Adicionar cláusula
+              </Button>
+              <Button size="sm" onClick={handleSalvar} disabled={atualizar.isPending}>
+                {atualizar.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar template"}
+              </Button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Fase B do módulo comercial: esta regra agora tem efeito real em
+// crm_fechar_oportunidade_ganha (antes, na Fase A, era só decorativa).
+function ComercialConfigCard() {
+  const { data: profile } = useCurrentProfile();
+  const { data: config, isLoading } = useCrmComercialConfig();
+  const atualizar = useAtualizarCrmComercialConfig();
+
+  const handleChange = async (value: string) => {
+    if (!profile?.empresa_id) return;
+    try {
+      await atualizar.mutateAsync({ empresaId: profile.empresa_id, ganhaExige: value as CrmGanhaExige });
+      toast.success("Regra atualizada!");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao atualizar regra");
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Quando uma oportunidade pode ser marcada como "Ganha"?</CardTitle>
+        <CardDescription>
+          Esta regra já é aplicada de verdade ao fechar uma oportunidade como Ganha.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          </div>
+        ) : (
+          <RadioGroup
+            value={config?.ganha_exige ?? "proposta_aceita"}
+            onValueChange={handleChange}
+            disabled={atualizar.isPending}
+          >
+            <div className="flex items-start gap-2">
+              <RadioGroupItem value="proposta_aceita" id="ganha-proposta" className="mt-0.5" />
+              <Label htmlFor="ganha-proposta" className="font-normal">
+                <span className="font-medium">Proposta aceita</span> — padrão. Exige que exista uma proposta com
+                aceite registrado.
+              </Label>
+            </div>
+            <div className="flex items-start gap-2">
+              <RadioGroupItem value="contrato_assinado" id="ganha-contrato" className="mt-0.5" />
+              <Label htmlFor="ganha-contrato" className="font-normal">
+                <span className="font-medium">Contrato assinado</span> — mais rigoroso. Exige proposta aceita e
+                contrato com status Assinado.
+              </Label>
+            </div>
+          </RadioGroup>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
