@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -18,13 +18,25 @@ export const Route = createFileRoute("/confirme-email")({
   component: ConfirmeEmailPage,
 });
 
+const RESEND_COOLDOWN_SECONDS = 59;
+
 function ConfirmeEmailPage() {
   const { email, pending } = Route.useSearch();
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  // Contagem regressiva pro botão de reenvio — evita spam de cliques (cada
+  // reenvio real já é limitado no backend por checkSignupRateLimit, mas essa
+  // contagem dá feedback visual imediato e reduz chamadas desnecessárias).
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => setCooldown((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   const handleResend = async () => {
-    if (!email) return;
+    if (!email || cooldown > 0) return;
     setResending(true);
     try {
       // action:"resend" — o backend nunca cria nada a partir daqui, só
@@ -46,6 +58,7 @@ function ConfirmeEmailPage() {
       toast.error("Não foi possível reenviar agora. Tente novamente em instantes.");
     } finally {
       setResending(false);
+      setCooldown(RESEND_COOLDOWN_SECONDS);
     }
   };
 
@@ -75,8 +88,16 @@ function ConfirmeEmailPage() {
             </p>
           )}
 
-          <Button onClick={handleResend} disabled={resending || resent} variant="outline" className="w-full">
-            {resending ? <Loader2 className="h-4 w-4 animate-spin" /> : resent ? "E-mail reenviado" : "Reenviar e-mail de confirmação"}
+          <Button onClick={handleResend} disabled={resending || cooldown > 0} variant="outline" className="w-full">
+            {resending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : cooldown > 0 ? (
+              `Reenviar em ${cooldown}s`
+            ) : resent ? (
+              "Reenviar novamente"
+            ) : (
+              "Reenviar e-mail de confirmação"
+            )}
           </Button>
 
           <p className="text-center text-sm text-slate-500">

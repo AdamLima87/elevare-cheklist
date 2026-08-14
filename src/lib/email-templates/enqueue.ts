@@ -6,7 +6,9 @@ import { TEMPLATES } from "./registry";
 // Configuration baked in at scaffold time
 const SITE_NAME = "Elevare Consultoria";
 const SENDER_DOMAIN = "notify.elevareconsultoria.com";
-const FROM_DOMAIN = "elevareconsultoria.com";
+// Precisa bater com o domínio verificado no provedor de e-mail (Resend) — só
+// notify.elevareconsultoria.com está verificado, o domínio raiz não.
+const FROM_DOMAIN = "notify.elevareconsultoria.com";
 
 function generateToken(): string {
   const bytes = new Uint8Array(32);
