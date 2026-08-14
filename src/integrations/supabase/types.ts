@@ -3221,6 +3221,50 @@ export type Database = {
         }
         Relationships: []
       }
+      solicitacoes_privacidade: {
+        Row: {
+          atendida_em: string | null
+          atendida_por: string | null
+          created_at: string
+          id: string
+          identificador: string
+          mensagem: string | null
+          nome: string
+          status: string
+          tipo: string
+        }
+        Insert: {
+          atendida_em?: string | null
+          atendida_por?: string | null
+          created_at?: string
+          id?: string
+          identificador: string
+          mensagem?: string | null
+          nome: string
+          status?: string
+          tipo: string
+        }
+        Update: {
+          atendida_em?: string | null
+          atendida_por?: string | null
+          created_at?: string
+          id?: string
+          identificador?: string
+          mensagem?: string | null
+          nome?: string
+          status?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacoes_privacidade_atendida_por_fkey"
+            columns: ["atendida_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppressed_emails: {
         Row: {
           created_at: string
@@ -3894,6 +3938,10 @@ export type Database = {
         Args: { p_empresa_id: string; p_status: string }
         Returns: undefined
       }
+      platform_atualizar_status_solicitacao_privacidade: {
+        Args: { p_id: string; p_status: string }
+        Returns: undefined
+      }
       platform_billing_dashboard: {
         Args: never
         Returns: {
@@ -4080,6 +4128,15 @@ export type Database = {
           p_nova_data: string
           p_observacao?: string
           p_programacao_id: string
+        }
+        Returns: undefined
+      }
+      registrar_solicitacao_privacidade: {
+        Args: {
+          p_identificador: string
+          p_mensagem: string
+          p_nome: string
+          p_tipo: string
         }
         Returns: undefined
       }

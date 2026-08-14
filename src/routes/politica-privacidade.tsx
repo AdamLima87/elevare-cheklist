@@ -6,7 +6,7 @@ export const Route = createFileRoute("/politica-privacidade")({
   component: PoliticaPrivacidadePage,
 });
 
-export const POLITICA_PRIVACIDADE_VERSAO = "1.0";
+export const POLITICA_PRIVACIDADE_VERSAO = "1.1";
 const ATUALIZADA_EM = "14 de agosto de 2026";
 
 function Secao({ titulo, children }: { titulo: string; children: React.ReactNode }) {
@@ -88,16 +88,18 @@ function PoliticaPrivacidadePage() {
               apenas termos de busca digitados pela consultoria, nunca dados de clientes dela.
             </li>
             <li>
-              <strong>Provedor de e-mail transacional</strong> — para envio de confirmações, propostas e contratos.
+              <strong>Mailgun</strong> (envio de e-mail transacional: confirmações, propostas, contratos) — servidores
+              na União Europeia.
             </li>
           </ul>
         </Secao>
 
         <Secao titulo="5. Transferência internacional">
           <p>
-            O banco de dados principal fica hospedado no Brasil. Parte da infraestrutura de hospedagem do site
-            (processamento das requisições) e o provedor de busca de estabelecimentos (Google) operam fora do Brasil,
-            sujeitos às garantias contratuais e legais desses fornecedores.
+            O banco de dados principal fica hospedado no Brasil. Três fornecedores processam dados fora do Brasil:
+            a hospedagem do site (EUA), o provedor de busca de estabelecimentos Google Places (EUA) e o envio de
+            e-mail transacional Mailgun (União Europeia) — todos sujeitos às garantias contratuais e legais desses
+            fornecedores.
           </p>
         </Secao>
 
@@ -114,17 +116,18 @@ function PoliticaPrivacidadePage() {
           <p>
             Você pode solicitar a qualquer momento a exportação de todos os dados pessoais que temos sobre você, ou a
             exclusão/anonimização deles (respeitando obrigações legais de guarda documental que eventualmente se
-            apliquem). Para exercer esses direitos, entre em contato pelo canal indicado abaixo.
+            apliquem). Para exercer esses direitos, use o canal indicado abaixo.
           </p>
         </Secao>
 
-        <Secao titulo="8. Contato">
+        <Secao titulo="8. Canal de Privacidade">
           <p>
-            Dúvidas sobre esta política ou sobre o tratamento dos seus dados podem ser enviadas para{" "}
-            <a href="mailto:privacidade@elevareconsultoria.com" className="text-[#184878] hover:underline">
-              privacidade@elevareconsultoria.com
-            </a>
-            .
+            Para exportar seus dados, pedir exclusão/anonimização, ou tirar qualquer dúvida sobre esta política, use
+            nosso{" "}
+            <Link to="/privacidade/contato" className="text-[#184878] hover:underline">
+              formulário de contato de privacidade
+            </Link>
+            . Respondemos em até 15 dias úteis.
           </p>
         </Secao>
       </main>

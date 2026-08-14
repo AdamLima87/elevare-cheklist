@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PlatformLayout } from "@/components/platform/PlatformLayout";
@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,11 +37,57 @@ interface ResumoAnonimizacao {
   signup_attempts_excluidos: number;
 }
 
+interface SolicitacaoPrivacidade {
+  id: string;
+  nome: string;
+  identificador: string;
+  tipo: "exportar" | "excluir" | "duvida";
+  mensagem: string | null;
+  status: "pendente" | "em_andamento" | "concluida";
+  created_at: string;
+}
+
+const TIPO_LABEL: Record<SolicitacaoPrivacidade["tipo"], string> = {
+  exportar: "Exportar dados",
+  excluir: "Excluir/anonimizar",
+  duvida: "Dúvida",
+};
+
 function PlatformPrivacidadePage() {
   const [identificador, setIdentificador] = useState("");
   const [exportando, setExportando] = useState(false);
   const [anonimizando, setAnonimizando] = useState(false);
   const [ultimoResumo, setUltimoResumo] = useState<ResumoAnonimizacao | null>(null);
+  const [solicitacoes, setSolicitacoes] = useState<SolicitacaoPrivacidade[]>([]);
+  const [carregandoSolicitacoes, setCarregandoSolicitacoes] = useState(true);
+
+  const carregarSolicitacoes = async () => {
+    setCarregandoSolicitacoes(true);
+    const { data, error } = await supabase
+      .from("solicitacoes_privacidade")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (!error) setSolicitacoes((data ?? []) as SolicitacaoPrivacidade[]);
+    setCarregandoSolicitacoes(false);
+  };
+
+  useEffect(() => {
+    carregarSolicitacoes();
+  }, []);
+
+  const marcarStatus = async (id: string, status: SolicitacaoPrivacidade["status"]) => {
+    const { error } = await supabase.rpc("platform_atualizar_status_solicitacao_privacidade", {
+      p_id: id,
+      p_status: status,
+    });
+    if (error) {
+      toast.error(error.message || "Não foi possível atualizar o status.");
+      return;
+    }
+    toast.success("Status atualizado.");
+    carregarSolicitacoes();
+  };
 
   const handleExportar = async () => {
     if (!identificador.trim()) {
@@ -169,6 +217,68 @@ function PlatformPrivacidadePage() {
             </CardContent>
           </Card>
         )}
+
+        <Card className="max-w-3xl mt-6">
+          <CardHeader>
+            <CardTitle className="text-base">Solicitações recebidas pelo canal de privacidade</CardTitle>
+            <CardDescription>Pedidos enviados pelo formulário público em /privacidade/contato.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {carregandoSolicitacoes ? (
+              <p className="text-sm text-muted-foreground">Carregando…</p>
+            ) : solicitacoes.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma solicitação recebida ainda.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>E-mail/CPF</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Ação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {solicitacoes.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell>{s.nome}</TableCell>
+                      <TableCell>
+                        <button
+                          type="button"
+                          className="text-[#184878] hover:underline text-left"
+                          onClick={() => setIdentificador(s.identificador)}
+                        >
+                          {s.identificador}
+                        </button>
+                      </TableCell>
+                      <TableCell>{TIPO_LABEL[s.tipo]}</TableCell>
+                      <TableCell>
+                        <Badge variant={s.status === "concluida" ? "default" : "secondary"}>
+                          {s.status === "pendente" ? "Pendente" : s.status === "em_andamento" ? "Em andamento" : "Concluída"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {s.status !== "concluida" && (
+                          <div className="flex gap-2">
+                            {s.status === "pendente" && (
+                              <Button size="sm" variant="outline" onClick={() => marcarStatus(s.id, "em_andamento")}>
+                                Iniciar
+                              </Button>
+                            )}
+                            <Button size="sm" variant="outline" onClick={() => marcarStatus(s.id, "concluida")}>
+                              Marcar concluída
+                            </Button>
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       </PlatformLayout>
     </ProtectedRoute>
   );

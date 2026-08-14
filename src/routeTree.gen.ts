@@ -36,6 +36,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as PlataformaIndexRouteImport } from './routes/plataforma/index'
 import { Route as CrmIndexRouteImport } from './routes/crm/index'
 import { Route as ClientesIndexRouteImport } from './routes/clientes/index'
+import { Route as PrivacidadeContatoRouteImport } from './routes/privacidade.contato'
 import { Route as PlataformaUsuariosRouteImport } from './routes/plataforma/usuarios'
 import { Route as PlataformaSuporteRouteImport } from './routes/plataforma/suporte'
 import { Route as PlataformaPrivacidadeRouteImport } from './routes/plataforma/privacidade'
@@ -208,6 +209,11 @@ const CrmIndexRoute = CrmIndexRouteImport.update({
 const ClientesIndexRoute = ClientesIndexRouteImport.update({
   id: '/clientes/',
   path: '/clientes/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacidadeContatoRoute = PrivacidadeContatoRouteImport.update({
+  id: '/privacidade/contato',
+  path: '/privacidade/contato',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlataformaUsuariosRoute = PlataformaUsuariosRouteImport.update({
@@ -458,6 +464,7 @@ export interface FileRoutesByFullPath {
   '/plataforma/privacidade': typeof PlataformaPrivacidadeRoute
   '/plataforma/suporte': typeof PlataformaSuporteRoute
   '/plataforma/usuarios': typeof PlataformaUsuariosRoute
+  '/privacidade/contato': typeof PrivacidadeContatoRoute
   '/clientes/': typeof ClientesIndexRoute
   '/crm/': typeof CrmIndexRoute
   '/plataforma/': typeof PlataformaIndexRoute
@@ -525,6 +532,7 @@ export interface FileRoutesByTo {
   '/plataforma/privacidade': typeof PlataformaPrivacidadeRoute
   '/plataforma/suporte': typeof PlataformaSuporteRoute
   '/plataforma/usuarios': typeof PlataformaUsuariosRoute
+  '/privacidade/contato': typeof PrivacidadeContatoRoute
   '/clientes': typeof ClientesIndexRoute
   '/crm': typeof CrmIndexRoute
   '/plataforma': typeof PlataformaIndexRoute
@@ -593,6 +601,7 @@ export interface FileRoutesById {
   '/plataforma/privacidade': typeof PlataformaPrivacidadeRoute
   '/plataforma/suporte': typeof PlataformaSuporteRoute
   '/plataforma/usuarios': typeof PlataformaUsuariosRoute
+  '/privacidade/contato': typeof PrivacidadeContatoRoute
   '/clientes/': typeof ClientesIndexRoute
   '/crm/': typeof CrmIndexRoute
   '/plataforma/': typeof PlataformaIndexRoute
@@ -662,6 +671,7 @@ export interface FileRouteTypes {
     | '/plataforma/privacidade'
     | '/plataforma/suporte'
     | '/plataforma/usuarios'
+    | '/privacidade/contato'
     | '/clientes/'
     | '/crm/'
     | '/plataforma/'
@@ -729,6 +739,7 @@ export interface FileRouteTypes {
     | '/plataforma/privacidade'
     | '/plataforma/suporte'
     | '/plataforma/usuarios'
+    | '/privacidade/contato'
     | '/clientes'
     | '/crm'
     | '/plataforma'
@@ -796,6 +807,7 @@ export interface FileRouteTypes {
     | '/plataforma/privacidade'
     | '/plataforma/suporte'
     | '/plataforma/usuarios'
+    | '/privacidade/contato'
     | '/clientes/'
     | '/crm/'
     | '/plataforma/'
@@ -864,6 +876,7 @@ export interface RootRouteChildren {
   PlataformaPrivacidadeRoute: typeof PlataformaPrivacidadeRoute
   PlataformaSuporteRoute: typeof PlataformaSuporteRoute
   PlataformaUsuariosRoute: typeof PlataformaUsuariosRoute
+  PrivacidadeContatoRoute: typeof PrivacidadeContatoRoute
   ClientesIndexRoute: typeof ClientesIndexRoute
   CrmIndexRoute: typeof CrmIndexRoute
   PlataformaIndexRoute: typeof PlataformaIndexRoute
@@ -1074,6 +1087,13 @@ declare module '@tanstack/react-router' {
       path: '/clientes'
       fullPath: '/clientes/'
       preLoaderRoute: typeof ClientesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacidade/contato': {
+      id: '/privacidade/contato'
+      path: '/privacidade/contato'
+      fullPath: '/privacidade/contato'
+      preLoaderRoute: typeof PrivacidadeContatoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/plataforma/usuarios': {
@@ -1392,6 +1412,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlataformaPrivacidadeRoute: PlataformaPrivacidadeRoute,
   PlataformaSuporteRoute: PlataformaSuporteRoute,
   PlataformaUsuariosRoute: PlataformaUsuariosRoute,
+  PrivacidadeContatoRoute: PrivacidadeContatoRoute,
   ClientesIndexRoute: ClientesIndexRoute,
   CrmIndexRoute: CrmIndexRoute,
   PlataformaIndexRoute: PlataformaIndexRoute,
