@@ -134,7 +134,7 @@ export function UserManagement() {
       if (error) throw error;
       if (data.error) throw new Error(data.error);
 
-      toast.success(`Senha redefinida para: ${data.tempPassword}`, {
+      toast.success("Senha redefinida. O usuário receberá a nova senha provisória por e-mail.", {
         duration: 10000,
       });
       fetchUsers();

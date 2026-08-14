@@ -248,39 +248,6 @@ export type Database = {
           },
         ]
       }
-      client_user_queue: {
-        Row: {
-          cnpj: string
-          created_at: string | null
-          email: string
-          error_message: string | null
-          id: string
-          nome: string | null
-          processed_at: string | null
-          status: string | null
-        }
-        Insert: {
-          cnpj: string
-          created_at?: string | null
-          email: string
-          error_message?: string | null
-          id?: string
-          nome?: string | null
-          processed_at?: string | null
-          status?: string | null
-        }
-        Update: {
-          cnpj?: string
-          created_at?: string | null
-          email?: string
-          error_message?: string | null
-          id?: string
-          nome?: string | null
-          processed_at?: string | null
-          status?: string | null
-        }
-        Relationships: []
-      }
       cliente_interacoes: {
         Row: {
           autor_id: string | null
@@ -396,11 +363,11 @@ export type Database = {
       configuracoes: {
         Row: {
           created_at: string | null
-          email_contato: string
+          email_contato: string | null
           empresa_id: string
           enviar_email_cliente: boolean | null
           id: string
-          nome_empresa: string
+          nome_empresa: string | null
           notificar_admin: boolean | null
           site: string | null
           telefone: string | null
@@ -408,11 +375,11 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
-          email_contato?: string
+          email_contato?: string | null
           empresa_id: string
           enviar_email_cliente?: boolean | null
           id?: string
-          nome_empresa?: string
+          nome_empresa?: string | null
           notificar_admin?: boolean | null
           site?: string | null
           telefone?: string | null
@@ -420,11 +387,11 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
-          email_contato?: string
+          email_contato?: string | null
           empresa_id?: string
           enviar_email_cliente?: boolean | null
           id?: string
-          nome_empresa?: string
+          nome_empresa?: string | null
           notificar_admin?: boolean | null
           site?: string | null
           telefone?: string | null
@@ -800,6 +767,27 @@ export type Database = {
             referencedColumns: ["id", "empresa_id"]
           },
         ]
+      }
+      crm_documento_publico_tentativas: {
+        Row: {
+          created_at: string
+          id: string
+          ip: string | null
+          token_hash: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip?: string | null
+          token_hash?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip?: string | null
+          token_hash?: string | null
+        }
+        Relationships: []
       }
       crm_documentos_links: {
         Row: {
@@ -2164,21 +2152,21 @@ export type Database = {
           cnpj: string | null
           conformidade: number | null
           consultor_id: string | null
-          created_at: string
+          created_at: string | null
           crm_oportunidade_id: string | null
-          dados: Json
+          dados: Json | null
           data_conclusao: string | null
-          data_inicio: string
+          data_inicio: string | null
           empresa_id: string
           estabelecimento_nome: string | null
           id: string
           inspecao_origem_id: string | null
-          numero_sequencial: number
-          progresso: number
-          respostas: Json
-          status: string
+          numero_sequencial: number | null
+          progresso: number | null
+          respostas: Json | null
+          status: string | null
           tipo_execucao: string
-          updated_at: string
+          updated_at: string | null
         }
         Insert: {
           checklist_modelo_versao_id?: string
@@ -2186,21 +2174,21 @@ export type Database = {
           cnpj?: string | null
           conformidade?: number | null
           consultor_id?: string | null
-          created_at?: string
+          created_at?: string | null
           crm_oportunidade_id?: string | null
-          dados?: Json
+          dados?: Json | null
           data_conclusao?: string | null
-          data_inicio?: string
+          data_inicio?: string | null
           empresa_id: string
           estabelecimento_nome?: string | null
           id?: string
           inspecao_origem_id?: string | null
-          numero_sequencial: number
-          progresso?: number
-          respostas?: Json
-          status?: string
+          numero_sequencial?: number | null
+          progresso?: number | null
+          respostas?: Json | null
+          status?: string | null
           tipo_execucao?: string
-          updated_at?: string
+          updated_at?: string | null
         }
         Update: {
           checklist_modelo_versao_id?: string
@@ -2208,21 +2196,21 @@ export type Database = {
           cnpj?: string | null
           conformidade?: number | null
           consultor_id?: string | null
-          created_at?: string
+          created_at?: string | null
           crm_oportunidade_id?: string | null
-          dados?: Json
+          dados?: Json | null
           data_conclusao?: string | null
-          data_inicio?: string
+          data_inicio?: string | null
           empresa_id?: string
           estabelecimento_nome?: string | null
           id?: string
           inspecao_origem_id?: string | null
-          numero_sequencial?: number
-          progresso?: number
-          respostas?: Json
-          status?: string
+          numero_sequencial?: number | null
+          progresso?: number | null
+          respostas?: Json | null
+          status?: string | null
           tipo_execucao?: string
-          updated_at?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -2340,6 +2328,27 @@ export type Database = {
         }
         Relationships: []
       }
+      login_attempts: {
+        Row: {
+          created_at: string
+          email: string
+          id: number
+          success: boolean
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: number
+          success: boolean
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: number
+          success?: boolean
+        }
+        Relationships: []
+      }
       numeracao_inspecoes: {
         Row: {
           empresa_id: string
@@ -2368,49 +2377,49 @@ export type Database = {
           ativo: boolean
           cnpj: string | null
           conselho_regional: string | null
-          created_at: string
+          created_at: string | null
           email: string | null
           empresa_id: string
           force_password_change: boolean | null
           id: string
-          nome: string
+          nome: string | null
           numero_registro: string | null
-          perfil: string
+          perfil: string | null
           telefone: string | null
           ultimo_acesso: string | null
-          updated_at: string
+          updated_at: string | null
         }
         Insert: {
           ativo?: boolean
           cnpj?: string | null
           conselho_regional?: string | null
-          created_at?: string
+          created_at?: string | null
           email?: string | null
           empresa_id: string
           force_password_change?: boolean | null
           id: string
-          nome: string
+          nome?: string | null
           numero_registro?: string | null
-          perfil: string
+          perfil?: string | null
           telefone?: string | null
           ultimo_acesso?: string | null
-          updated_at?: string
+          updated_at?: string | null
         }
         Update: {
           ativo?: boolean
           cnpj?: string | null
           conselho_regional?: string | null
-          created_at?: string
+          created_at?: string | null
           email?: string | null
           empresa_id?: string
           force_password_change?: boolean | null
           id?: string
-          nome?: string
+          nome?: string | null
           numero_registro?: string | null
-          perfil?: string
+          perfil?: string | null
           telefone?: string | null
           ultimo_acesso?: string | null
-          updated_at?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -3806,7 +3815,6 @@ export type Database = {
         Args: { p_programacao_id: string; p_responsavel_id?: string }
         Returns: string
       }
-      is_admin: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       listar_tabelas_backup: {
         Args: never
@@ -4016,6 +4024,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      registrar_tentativa_login_falha: {
+        Args: { p_email: string }
+        Returns: undefined
+      }
       remover_cupom_checkout: {
         Args: { p_checkout_intencao_id: string }
         Returns: undefined
@@ -4024,6 +4036,14 @@ export type Database = {
       resolver_preco_plano: {
         Args: { p_periodicidade: string; p_plano_codigo: string }
         Returns: number
+      }
+      verificar_bloqueio_login: {
+        Args: { p_email: string }
+        Returns: {
+          bloqueado: boolean
+          desbloqueia_em: string
+          tentativas_restantes: number
+        }[]
       }
     }
     Enums: {

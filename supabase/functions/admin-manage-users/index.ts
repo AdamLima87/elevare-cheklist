@@ -159,6 +159,16 @@ serve(async (req) => {
 
       const { email, password, nome, perfil, cnpj } = userData
 
+      // Nunca confiar no perfil vindo do corpo da requisição sem checar quem
+      // está chamando: admin/consultor só podem criar consultor ou cliente
+      // do próprio tenant. Só super_admin pode criar admin/super_admin.
+      const perfisPermitidos = isSuperAdmin
+        ? ['super_admin', 'admin', 'consultor', 'cliente']
+        : ['consultor', 'cliente']
+      if (!perfil || !perfisPermitidos.includes(perfil)) {
+        throw new Error(`Unauthorized: perfil "${perfil}" não pode ser atribuído por este chamador`)
+      }
+
       // 1. Create user in Auth
       const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email,
@@ -174,6 +184,19 @@ serve(async (req) => {
           const user = allUsers.find(u => u.email === email)
 
           if (user) {
+            // listUsers() busca em toda a plataforma, não só no tenant do
+            // chamador — sem checar que o usuário encontrado pertence à
+            // mesma empresa, um admin/consultor conseguiria sobrescrever
+            // perfil/cnpj de um usuário de outro tenant.
+            const { data: existingProfile } = await supabaseAdmin
+              .from('profiles')
+              .select('empresa_id')
+              .eq('id', user.id)
+              .maybeSingle()
+            if (!isSuperAdmin && existingProfile?.empresa_id !== callerEmpresaId) {
+              throw new Error('Unauthorized: usuário existente não pertence à sua empresa')
+            }
+
             // Se o perfil for cliente, atualiza o CNPJ
             if (perfil === 'cliente') {
               await supabaseAdmin.from('profiles').update({ cnpj, perfil: 'cliente' }).eq('id', user.id)
@@ -316,20 +339,37 @@ serve(async (req) => {
     if (action === 'reset_password') {
       if (!isAuthorized) throw new Error('Unauthorized')
       const { userId } = userData
-      
+
+      // Escopo por tenant: um admin/consultor só pode resetar senha de
+      // usuário da própria empresa. Sem essa checagem, qualquer admin/
+      // consultor autenticado conseguia resetar (e receber a senha de)
+      // qualquer usuário de qualquer tenant — falha crítica de isolamento.
+      const { data: targetProfile, error: targetProfileError } = await supabaseAdmin
+        .from('profiles')
+        .select('email, nome, empresa_id')
+        .eq('id', userId)
+        .single()
+
+      if (targetProfileError || !targetProfile) {
+        throw new Error('Usuário não encontrado')
+      }
+      if (!isSuperAdmin && targetProfile.empresa_id !== callerEmpresaId) {
+        throw new Error('Unauthorized: usuário não pertence à sua empresa')
+      }
+
       const tempPassword = generateTemporaryPassword()
-      
+
       console.log(`Resetting password for user ${userId}`)
-      const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.updateUserById(
+      const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
         userId,
         { password: tempPassword }
       )
-      
+
       if (authError) {
         console.error('Auth update error:', authError)
         throw authError
       }
-      
+
       // Update profile to force password change
       const { error: updateError } = await supabaseAdmin
         .from('profiles')
@@ -337,28 +377,25 @@ serve(async (req) => {
           force_password_change: true,
         })
         .eq('id', userId)
-        
+
       if (updateError) {
         console.error('Profile update error:', updateError)
         throw updateError
       }
 
-      // Try to send email with temporary password
-      try {
-        const { data: userProfile } = await supabaseAdmin
-          .from('profiles')
-          .select('email, nome')
-          .eq('id', userId)
-          .single()
-
-        if (userProfile?.email) {
-          await enqueueTemporaryPasswordEmail(supabaseAdmin, userProfile.email, tempPassword, userProfile.nome)
+      // Senha temporária só é entregue por e-mail, nunca na resposta da API
+      // (ver bloco de retorno abaixo) — evita que o chamador (que pode ser
+      // um admin/consultor, não necessariamente quem deveria ver a senha)
+      // consiga logar como o usuário-alvo direto pela resposta HTTP.
+      if (targetProfile.email) {
+        try {
+          await enqueueTemporaryPasswordEmail(supabaseAdmin, targetProfile.email, tempPassword, targetProfile.nome)
+        } catch (e) {
+          console.error('Error sending temporary password email:', e)
         }
-      } catch (e) {
-        console.error('Error fetching profile for email log:', e)
       }
       
-      return new Response(JSON.stringify({ message: 'Senha redefinida com sucesso', tempPassword }), {
+      return new Response(JSON.stringify({ message: 'Senha redefinida com sucesso. O usuário receberá a senha provisória por e-mail.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       })

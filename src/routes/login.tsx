@@ -71,12 +71,29 @@ function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
+      // Bloqueio de força bruta: 10 tentativas erradas com o mesmo e-mail
+      // em 2 minutos bloqueia novas tentativas por 2 minutos. Checado antes
+      // de chamar signInWithPassword pra nem gastar a tentativa contra o Auth.
+      const { data: bloqueioData } = await supabase.rpc("verificar_bloqueio_login", { p_email: email });
+      const bloqueio = bloqueioData?.[0];
+      if (bloqueio?.bloqueado) {
+        const segundos = Math.max(0, Math.ceil((new Date(bloqueio.desbloqueia_em).getTime() - Date.now()) / 1000));
+        toast.error(`Muitas tentativas de login. Tente novamente em ${Math.ceil(segundos / 60)} minuto(s).`);
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes("Invalid login credentials")) {
+          await supabase.rpc("registrar_tentativa_login_falha", { p_email: email });
+        }
+        throw error;
+      }
 
       if (!data.user) throw new Error("Usuário não encontrado");
 
