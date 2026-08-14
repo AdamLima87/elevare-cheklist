@@ -10,11 +10,19 @@ export interface ContratoPdfSecao {
   corpo: string;
 }
 
+export interface ContratoPdfAssinaturaEletronica {
+  nome: string;
+  emailMascarado: string;
+  assinadoEm: string;
+  hash: string;
+}
+
 export interface ContratoPdfData {
   clienteNome: string;
   secoes: ContratoPdfSecao[];
   status?: string | null;
   marca?: MarcaRelatorio;
+  assinaturaEletronica?: ContratoPdfAssinaturaEletronica | null;
 }
 
 export async function gerarPdfContrato(data: ContratoPdfData): Promise<Blob> {
@@ -74,15 +82,41 @@ export async function gerarPdfContrato(data: ContratoPdfData): Promise<Blob> {
     doc.addPage();
     y = 80;
   }
-  doc.setDrawColor(0);
-  doc.setLineWidth(0.5);
   y += 30;
-  doc.line(20, y, 220, y);
-  doc.line(260, y, 460, y);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text("CONTRATADA", 20, y + 15);
-  doc.text("CONTRATANTE", 260, y + 15);
+
+  if (data.assinaturaEletronica) {
+    // Assinatura eletrônica simples (MP 2.200-2/2001, art. 10 §2º) — o hash
+    // aqui é o mesmo calculado server-side em crm_verificar_e_assinar_otp,
+    // sempre derivado do snapshot já congelado, nunca de nada montado neste
+    // gerador de PDF.
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.5);
+    doc.rect(20, y, 440, 90);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(...BRAND_BLUE);
+    doc.text("Assinado eletronicamente", 30, y + 20);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(40, 40, 40);
+    doc.text(`Signatário: ${data.assinaturaEletronica.nome} (${data.assinaturaEletronica.emailMascarado})`, 30, y + 38);
+    doc.text(`Data/hora: ${new Date(data.assinaturaEletronica.assinadoEm).toLocaleString("pt-BR")}`, 30, y + 52);
+    doc.text(`Hash de integridade: ${data.assinaturaEletronica.hash.slice(0, 32)}…`, 30, y + 66);
+    const textoLegal = doc.splitTextToSize(
+      "Assinatura eletrônica simples, nos termos do art. 10, §2º da Medida Provisória 2.200-2/2001.",
+      420,
+    );
+    doc.text(textoLegal, 30, y + 80);
+  } else {
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.5);
+    doc.line(20, y, 220, y);
+    doc.line(260, y, 460, y);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("CONTRATADA", 20, y + 15);
+    doc.text("CONTRATANTE", 260, y + 15);
+  }
 
   aplicarLayoutEmTodasAsPaginas(doc, marcaNome, marcaContato);
   return doc.output("blob");

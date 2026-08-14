@@ -120,7 +120,10 @@ Deno.serve(async (req) => {
     } else {
       const { data: contrato, error: contratoErr } = await admin
         .from("crm_contratos")
-        .select("id, crm_oportunidade_id, crm_empresa_id, status, dados")
+        .select(
+          "id, crm_oportunidade_id, crm_empresa_id, status, dados, assinatura_email_solicitado, " +
+            "assinatura_signatario_nome, assinatura_signatario_email, assinado_em, assinatura_hash_conteudo, origem_assinatura",
+        )
         .eq("id", link.contrato_id)
         .single();
       if (contratoErr || !contrato) return genericInvalidToken();
@@ -135,12 +138,38 @@ Deno.serve(async (req) => {
         .eq("empresa_id", link.empresa_id)
         .maybeSingle();
 
+      // Assinatura eletrônica: só expõe um booleano + e-mail MASCARADO — o
+      // e-mail completo e qualquer hash/token internos nunca vão pro client.
+      const emailSolicitado = contrato.assinatura_email_solicitado as string | null;
+      const emailMascarado = emailSolicitado
+        ? (() => {
+            const [user, domain] = emailSolicitado.split("@");
+            return domain ? `${user.slice(0, 1)}***@${domain}` : "***";
+          })()
+        : null;
+
+      // Depois de assinado, expõe a evidência (nome/e-mail mascarado/data-
+      // hora/hash) pra qualquer um com o link — mas nunca antes disso, e
+      // nunca o e-mail completo.
+      const assinaturaEletronica =
+        contrato.status === "assinado" && contrato.origem_assinatura === "assinatura_eletronica"
+          ? {
+              nome: contrato.assinatura_signatario_nome,
+              emailMascarado,
+              assinadoEm: contrato.assinado_em,
+              hash: contrato.assinatura_hash_conteudo,
+            }
+          : null;
+
       payload = {
         tipo: "contrato",
         status: contrato.status,
         clienteNome: clienteDados?.tipo_pessoa === "fisica" ? clienteDados?.nome_completo_pf : clienteDados?.razao_social,
         secoes: dados?.conteudo_renderizado ?? [],
         marca: { nome: config?.nome_empresa, contato: config?.email_contato },
+        podeAssinarEletronicamente: contrato.status === "enviado" && emailSolicitado !== null,
+        emailMascarado,
+        assinaturaEletronica,
       };
     }
 

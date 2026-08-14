@@ -7,8 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, ArrowLeft, Download, Link as LinkIcon } from "lucide-react";
+import { Loader2, ArrowLeft, Download, Link as LinkIcon, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -17,8 +18,10 @@ import {
   useMarcarContratoEnviado,
   useMarcarContratoAssinado,
   useCancelarContrato,
+  useHabilitarAssinaturaEletronica,
 } from "@/hooks/useCrmContratos";
 import { useCrmOportunidade } from "@/hooks/useCrmOportunidades";
+import { useCrmRepresentantes } from "@/hooks/useCrmRepresentantes";
 import { useGerarLinkDocumento } from "@/hooks/useCrmDocumentosLinks";
 import { gerarPdfContrato } from "@/lib/pdf-contrato";
 import { enviarEmailComercial } from "@/lib/enviar-email-comercial";
@@ -52,17 +55,21 @@ function ContratoVisualizarPage() {
 
   const { data: oportunidade } = useCrmOportunidade(id);
   const { data: contrato, isLoading } = useCrmContrato(contratoId);
+  const { data: representantes } = useCrmRepresentantes(oportunidade?.crm_empresa_id);
   const marcarGerado = useMarcarContratoGerado();
   const marcarEnviado = useMarcarContratoEnviado();
   const marcarAssinado = useMarcarContratoAssinado();
   const cancelar = useCancelarContrato();
   const gerarLink = useGerarLinkDocumento();
+  const habilitarAssinaturaEletronica = useHabilitarAssinaturaEletronica();
 
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [justificativa, setJustificativa] = useState("");
   const [assinarOpen, setAssinarOpen] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [linkGerado, setLinkGerado] = useState<string | null>(null);
+  const [assinaturaEletronicaOpen, setAssinaturaEletronicaOpen] = useState(false);
+  const [emailSignatario, setEmailSignatario] = useState("");
 
   const clienteNome = oportunidade?.crm_empresas?.nome_fantasia || oportunidade?.crm_empresas?.razao_social || "";
 
@@ -88,6 +95,15 @@ function ContratoVisualizarPage() {
       clienteNome,
       secoes: contrato.dados.conteudo_renderizado,
       status: contrato.status,
+      assinaturaEletronica:
+        contrato.origem_assinatura === "assinatura_eletronica" && contrato.assinatura_hash_conteudo
+          ? {
+              nome: contrato.assinatura_signatario_nome || "",
+              emailMascarado: contrato.assinatura_signatario_email || "",
+              assinadoEm: contrato.assinado_em || "",
+              hash: contrato.assinatura_hash_conteudo,
+            }
+          : null,
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -161,6 +177,26 @@ function ContratoVisualizarPage() {
       toast.success("Contrato cancelado.");
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Erro ao cancelar contrato");
+    }
+  };
+
+  const handleAbrirAssinaturaEletronica = () => {
+    const principal = representantes?.find((r) => r.principal);
+    setEmailSignatario(contrato?.assinatura_email_solicitado || principal?.email || "");
+    setAssinaturaEletronicaOpen(true);
+  };
+
+  const handleHabilitarAssinaturaEletronica = async () => {
+    if (!emailSignatario.trim()) {
+      toast.error("Informe o e-mail do signatário.");
+      return;
+    }
+    try {
+      await habilitarAssinaturaEletronica.mutateAsync({ contratoId, oportunidadeId: id, emailSignatario: emailSignatario.trim() });
+      toast.success("Assinatura eletrônica habilitada — compartilhe o link público com o signatário.");
+      setAssinaturaEletronicaOpen(false);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Erro ao habilitar assinatura eletrônica");
     }
   };
 
@@ -258,6 +294,38 @@ function ContratoVisualizarPage() {
               </DialogContent>
             </Dialog>
           )}
+          {contrato.status === "enviado" && !contrato.assinatura_email_solicitado && (
+            <Dialog open={assinaturaEletronicaOpen} onOpenChange={(open) => (open ? handleAbrirAssinaturaEletronica() : setAssinaturaEletronicaOpen(false))}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="gap-1.5">
+                  <ShieldCheck className="h-4 w-4" /> Habilitar assinatura eletrônica
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Habilitar assinatura eletrônica</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    O signatário recebe um código de verificação por e-mail ao abrir o link público do contrato e
+                    confirma a assinatura sem precisar de nenhum arquivo externo.
+                  </p>
+                  <div>
+                    <Label>E-mail do signatário</Label>
+                    <Input
+                      type="email"
+                      value={emailSignatario}
+                      onChange={(e) => setEmailSignatario(e.target.value)}
+                      placeholder="signatario@empresa.com"
+                    />
+                  </div>
+                  <Button onClick={handleHabilitarAssinaturaEletronica} disabled={habilitarAssinaturaEletronica.isPending} className="w-full">
+                    {habilitarAssinaturaEletronica.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Habilitar"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
           {contrato.status !== "assinado" && contrato.status !== "cancelado" && (
             <Button variant="destructive" onClick={handleCancelar} disabled={cancelar.isPending}>
               Cancelar contrato
@@ -269,6 +337,24 @@ function ContratoVisualizarPage() {
             </Button>
           )}
         </div>
+
+        {contrato.status === "enviado" && contrato.assinatura_email_solicitado && (
+          <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+            Assinatura eletrônica habilitada — aguardando o signatário confirmar via {contrato.assinatura_email_solicitado} no link público.
+          </div>
+        )}
+
+        {contrato.status === "assinado" && contrato.origem_assinatura === "assinatura_eletronica" && (
+          <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm space-y-1">
+            <p className="font-medium flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Assinado eletronicamente</p>
+            <p className="text-muted-foreground">
+              {contrato.assinatura_signatario_nome} ({contrato.assinatura_signatario_email}) em{" "}
+              {contrato.assinado_em ? new Date(contrato.assinado_em).toLocaleString("pt-BR") : ""}
+            </p>
+            <p className="text-xs text-muted-foreground font-mono">hash: {contrato.assinatura_hash_conteudo?.slice(0, 16)}…</p>
+          </div>
+        )}
 
         {linkGerado && (
           <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">

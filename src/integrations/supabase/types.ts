@@ -248,6 +248,39 @@ export type Database = {
           },
         ]
       }
+      client_user_queue: {
+        Row: {
+          cnpj: string
+          created_at: string | null
+          email: string
+          error_message: string | null
+          id: string
+          nome: string | null
+          processed_at: string | null
+          status: string | null
+        }
+        Insert: {
+          cnpj: string
+          created_at?: string | null
+          email: string
+          error_message?: string | null
+          id?: string
+          nome?: string | null
+          processed_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          cnpj?: string
+          created_at?: string | null
+          email?: string
+          error_message?: string | null
+          id?: string
+          nome?: string | null
+          processed_at?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       cliente_interacoes: {
         Row: {
           autor_id: string | null
@@ -363,11 +396,11 @@ export type Database = {
       configuracoes: {
         Row: {
           created_at: string | null
-          email_contato: string | null
+          email_contato: string
           empresa_id: string
           enviar_email_cliente: boolean | null
           id: string
-          nome_empresa: string | null
+          nome_empresa: string
           notificar_admin: boolean | null
           site: string | null
           telefone: string | null
@@ -375,11 +408,11 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
-          email_contato?: string | null
+          email_contato?: string
           empresa_id: string
           enviar_email_cliente?: boolean | null
           id?: string
-          nome_empresa?: string | null
+          nome_empresa?: string
           notificar_admin?: boolean | null
           site?: string | null
           telefone?: string | null
@@ -387,11 +420,11 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
-          email_contato?: string | null
+          email_contato?: string
           empresa_id?: string
           enviar_email_cliente?: boolean | null
           id?: string
-          nome_empresa?: string | null
+          nome_empresa?: string
           notificar_admin?: boolean | null
           site?: string | null
           telefone?: string | null
@@ -437,6 +470,68 @@ export type Database = {
           tela?: string
           user_agent?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      crm_assinatura_otp: {
+        Row: {
+          codigo_hash: string
+          contrato_id: string
+          created_at: string
+          empresa_id: string
+          expira_em: string
+          id: string
+          tentativas: number
+          verificado_em: string | null
+        }
+        Insert: {
+          codigo_hash: string
+          contrato_id: string
+          created_at?: string
+          empresa_id: string
+          expira_em: string
+          id?: string
+          tentativas?: number
+          verificado_em?: string | null
+        }
+        Update: {
+          codigo_hash?: string
+          contrato_id?: string
+          created_at?: string
+          empresa_id?: string
+          expira_em?: string
+          id?: string
+          tentativas?: number
+          verificado_em?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_assinatura_otp_contrato_fk"
+            columns: ["contrato_id", "empresa_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contratos"
+            referencedColumns: ["id", "empresa_id"]
+          },
+        ]
+      }
+      crm_assinatura_otp_tentativas: {
+        Row: {
+          created_at: string
+          id: string
+          tipo: string
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          tipo: string
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          tipo?: string
+          token_hash?: string
         }
         Relationships: []
       }
@@ -683,6 +778,12 @@ export type Database = {
           arquivo_assinado_path: string | null
           assinado_em: string | null
           assinado_por: string | null
+          assinatura_email_solicitado: string | null
+          assinatura_hash_conteudo: string | null
+          assinatura_ip: string | null
+          assinatura_signatario_email: string | null
+          assinatura_signatario_nome: string | null
+          assinatura_user_agent: string | null
           cancelado_em: string | null
           cancelado_motivo: string | null
           created_at: string
@@ -704,6 +805,12 @@ export type Database = {
           arquivo_assinado_path?: string | null
           assinado_em?: string | null
           assinado_por?: string | null
+          assinatura_email_solicitado?: string | null
+          assinatura_hash_conteudo?: string | null
+          assinatura_ip?: string | null
+          assinatura_signatario_email?: string | null
+          assinatura_signatario_nome?: string | null
+          assinatura_user_agent?: string | null
           cancelado_em?: string | null
           cancelado_motivo?: string | null
           created_at?: string
@@ -725,6 +832,12 @@ export type Database = {
           arquivo_assinado_path?: string | null
           assinado_em?: string | null
           assinado_por?: string | null
+          assinatura_email_solicitado?: string | null
+          assinatura_hash_conteudo?: string | null
+          assinatura_ip?: string | null
+          assinatura_signatario_email?: string | null
+          assinatura_signatario_nome?: string | null
+          assinatura_user_agent?: string | null
           cancelado_em?: string | null
           cancelado_motivo?: string | null
           created_at?: string
@@ -2185,21 +2298,21 @@ export type Database = {
           cnpj: string | null
           conformidade: number | null
           consultor_id: string | null
-          created_at: string | null
+          created_at: string
           crm_oportunidade_id: string | null
-          dados: Json | null
+          dados: Json
           data_conclusao: string | null
-          data_inicio: string | null
+          data_inicio: string
           empresa_id: string
           estabelecimento_nome: string | null
           id: string
           inspecao_origem_id: string | null
-          numero_sequencial: number | null
-          progresso: number | null
-          respostas: Json | null
-          status: string | null
+          numero_sequencial: number
+          progresso: number
+          respostas: Json
+          status: string
           tipo_execucao: string
-          updated_at: string | null
+          updated_at: string
         }
         Insert: {
           checklist_modelo_versao_id?: string
@@ -2207,21 +2320,21 @@ export type Database = {
           cnpj?: string | null
           conformidade?: number | null
           consultor_id?: string | null
-          created_at?: string | null
+          created_at?: string
           crm_oportunidade_id?: string | null
-          dados?: Json | null
+          dados?: Json
           data_conclusao?: string | null
-          data_inicio?: string | null
+          data_inicio?: string
           empresa_id: string
           estabelecimento_nome?: string | null
           id?: string
           inspecao_origem_id?: string | null
-          numero_sequencial?: number | null
-          progresso?: number | null
-          respostas?: Json | null
-          status?: string | null
+          numero_sequencial: number
+          progresso?: number
+          respostas?: Json
+          status?: string
           tipo_execucao?: string
-          updated_at?: string | null
+          updated_at?: string
         }
         Update: {
           checklist_modelo_versao_id?: string
@@ -2229,21 +2342,21 @@ export type Database = {
           cnpj?: string | null
           conformidade?: number | null
           consultor_id?: string | null
-          created_at?: string | null
+          created_at?: string
           crm_oportunidade_id?: string | null
-          dados?: Json | null
+          dados?: Json
           data_conclusao?: string | null
-          data_inicio?: string | null
+          data_inicio?: string
           empresa_id?: string
           estabelecimento_nome?: string | null
           id?: string
           inspecao_origem_id?: string | null
-          numero_sequencial?: number | null
-          progresso?: number | null
-          respostas?: Json | null
-          status?: string | null
+          numero_sequencial?: number
+          progresso?: number
+          respostas?: Json
+          status?: string
           tipo_execucao?: string
-          updated_at?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -2410,49 +2523,49 @@ export type Database = {
           ativo: boolean
           cnpj: string | null
           conselho_regional: string | null
-          created_at: string | null
+          created_at: string
           email: string | null
           empresa_id: string
           force_password_change: boolean | null
           id: string
-          nome: string | null
+          nome: string
           numero_registro: string | null
-          perfil: string | null
+          perfil: string
           telefone: string | null
           ultimo_acesso: string | null
-          updated_at: string | null
+          updated_at: string
         }
         Insert: {
           ativo?: boolean
           cnpj?: string | null
           conselho_regional?: string | null
-          created_at?: string | null
+          created_at?: string
           email?: string | null
           empresa_id: string
           force_password_change?: boolean | null
           id: string
-          nome?: string | null
+          nome: string
           numero_registro?: string | null
-          perfil?: string | null
+          perfil: string
           telefone?: string | null
           ultimo_acesso?: string | null
-          updated_at?: string | null
+          updated_at?: string
         }
         Update: {
           ativo?: boolean
           cnpj?: string | null
           conselho_regional?: string | null
-          created_at?: string | null
+          created_at?: string
           email?: string | null
           empresa_id?: string
           force_password_change?: boolean | null
           id?: string
-          nome?: string | null
+          nome?: string
           numero_registro?: string | null
-          perfil?: string | null
+          perfil?: string
           telefone?: string | null
           ultimo_acesso?: string | null
-          updated_at?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -3692,6 +3805,10 @@ export type Database = {
           token: string
         }[]
       }
+      crm_habilitar_assinatura_eletronica: {
+        Args: { p_contrato_id: string; p_email_signatario: string }
+        Returns: undefined
+      }
       crm_importar_lead_google: {
         Args: {
           p_cidade: string
@@ -3828,6 +3945,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      crm_registrar_tentativa_otp_assinatura: {
+        Args: { p_contrato_id: string }
+        Returns: undefined
+      }
       crm_registrar_timeline_sistema: {
         Args: {
           p_crm_oportunidade_id: string
@@ -3864,6 +3985,20 @@ export type Database = {
         Args: { p_empresa_id: string }
         Returns: undefined
       }
+      crm_solicitar_otp_assinatura: {
+        Args: { p_contrato_id: string }
+        Returns: string
+      }
+      crm_verificar_e_assinar_otp: {
+        Args: {
+          p_codigo: string
+          p_contrato_id: string
+          p_ip: string
+          p_nome_signatario: string
+          p_user_agent: string
+        }
+        Returns: undefined
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -3892,6 +4027,7 @@ export type Database = {
         Args: { p_programacao_id: string; p_responsavel_id?: string }
         Returns: string
       }
+      is_admin: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       listar_tabelas_backup: {
         Args: never

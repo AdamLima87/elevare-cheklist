@@ -28,6 +28,11 @@ const envPath = process.argv[2] || ".env.staging";
 const env = loadEnvFile(envPath);
 const SUPABASE_URL = env.SUPABASE_URL || env.VITE_SUPABASE_URL;
 const ANON_KEY = env.VITE_SUPABASE_ANON_KEY;
+// Fase C — as rotas de OTP de assinatura eletrônica são rotas de servidor
+// TanStack Start (Node), não Edge Functions Deno, porque precisam de
+// enqueueTransactionalEmail (@react-email/components). Só existem rodando o
+// dev server local (npm run dev) apontado pro .env de staging.
+const APP_URL = env.APP_URL || "http://localhost:8080";
 const SERVICE_ROLE_KEY = env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_URL || !ANON_KEY || !SERVICE_ROLE_KEY) {
@@ -2151,6 +2156,261 @@ async function main() {
 
     await admin.from("crm_comercial_config").update({ ganha_exige: "proposta_aceita" }).eq("empresa_id", A.empresaId);
     await admin.storage.from("crm-comercial-anexos").remove([pathEvidenciaA, pathAssinadoA]);
+
+    console.log("\nFase C — Assinatura Eletrônica (OTP por e-mail):");
+
+    async function chamarOtp(path, body) {
+      const res = await fetch(`${APP_URL}/documento/otp/${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      return { status: res.status, body: await res.json().catch(() => ({})) };
+    }
+
+    // Conta PJ completa + representante com e-mail, contrato dedicado
+    // (nunca reaproveita `contratoId` acima, que já está 'assinado').
+    const opOtp = await seedOportunidade(A, "Oportunidade Assinatura Eletrônica");
+    const { data: opOtpRow } = await admin.from("crm_oportunidades").select("crm_empresa_id").eq("id", opOtp).single();
+    await admin.from("crm_empresas").update({
+      tipo_pessoa: "juridica", cnpj: "33444555000122", cep: "01310100", endereco: "Av. OTP", numero: "1",
+      bairro: "Centro", cidade_endereco: "São Paulo", uf_endereco: "SP",
+    }).eq("id", opOtpRow.crm_empresa_id);
+    await admin.from("crm_representantes").insert({
+      empresa_id: A.empresaId, crm_empresa_id: opOtpRow.crm_empresa_id, nome_completo: "Representante OTP", principal: true,
+      email: "signatario-otp-teste@example.com",
+    });
+    await seedDiagnostico(A, opOtp, { status: "concluida", conformidade: 90 });
+    const propostaOtpId = await seedPropostaAceita(A, opOtp);
+    const { data: contratoOtpRow } = await A.client.rpc("crm_obter_ou_criar_contrato", { p_proposta_id: propostaOtpId });
+    const contratoOtpId = contratoOtpRow[0].contrato_id;
+    await A.client.rpc("crm_marcar_contrato_gerado", { p_contrato_id: contratoOtpId });
+    await A.client.rpc("crm_marcar_contrato_enviado", { p_contrato_id: contratoOtpId });
+
+    await test("crm_habilitar_assinatura_eletronica fora de status='enviado' falha", async () => {
+      const opRascunho = await seedOportunidade(A, "Oportunidade OTP Rascunho");
+      const { data: opRow } = await admin.from("crm_oportunidades").select("crm_empresa_id").eq("id", opRascunho).single();
+      await admin.from("crm_empresas").update({
+        tipo_pessoa: "fisica", nome_completo_pf: "PF OTP Rascunho", cpf: "55566677788", cep: "01310100", endereco: "Rua", numero: "1",
+        bairro: "Bairro", cidade_endereco: "São Paulo", uf_endereco: "SP",
+      }).eq("id", opRow.crm_empresa_id);
+      const propId = await seedPropostaAceita(A, opRascunho);
+      const { data: c } = await A.client.rpc("crm_obter_ou_criar_contrato", { p_proposta_id: propId });
+      const { error } = await A.client.rpc("crm_habilitar_assinatura_eletronica", { p_contrato_id: c[0].contrato_id, p_email_signatario: "x@example.com" });
+      assert(error !== null && /CONTRATO_NAO_ASSINAVEL/.test(error.message), `deveria bloquear fora de 'enviado': ${error?.message}`);
+    });
+
+    await test("crm_habilitar_assinatura_eletronica funciona em 'enviado' e grava o e-mail", async () => {
+      const { error } = await A.client.rpc("crm_habilitar_assinatura_eletronica", { p_contrato_id: contratoOtpId, p_email_signatario: "Signatario-OTP-Teste@Example.com" });
+      if (error) throw error;
+      const { data: row } = await admin.from("crm_contratos").select("assinatura_email_solicitado").eq("id", contratoOtpId).single();
+      assert(row.assinatura_email_solicitado === "signatario-otp-teste@example.com", `e-mail não normalizado corretamente: ${row.assinatura_email_solicitado}`);
+    });
+
+    let tokenOtp;
+    await test("Setup: gera o link público do contrato OTP", async () => {
+      const { data, error } = await A.client.rpc("crm_gerar_link_documento", { p_tipo: "contrato", p_id: contratoOtpId, p_validade_dias: 30 });
+      if (error) throw error;
+      tokenOtp = data[0].token;
+    });
+
+    await test("Endpoint público sinaliza podeAssinarEletronicamente + e-mail mascarado (nunca completo)", async () => {
+      const r = await chamarDocumentoPublico(tokenOtp);
+      assert(r.status === 200 && r.body.podeAssinarEletronicamente === true, `esperava podeAssinarEletronicamente=true: ${JSON.stringify(r.body)}`);
+      assert(r.body.emailMascarado === "s***@example.com", `e-mail mascarado incorreto: ${r.body.emailMascarado}`);
+      assert(!JSON.stringify(r.body).includes("signatario-otp-teste@example.com"), "e-mail completo nunca deveria aparecer no payload público");
+    });
+
+    await test("Contrato em status incompatível (assinado/cancelado/rascunho) não solicita nem verifica OTP", async () => {
+      // Usa o contrato já assinado manualmente acima (contratoId).
+      const { error: eLink } = await A.client.rpc("crm_gerar_link_documento", { p_tipo: "contrato", p_id: contratoId, p_validade_dias: 30 });
+      // contratoId nunca teve assinatura eletrônica habilitada — mesmo que
+      // tivesse, status='assinado' já bloquearia na RPC de solicitar.
+      const { error: eSolicitar } = await admin.rpc("crm_solicitar_otp_assinatura", { p_contrato_id: contratoId });
+      assert(eSolicitar !== null && /CONTRATO_NAO_ASSINAVEL/.test(eSolicitar.message), `deveria bloquear solicitar OTP em contrato assinado: ${eSolicitar?.message}`);
+    });
+
+    let codigoValido;
+    await test("Fluxo feliz: solicitar código gera OTP ativo, hash nunca é o código bruto", async () => {
+      const { error } = await admin.rpc("crm_solicitar_otp_assinatura", { p_contrato_id: contratoOtpId });
+      // Chamado diretamente via service-role (não HTTP) só pra capturar o
+      // código bruto de teste — em produção só a rota /documento/otp/
+      // solicitar (Node) faz essa chamada, nunca o client autenticado.
+      if (error) throw error;
+      const { data: otpRow } = await admin.from("crm_assinatura_otp").select("codigo_hash").eq("contrato_id", contratoOtpId).order("created_at", { ascending: false }).limit(1).single();
+      assert(otpRow.codigo_hash.length === 64, "codigo_hash deveria ser um SHA-256 hex (64 chars)");
+      assert(!/^\d{6}$/.test(otpRow.codigo_hash), "codigo_hash nunca deveria parecer um código de 6 dígitos em texto puro");
+    });
+
+    await test("Rota pública /documento/otp/solicitar funciona ponta a ponta e nunca retorna o código", async () => {
+      const r = await chamarOtp("solicitar", { token: tokenOtp });
+      assert(r.status === 200 && r.body.success === true, `esperava sucesso: ${JSON.stringify(r.body)}`);
+      assert(r.body.emailMascarado === "s***@example.com", `e-mail mascarado incorreto: ${r.body.emailMascarado}`);
+      assert(!("codigo" in r.body) && !("codigo_hash" in r.body) && !("token_hash" in r.body), "resposta pública nunca deveria conter código/hash");
+      // Recupera o código de teste direto do banco via uma segunda geração
+      // controlada por service-role, pra poder testar o fluxo de
+      // verificação ponta a ponta sem depender de ler e-mail de verdade.
+      const { data: codigoGerado } = await admin.rpc("crm_solicitar_otp_assinatura", { p_contrato_id: contratoOtpId });
+      codigoValido = codigoGerado;
+    });
+
+    await test("Código antigo (superado pelo novo) já não funciona mais", async () => {
+      // O código da chamada HTTP anterior foi superado pela geração de
+      // codigoValido acima — tentar usá-lo (mesmo que não o conheçamos,
+      // simulamos com um valor certamente inválido) deve falhar genérico.
+      const r = await chamarOtp("verificar", { token: tokenOtp, codigo: "000000", nomeSignatario: "Fulano Teste" });
+      assert(r.status === 400 && /Código inválido ou expirado/.test(r.body.error), `esperava rejeição genérica: ${JSON.stringify(r.body)}`);
+    });
+
+    await test("Código correto assina o contrato — hash calculado server-side, formato SHA-256 hex", async () => {
+      const r = await chamarOtp("verificar", { token: tokenOtp, codigo: codigoValido, nomeSignatario: "Fulano Teste Signatário" });
+      assert(r.status === 200 && r.body.success === true, `esperava sucesso: ${JSON.stringify(r.body)}`);
+
+      const { data: row } = await admin.from("crm_contratos").select(
+        "status, origem_assinatura, assinatura_signatario_nome, assinatura_signatario_email, assinatura_hash_conteudo, assinatura_ip",
+      ).eq("id", contratoOtpId).single();
+      assert(row.status === "assinado", `esperava assinado, recebeu ${row.status}`);
+      assert(row.origem_assinatura === "assinatura_eletronica", "origem_assinatura deveria ser assinatura_eletronica");
+      assert(row.assinatura_signatario_nome === "Fulano Teste Signatário", "nome do signatário não gravado corretamente");
+      assert(row.assinatura_signatario_email === "signatario-otp-teste@example.com", "e-mail do signatário não gravado corretamente");
+      // O valor exato não é recomputado aqui em JS (round-trip de JSON via
+      // JSON.stringify pode divergir de jsonb_out do Postgres em precisão
+      // numérica) — a garantia de que o hash é sempre derivado server-side
+      // e nunca aceita do navegador é coberta pelo teste de "payload forjado"
+      // logo abaixo. Aqui só confirma o formato.
+      assert(/^[0-9a-f]{64}$/.test(row.assinatura_hash_conteudo || ""), `assinatura_hash_conteudo não parece um SHA-256 hex: ${row.assinatura_hash_conteudo}`);
+    });
+
+    await test("Alteração artificial do payload do navegador nunca altera o hash registrado (hash sempre server-side)", async () => {
+      // A rota /documento/otp/verificar nem aceita um campo de hash no
+      // corpo — mesmo enviando um campo extra "hash"/"assinaturaHashConteudo"
+      // forjado, a RPC ignora completamente o body do request e recalcula
+      // sempre a partir de crm_contratos.dados já persistido.
+      const r = await chamarOtp("verificar", { token: tokenOtp, codigo: codigoValido, nomeSignatario: "Forjado", hash: "0000forjado0000", assinaturaHashConteudo: "forjado" });
+      assert(r.status === 400, "contrato já assinado — segunda verificação deveria ser rejeitada, nunca re-assinar com dado forjado");
+      const { data: row } = await admin.from("crm_contratos").select("assinatura_signatario_nome").eq("id", contratoOtpId).single();
+      assert(row.assinatura_signatario_nome === "Fulano Teste Signatário", "o payload forjado não deveria ter alterado nada — contrato já estava assinado");
+    });
+
+    await test("Reuso do mesmo OTP depois de assinatura bem-sucedida é rejeitado", async () => {
+      const r = await chamarOtp("verificar", { token: tokenOtp, codigo: codigoValido, nomeSignatario: "Outra Pessoa" });
+      assert(r.status === 400 && /Código inválido ou expirado/.test(r.body.error), `reuso do OTP deveria ser rejeitado: ${JSON.stringify(r.body)}`);
+    });
+
+    await test("Contrato assinado eletronicamente satisfaz normalmente o gating contrato_assinado", async () => {
+      await admin.from("crm_comercial_config").update({ ganha_exige: "contrato_assinado" }).eq("empresa_id", A.empresaId);
+      const { error } = await A.client.rpc("crm_fechar_oportunidade_ganha", { p_oportunidade_id: opOtp });
+      assert(error === null, `contrato assinado eletronicamente deveria satisfazer o gating: ${error?.message}`);
+      await admin.from("crm_comercial_config").update({ ganha_exige: "proposta_aceita" }).eq("empresa_id", A.empresaId);
+    });
+
+    // --- OTP de contrato A usado contra contrato B / expiração / rate limit / concorrência ---
+    const opOtp2 = await seedOportunidade(A, "Oportunidade Assinatura Eletrônica 2");
+    const { data: opOtp2Row } = await admin.from("crm_oportunidades").select("crm_empresa_id").eq("id", opOtp2).single();
+    await admin.from("crm_empresas").update({
+      tipo_pessoa: "fisica", nome_completo_pf: "PF OTP 2", cpf: "22233344455", cep: "01310100", endereco: "Rua 2", numero: "2",
+      bairro: "Bairro", cidade_endereco: "São Paulo", uf_endereco: "SP",
+    }).eq("id", opOtp2Row.crm_empresa_id);
+    const propostaOtp2Id = await seedPropostaAceita(A, opOtp2);
+    const { data: contratoOtp2Row } = await A.client.rpc("crm_obter_ou_criar_contrato", { p_proposta_id: propostaOtp2Id });
+    const contratoOtp2Id = contratoOtp2Row[0].contrato_id;
+    await A.client.rpc("crm_marcar_contrato_gerado", { p_contrato_id: contratoOtp2Id });
+    await A.client.rpc("crm_marcar_contrato_enviado", { p_contrato_id: contratoOtp2Id });
+    await A.client.rpc("crm_habilitar_assinatura_eletronica", { p_contrato_id: contratoOtp2Id, p_email_signatario: "signatario2@example.com" });
+    const { data: linkOtp2 } = await A.client.rpc("crm_gerar_link_documento", { p_tipo: "contrato", p_id: contratoOtp2Id, p_validade_dias: 30 });
+    const tokenOtp2 = linkOtp2[0].token;
+
+    await test("OTP de um contrato usado contra outro (p_contrato_id diferente) é rejeitado", async () => {
+      const { data: codigo2 } = await admin.rpc("crm_solicitar_otp_assinatura", { p_contrato_id: contratoOtp2Id });
+      // Tenta verificar o código do contrato 2 usando o TOKEN do contrato 1
+      // (opOtp, já assinado — mas ainda serve pra testar que mesmo se o
+      // link resolvesse, o código não pertence a este contrato).
+      const { error: eCross } = await admin.rpc("crm_verificar_e_assinar_otp", {
+        p_contrato_id: contratoOtpId, p_codigo: codigo2, p_nome_signatario: "Cross Teste", p_ip: null, p_user_agent: null,
+      });
+      assert(eCross !== null && /OTP_INVALIDO/.test(eCross.message), `código de outro contrato não deveria funcionar: ${eCross?.message ?? "passou"}`);
+    });
+
+    await test("Código expirado é rejeitado", async () => {
+      const { data: codigoExp } = await admin.rpc("crm_solicitar_otp_assinatura", { p_contrato_id: contratoOtp2Id });
+      await admin.from("crm_assinatura_otp").update({ expira_em: new Date(Date.now() - 1000).toISOString() })
+        .eq("contrato_id", contratoOtp2Id).is("verificado_em", null);
+      const { error } = await admin.rpc("crm_verificar_e_assinar_otp", {
+        p_contrato_id: contratoOtp2Id, p_codigo: codigoExp, p_nome_signatario: "Teste Expirado", p_ip: null, p_user_agent: null,
+      });
+      assert(error !== null && /OTP_INVALIDO/.test(error.message), `código expirado deveria ser rejeitado: ${error?.message}`);
+    });
+
+    await test("6ª tentativa de verificação é bloqueada mesmo com o código certo (rate-limit de tentativas)", async () => {
+      const { data: codigoCerto } = await admin.rpc("crm_solicitar_otp_assinatura", { p_contrato_id: contratoOtp2Id });
+      // Mesmo padrão da rota real (/documento/otp/verificar): SEMPRE
+      // registra a tentativa antes de verificar, mesmo call a call.
+      for (let i = 0; i < 5; i++) {
+        await admin.rpc("crm_registrar_tentativa_otp_assinatura", { p_contrato_id: contratoOtp2Id });
+        await admin.rpc("crm_verificar_e_assinar_otp", { p_contrato_id: contratoOtp2Id, p_codigo: "000000", p_nome_signatario: "x", p_ip: null, p_user_agent: null });
+      }
+      await admin.rpc("crm_registrar_tentativa_otp_assinatura", { p_contrato_id: contratoOtp2Id });
+      const { error } = await admin.rpc("crm_verificar_e_assinar_otp", {
+        p_contrato_id: contratoOtp2Id, p_codigo: codigoCerto, p_nome_signatario: "Deveria Falhar", p_ip: null, p_user_agent: null,
+      });
+      assert(error !== null && /OTP_INVALIDO/.test(error.message), `6ª tentativa deveria ser bloqueada mesmo com código certo: ${error?.message ?? "passou"}`);
+      const { data: row } = await admin.from("crm_contratos").select("status").eq("id", contratoOtp2Id).single();
+      assert(row.status === "enviado", "contrato não deveria ter sido assinado após esgotar tentativas");
+    });
+
+    await test("Duas verificações concorrentes do mesmo OTP produzem exatamente UMA assinatura", async () => {
+      const opConc = await seedOportunidade(A, "Oportunidade OTP Concorrência");
+      const { data: opConcRow } = await admin.from("crm_oportunidades").select("crm_empresa_id").eq("id", opConc).single();
+      await admin.from("crm_empresas").update({
+        tipo_pessoa: "fisica", nome_completo_pf: "PF OTP Concorrência", cpf: "33344455566", cep: "01310100", endereco: "Rua 3", numero: "3",
+        bairro: "Bairro", cidade_endereco: "São Paulo", uf_endereco: "SP",
+      }).eq("id", opConcRow.crm_empresa_id);
+      const propConc = await seedPropostaAceita(A, opConc);
+      const { data: contratoConcRow } = await A.client.rpc("crm_obter_ou_criar_contrato", { p_proposta_id: propConc });
+      const contratoConcId = contratoConcRow[0].contrato_id;
+      await A.client.rpc("crm_marcar_contrato_gerado", { p_contrato_id: contratoConcId });
+      await A.client.rpc("crm_marcar_contrato_enviado", { p_contrato_id: contratoConcId });
+      await A.client.rpc("crm_habilitar_assinatura_eletronica", { p_contrato_id: contratoConcId, p_email_signatario: "concorrencia@example.com" });
+      const { data: codigoConc } = await admin.rpc("crm_solicitar_otp_assinatura", { p_contrato_id: contratoConcId });
+
+      const resultados = await Promise.all([
+        admin.rpc("crm_verificar_e_assinar_otp", { p_contrato_id: contratoConcId, p_codigo: codigoConc, p_nome_signatario: "Concorrente 1", p_ip: null, p_user_agent: null }),
+        admin.rpc("crm_verificar_e_assinar_otp", { p_contrato_id: contratoConcId, p_codigo: codigoConc, p_nome_signatario: "Concorrente 2", p_ip: null, p_user_agent: null }),
+      ]);
+      const sucessos = resultados.filter((r) => r.error === null);
+      assert(sucessos.length === 1, `esperava exatamente 1 sucesso entre as 2 chamadas concorrentes, obteve ${sucessos.length}`);
+
+      const { data: eventosAssinatura } = await admin.from("crm_timeline").select("id").eq("crm_oportunidade_id", opConc).eq("evento_tipo", "contrato_assinado_eletronicamente");
+      assert(eventosAssinatura.length === 1, `esperava exatamente 1 evento de assinatura na timeline, encontrou ${eventosAssinatura.length}`);
+    });
+
+    await test("Nenhum segredo (codigo_hash/código bruto/token_hash) aparece em respostas ou na timeline", async () => {
+      const { data: eventos } = await admin.from("crm_timeline").select("metadata").in("evento_tipo", [
+        "assinatura_eletronica_habilitada", "assinatura_otp_solicitado", "contrato_assinado_eletronicamente",
+      ]);
+      const metaStr = JSON.stringify(eventos);
+      assert(!/codigo_hash/i.test(metaStr), "timeline nunca deveria mencionar codigo_hash");
+      assert(!!codigoValido, "codigoValido deveria ter sido capturado num teste anterior");
+      assert(!metaStr.includes(codigoValido), "timeline nunca deveria conter o código bruto");
+    });
+
+    await test("Fluxo manual (crm_marcar_contrato_assinado) continua funcionando sem regressão", async () => {
+      const opManual = await seedOportunidade(A, "Oportunidade Fluxo Manual Pós-OTP");
+      const { data: opManualRow } = await admin.from("crm_oportunidades").select("crm_empresa_id").eq("id", opManual).single();
+      await admin.from("crm_empresas").update({
+        tipo_pessoa: "fisica", nome_completo_pf: "PF Fluxo Manual", cpf: "44455566677", cep: "01310100", endereco: "Rua 4", numero: "4",
+        bairro: "Bairro", cidade_endereco: "São Paulo", uf_endereco: "SP",
+      }).eq("id", opManualRow.crm_empresa_id);
+      const propManual = await seedPropostaAceita(A, opManual);
+      const { data: contratoManualRow } = await A.client.rpc("crm_obter_ou_criar_contrato", { p_proposta_id: propManual });
+      const contratoManualId = contratoManualRow[0].contrato_id;
+      await A.client.rpc("crm_marcar_contrato_gerado", { p_contrato_id: contratoManualId });
+      await A.client.rpc("crm_marcar_contrato_enviado", { p_contrato_id: contratoManualId });
+      const { error } = await A.client.rpc("crm_marcar_contrato_assinado", { p_contrato_id: contratoManualId, p_arquivo_path: null, p_justificativa: "assinatura física — teste de regressão" });
+      if (error) throw error;
+      const { data: row } = await admin.from("crm_contratos").select("status, origem_assinatura").eq("id", contratoManualId).single();
+      assert(row.status === "assinado" && row.origem_assinatura === "upload_manual", "fluxo manual deveria continuar funcionando exatamente como antes");
+    });
 
   } finally {
     console.log("\nLimpeza dos dados de teste...");

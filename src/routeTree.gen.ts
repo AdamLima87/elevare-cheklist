@@ -61,6 +61,8 @@ import { Route as CrmAtividadesRouteImport } from './routes/crm/atividades'
 import { Route as ClientesIdRouteImport } from './routes/clientes/$id'
 import { Route as CrmEmpresasIndexRouteImport } from './routes/crm/empresas/index'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
+import { Route as DocumentoOtpVerificarRouteImport } from './routes/documento.otp.verificar'
+import { Route as DocumentoOtpSolicitarRouteImport } from './routes/documento.otp.solicitar'
 import { Route as CrmOportunidadesIdRouteImport } from './routes/crm/oportunidades/$id'
 import { Route as CrmEmpresasIdRouteImport } from './routes/crm/empresas/$id'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
@@ -336,6 +338,16 @@ const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
   path: '/lovable/email/suppression',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DocumentoOtpVerificarRoute = DocumentoOtpVerificarRouteImport.update({
+  id: '/documento/otp/verificar',
+  path: '/documento/otp/verificar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocumentoOtpSolicitarRoute = DocumentoOtpSolicitarRouteImport.update({
+  id: '/documento/otp/solicitar',
+  path: '/documento/otp/solicitar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CrmOportunidadesIdRoute = CrmOportunidadesIdRouteImport.update({
   id: '/crm/oportunidades/$id',
   path: '/crm/oportunidades/$id',
@@ -470,6 +482,8 @@ export interface FileRoutesByFullPath {
   '/plataforma/': typeof PlataformaIndexRoute
   '/crm/empresas/$id': typeof CrmEmpresasIdRoute
   '/crm/oportunidades/$id': typeof CrmOportunidadesIdRoute
+  '/documento/otp/solicitar': typeof DocumentoOtpSolicitarRoute
+  '/documento/otp/verificar': typeof DocumentoOtpVerificarRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/crm/empresas/': typeof CrmEmpresasIndexRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -538,6 +552,8 @@ export interface FileRoutesByTo {
   '/plataforma': typeof PlataformaIndexRoute
   '/crm/empresas/$id': typeof CrmEmpresasIdRoute
   '/crm/oportunidades/$id': typeof CrmOportunidadesIdRoute
+  '/documento/otp/solicitar': typeof DocumentoOtpSolicitarRoute
+  '/documento/otp/verificar': typeof DocumentoOtpVerificarRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/crm/empresas': typeof CrmEmpresasIndexRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -607,6 +623,8 @@ export interface FileRoutesById {
   '/plataforma/': typeof PlataformaIndexRoute
   '/crm/empresas/$id': typeof CrmEmpresasIdRoute
   '/crm/oportunidades/$id': typeof CrmOportunidadesIdRoute
+  '/documento/otp/solicitar': typeof DocumentoOtpSolicitarRoute
+  '/documento/otp/verificar': typeof DocumentoOtpVerificarRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/crm/empresas/': typeof CrmEmpresasIndexRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -677,6 +695,8 @@ export interface FileRouteTypes {
     | '/plataforma/'
     | '/crm/empresas/$id'
     | '/crm/oportunidades/$id'
+    | '/documento/otp/solicitar'
+    | '/documento/otp/verificar'
     | '/lovable/email/suppression'
     | '/crm/empresas/'
     | '/lovable/email/auth/preview'
@@ -745,6 +765,8 @@ export interface FileRouteTypes {
     | '/plataforma'
     | '/crm/empresas/$id'
     | '/crm/oportunidades/$id'
+    | '/documento/otp/solicitar'
+    | '/documento/otp/verificar'
     | '/lovable/email/suppression'
     | '/crm/empresas'
     | '/lovable/email/auth/preview'
@@ -813,6 +835,8 @@ export interface FileRouteTypes {
     | '/plataforma/'
     | '/crm/empresas/$id'
     | '/crm/oportunidades/$id'
+    | '/documento/otp/solicitar'
+    | '/documento/otp/verificar'
     | '/lovable/email/suppression'
     | '/crm/empresas/'
     | '/lovable/email/auth/preview'
@@ -882,6 +906,8 @@ export interface RootRouteChildren {
   PlataformaIndexRoute: typeof PlataformaIndexRoute
   CrmEmpresasIdRoute: typeof CrmEmpresasIdRoute
   CrmOportunidadesIdRoute: typeof CrmOportunidadesIdRoute
+  DocumentoOtpSolicitarRoute: typeof DocumentoOtpSolicitarRoute
+  DocumentoOtpVerificarRoute: typeof DocumentoOtpVerificarRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   CrmEmpresasIndexRoute: typeof CrmEmpresasIndexRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
@@ -1264,6 +1290,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailSuppressionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/documento/otp/verificar': {
+      id: '/documento/otp/verificar'
+      path: '/documento/otp/verificar'
+      fullPath: '/documento/otp/verificar'
+      preLoaderRoute: typeof DocumentoOtpVerificarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/documento/otp/solicitar': {
+      id: '/documento/otp/solicitar'
+      path: '/documento/otp/solicitar'
+      fullPath: '/documento/otp/solicitar'
+      preLoaderRoute: typeof DocumentoOtpSolicitarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/crm/oportunidades/$id': {
       id: '/crm/oportunidades/$id'
       path: '/crm/oportunidades/$id'
@@ -1418,6 +1458,8 @@ const rootRouteChildren: RootRouteChildren = {
   PlataformaIndexRoute: PlataformaIndexRoute,
   CrmEmpresasIdRoute: CrmEmpresasIdRoute,
   CrmOportunidadesIdRoute: CrmOportunidadesIdRoute,
+  DocumentoOtpSolicitarRoute: DocumentoOtpSolicitarRoute,
+  DocumentoOtpVerificarRoute: DocumentoOtpVerificarRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   CrmEmpresasIndexRoute: CrmEmpresasIndexRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,

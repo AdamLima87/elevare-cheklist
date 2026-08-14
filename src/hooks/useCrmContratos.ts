@@ -30,6 +30,12 @@ export interface CrmContrato {
   arquivo_assinado_path: string | null;
   justificativa_sem_arquivo: string | null;
   origem_assinatura: "upload_manual" | "assinatura_eletronica";
+  assinatura_email_solicitado: string | null;
+  assinatura_signatario_nome: string | null;
+  assinatura_signatario_email: string | null;
+  assinatura_ip: string | null;
+  assinatura_user_agent: string | null;
+  assinatura_hash_conteudo: string | null;
   cancelado_em: string | null;
   cancelado_motivo: string | null;
   created_at: string;
@@ -128,6 +134,23 @@ export function useMarcarContratoAssinado() {
     mutationFn: async (input: { contratoId: string; oportunidadeId: string; arquivoPath?: string | null; justificativa?: string | null }) => {
       const { error } = await supabase.rpc("crm_marcar_contrato_assinado", {
         p_contrato_id: input.contratoId, p_arquivo_path: input.arquivoPath ?? null, p_justificativa: input.justificativa ?? null,
+      });
+      if (error) throw error;
+      return input;
+    },
+    onSuccess: (data) => invalidarContrato(queryClient, data.oportunidadeId, data.contratoId),
+  });
+}
+
+// Habilita a assinatura eletrônica (OTP por e-mail) pra este contrato — o
+// fluxo manual (useMarcarContratoAssinado) continua disponível em paralelo,
+// o consultor escolhe qual usar por contrato.
+export function useHabilitarAssinaturaEletronica() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { contratoId: string; oportunidadeId: string; emailSignatario: string }) => {
+      const { error } = await supabase.rpc("crm_habilitar_assinatura_eletronica", {
+        p_contrato_id: input.contratoId, p_email_signatario: input.emailSignatario,
       });
       if (error) throw error;
       return input;
