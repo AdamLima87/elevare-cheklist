@@ -167,6 +167,10 @@ Deno.serve(async (req) => {
       if (nomeCompleto.length < 2) return genericError("Nome completo é obrigatório.");
       if (empresaNome.length < 2) return genericError("Nome da empresa é obrigatório.");
       if (password.length < 8) return genericError("A senha precisa ter pelo menos 8 caracteres.");
+      // Checagem client-side já bloqueia o botão sem aceite marcado, mas
+      // isso é só UX — sem validar de novo aqui, qualquer chamada direta à
+      // function contornaria o aceite por completo.
+      if (body.aceitePrivacidade !== true) return genericError("É necessário aceitar a política de privacidade.");
     }
 
     const rateLimit = await checkSignupRateLimit(admin, ip, email);
@@ -179,6 +183,25 @@ Deno.serve(async (req) => {
     if (!captchaOk) {
       await logSignupAttempt(admin, { ip, email, success: false, reason: "captcha_failed" });
       return genericError("Não foi possível validar sua solicitação. Tente novamente.");
+    }
+
+    // LGPD — registra o aceite com data/hora/versão da política, independente
+    // de qual ramo (novo/reenvio/já existente) o fluxo tomar depois. Falha
+    // aqui não deve travar o cadastro — é registro de compliance, não parte
+    // do fluxo funcional.
+    if (!isResendOnly) {
+      const politicaVersao =
+        typeof body.politicaPrivacidadeVersao === "string" && body.politicaPrivacidadeVersao.trim()
+          ? body.politicaPrivacidadeVersao.trim()
+          : "desconhecida";
+      const { error: consentError } = await admin.from("consentimentos_privacidade").insert({
+        email,
+        tela: "cadastro",
+        politica_versao: politicaVersao,
+        ip_address: ip,
+        user_agent: req.headers.get("user-agent"),
+      });
+      if (consentError) console.error("Falha ao registrar consentimento LGPD:", consentError);
     }
 
     const appUrl = getAppUrl();

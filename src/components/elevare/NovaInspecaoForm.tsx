@@ -489,6 +489,10 @@ export function NovaInspecaoForm({
       <Card className="mt-4">
         <CardHeader>
           <CardTitle className="text-lg">Responsável Legal</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Nome e e-mail são impressos no relatório de conformidade, como identificação do responsável pelo
+            estabelecimento. O CPF é pedido aqui mas hoje não é usado em nenhum documento gerado pelo sistema.
+          </p>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Nome *" value={estab.respLegalNome} onChange={(v) => update("respLegalNome", v)} />
@@ -500,6 +504,10 @@ export function NovaInspecaoForm({
       <Card className="mt-4">
         <CardHeader>
           <CardTitle className="text-lg">Responsável Técnico</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Nome, conselho regional e número de registro são impressos no relatório como assinatura técnica exigida
+            pela norma sanitária. O CPF é pedido aqui mas hoje não é usado em nenhum documento gerado pelo sistema.
+          </p>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Nome" value={estab.respTecNome} onChange={(v) => update("respTecNome", v)} />

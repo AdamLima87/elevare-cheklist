@@ -407,6 +407,39 @@ export type Database = {
           },
         ]
       }
+      consentimentos_privacidade: {
+        Row: {
+          aceito_em: string
+          email: string
+          id: string
+          ip_address: string | null
+          politica_versao: string
+          tela: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          aceito_em?: string
+          email: string
+          id?: string
+          ip_address?: string | null
+          politica_versao: string
+          tela: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          aceito_em?: string
+          email?: string
+          id?: string
+          ip_address?: string | null
+          politica_versao?: string
+          tela?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       crm_atividades: {
         Row: {
           canal: string | null
@@ -3831,6 +3864,10 @@ export type Database = {
         }
         Returns: number
       }
+      platform_anonimizar_titular: {
+        Args: { p_confirmar: boolean; p_identificador: string }
+        Returns: Json
+      }
       platform_assinaturas_lista: {
         Args: never
         Returns: {
@@ -3844,6 +3881,10 @@ export type Database = {
           status: string
           trial_ends_at: string
         }[]
+      }
+      platform_atualizar_cupom_ativo: {
+        Args: { p_ativo: boolean; p_cupom_id: string }
+        Returns: undefined
       }
       platform_atualizar_empresa_plano: {
         Args: { p_empresa_id: string; p_plano: string }
@@ -3881,6 +3922,20 @@ export type Database = {
           nome: string
           perfil: string
         }[]
+      }
+      platform_criar_cupom: {
+        Args: {
+          p_codigo: string
+          p_data_fim: string
+          p_descricao: string
+          p_max_utilizacoes: number
+          p_max_utilizacoes_por_empresa: number
+          p_periodicidade: string
+          p_plano_codigo: string
+          p_tipo_desconto: string
+          p_valor: number
+        }
+        Returns: string
       }
       platform_dashboard_metrics: {
         Args: never
@@ -3932,6 +3987,10 @@ export type Database = {
       platform_estender_trial: {
         Args: { p_empresa_id: string; p_novo_trial_ends_at: string }
         Returns: undefined
+      }
+      platform_exportar_dados_titular: {
+        Args: { p_identificador: string }
+        Returns: Json
       }
       platform_google_places_consumo: {
         Args: never

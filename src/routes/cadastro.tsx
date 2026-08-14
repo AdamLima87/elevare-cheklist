@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Logo } from "@/components/elevare/Logo";
 import { Loader2 } from "lucide-react";
+import { POLITICA_PRIVACIDADE_VERSAO } from "@/routes/politica-privacidade";
 
 type PlanoCadastro = "trial" | "mensal" | "anual";
 
@@ -76,7 +77,7 @@ function CadastroPage() {
       return;
     }
     if (!aceiteTermos) {
-      toast.error("É necessário aceitar os termos de uso e a política de privacidade.");
+      toast.error("É necessário ler e aceitar a política de privacidade.");
       return;
     }
 
@@ -90,6 +91,8 @@ function CadastroPage() {
           empresaNome,
           password,
           website,
+          aceitePrivacidade: aceiteTermos,
+          politicaPrivacidadeVersao: POLITICA_PRIVACIDADE_VERSAO,
           plano: search.plano,
           utm: {
             utm_source: search.utm_source,
@@ -181,7 +184,11 @@ function CadastroPage() {
             <div className="flex items-start gap-2">
               <Checkbox id="termos" checked={aceiteTermos} onCheckedChange={(v) => setAceiteTermos(v === true)} />
               <Label htmlFor="termos" className="text-xs font-normal text-slate-500 leading-relaxed">
-                Li e aceito os termos de uso e a política de privacidade.
+                Li e aceito a{" "}
+                <Link to="/politica-privacidade" target="_blank" className="text-[#184878] hover:underline">
+                  política de privacidade
+                </Link>
+                .
               </Label>
             </div>
 

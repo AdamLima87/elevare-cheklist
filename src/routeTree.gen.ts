@@ -13,6 +13,7 @@ import { Route as ResultadoRouteImport } from './routes/resultado'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
 import { Route as ProspeccaoRouteImport } from './routes/prospeccao'
+import { Route as PoliticaPrivacidadeRouteImport } from './routes/politica-privacidade'
 import { Route as PlanoBloqueadoRouteImport } from './routes/plano-bloqueado'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
@@ -37,6 +38,7 @@ import { Route as CrmIndexRouteImport } from './routes/crm/index'
 import { Route as ClientesIndexRouteImport } from './routes/clientes/index'
 import { Route as PlataformaUsuariosRouteImport } from './routes/plataforma/usuarios'
 import { Route as PlataformaSuporteRouteImport } from './routes/plataforma/suporte'
+import { Route as PlataformaPrivacidadeRouteImport } from './routes/plataforma/privacidade'
 import { Route as PlataformaPlanosRouteImport } from './routes/plataforma/planos'
 import { Route as PlataformaLogsRouteImport } from './routes/plataforma/logs'
 import { Route as PlataformaIntegracoesRouteImport } from './routes/plataforma/integracoes'
@@ -91,6 +93,11 @@ const RelatoriosRoute = RelatoriosRouteImport.update({
 const ProspeccaoRoute = ProspeccaoRouteImport.update({
   id: '/prospeccao',
   path: '/prospeccao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PoliticaPrivacidadeRoute = PoliticaPrivacidadeRouteImport.update({
+  id: '/politica-privacidade',
+  path: '/politica-privacidade',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlanoBloqueadoRoute = PlanoBloqueadoRouteImport.update({
@@ -211,6 +218,11 @@ const PlataformaUsuariosRoute = PlataformaUsuariosRouteImport.update({
 const PlataformaSuporteRoute = PlataformaSuporteRouteImport.update({
   id: '/plataforma/suporte',
   path: '/plataforma/suporte',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlataformaPrivacidadeRoute = PlataformaPrivacidadeRouteImport.update({
+  id: '/plataforma/privacidade',
+  path: '/plataforma/privacidade',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlataformaPlanosRoute = PlataformaPlanosRouteImport.update({
@@ -419,6 +431,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/perfil': typeof PerfilRoute
   '/plano-bloqueado': typeof PlanoBloqueadoRoute
+  '/politica-privacidade': typeof PoliticaPrivacidadeRoute
   '/prospeccao': typeof ProspeccaoRoute
   '/relatorios': typeof RelatoriosRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -442,6 +455,7 @@ export interface FileRoutesByFullPath {
   '/plataforma/integracoes': typeof PlataformaIntegracoesRoute
   '/plataforma/logs': typeof PlataformaLogsRoute
   '/plataforma/planos': typeof PlataformaPlanosRoute
+  '/plataforma/privacidade': typeof PlataformaPrivacidadeRoute
   '/plataforma/suporte': typeof PlataformaSuporteRoute
   '/plataforma/usuarios': typeof PlataformaUsuariosRoute
   '/clientes/': typeof ClientesIndexRoute
@@ -484,6 +498,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/perfil': typeof PerfilRoute
   '/plano-bloqueado': typeof PlanoBloqueadoRoute
+  '/politica-privacidade': typeof PoliticaPrivacidadeRoute
   '/prospeccao': typeof ProspeccaoRoute
   '/relatorios': typeof RelatoriosRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -507,6 +522,7 @@ export interface FileRoutesByTo {
   '/plataforma/integracoes': typeof PlataformaIntegracoesRoute
   '/plataforma/logs': typeof PlataformaLogsRoute
   '/plataforma/planos': typeof PlataformaPlanosRoute
+  '/plataforma/privacidade': typeof PlataformaPrivacidadeRoute
   '/plataforma/suporte': typeof PlataformaSuporteRoute
   '/plataforma/usuarios': typeof PlataformaUsuariosRoute
   '/clientes': typeof ClientesIndexRoute
@@ -550,6 +566,7 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/perfil': typeof PerfilRoute
   '/plano-bloqueado': typeof PlanoBloqueadoRoute
+  '/politica-privacidade': typeof PoliticaPrivacidadeRoute
   '/prospeccao': typeof ProspeccaoRoute
   '/relatorios': typeof RelatoriosRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -573,6 +590,7 @@ export interface FileRoutesById {
   '/plataforma/integracoes': typeof PlataformaIntegracoesRoute
   '/plataforma/logs': typeof PlataformaLogsRoute
   '/plataforma/planos': typeof PlataformaPlanosRoute
+  '/plataforma/privacidade': typeof PlataformaPrivacidadeRoute
   '/plataforma/suporte': typeof PlataformaSuporteRoute
   '/plataforma/usuarios': typeof PlataformaUsuariosRoute
   '/clientes/': typeof ClientesIndexRoute
@@ -617,6 +635,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/perfil'
     | '/plano-bloqueado'
+    | '/politica-privacidade'
     | '/prospeccao'
     | '/relatorios'
     | '/reset-password'
@@ -640,6 +659,7 @@ export interface FileRouteTypes {
     | '/plataforma/integracoes'
     | '/plataforma/logs'
     | '/plataforma/planos'
+    | '/plataforma/privacidade'
     | '/plataforma/suporte'
     | '/plataforma/usuarios'
     | '/clientes/'
@@ -682,6 +702,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/perfil'
     | '/plano-bloqueado'
+    | '/politica-privacidade'
     | '/prospeccao'
     | '/relatorios'
     | '/reset-password'
@@ -705,6 +726,7 @@ export interface FileRouteTypes {
     | '/plataforma/integracoes'
     | '/plataforma/logs'
     | '/plataforma/planos'
+    | '/plataforma/privacidade'
     | '/plataforma/suporte'
     | '/plataforma/usuarios'
     | '/clientes'
@@ -747,6 +769,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/perfil'
     | '/plano-bloqueado'
+    | '/politica-privacidade'
     | '/prospeccao'
     | '/relatorios'
     | '/reset-password'
@@ -770,6 +793,7 @@ export interface FileRouteTypes {
     | '/plataforma/integracoes'
     | '/plataforma/logs'
     | '/plataforma/planos'
+    | '/plataforma/privacidade'
     | '/plataforma/suporte'
     | '/plataforma/usuarios'
     | '/clientes/'
@@ -813,6 +837,7 @@ export interface RootRouteChildren {
   OnboardingRoute: typeof OnboardingRoute
   PerfilRoute: typeof PerfilRoute
   PlanoBloqueadoRoute: typeof PlanoBloqueadoRoute
+  PoliticaPrivacidadeRoute: typeof PoliticaPrivacidadeRoute
   ProspeccaoRoute: typeof ProspeccaoRoute
   RelatoriosRoute: typeof RelatoriosRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -836,6 +861,7 @@ export interface RootRouteChildren {
   PlataformaIntegracoesRoute: typeof PlataformaIntegracoesRoute
   PlataformaLogsRoute: typeof PlataformaLogsRoute
   PlataformaPlanosRoute: typeof PlataformaPlanosRoute
+  PlataformaPrivacidadeRoute: typeof PlataformaPrivacidadeRoute
   PlataformaSuporteRoute: typeof PlataformaSuporteRoute
   PlataformaUsuariosRoute: typeof PlataformaUsuariosRoute
   ClientesIndexRoute: typeof ClientesIndexRoute
@@ -887,6 +913,13 @@ declare module '@tanstack/react-router' {
       path: '/prospeccao'
       fullPath: '/prospeccao'
       preLoaderRoute: typeof ProspeccaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/politica-privacidade': {
+      id: '/politica-privacidade'
+      path: '/politica-privacidade'
+      fullPath: '/politica-privacidade'
+      preLoaderRoute: typeof PoliticaPrivacidadeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/plano-bloqueado': {
@@ -1055,6 +1088,13 @@ declare module '@tanstack/react-router' {
       path: '/plataforma/suporte'
       fullPath: '/plataforma/suporte'
       preLoaderRoute: typeof PlataformaSuporteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plataforma/privacidade': {
+      id: '/plataforma/privacidade'
+      path: '/plataforma/privacidade'
+      fullPath: '/plataforma/privacidade'
+      preLoaderRoute: typeof PlataformaPrivacidadeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/plataforma/planos': {
@@ -1325,6 +1365,7 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   PerfilRoute: PerfilRoute,
   PlanoBloqueadoRoute: PlanoBloqueadoRoute,
+  PoliticaPrivacidadeRoute: PoliticaPrivacidadeRoute,
   ProspeccaoRoute: ProspeccaoRoute,
   RelatoriosRoute: RelatoriosRoute,
   ResetPasswordRoute: ResetPasswordRoute,
@@ -1348,6 +1389,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlataformaIntegracoesRoute: PlataformaIntegracoesRoute,
   PlataformaLogsRoute: PlataformaLogsRoute,
   PlataformaPlanosRoute: PlataformaPlanosRoute,
+  PlataformaPrivacidadeRoute: PlataformaPrivacidadeRoute,
   PlataformaSuporteRoute: PlataformaSuporteRoute,
   PlataformaUsuariosRoute: PlataformaUsuariosRoute,
   ClientesIndexRoute: ClientesIndexRoute,

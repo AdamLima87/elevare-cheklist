@@ -281,22 +281,22 @@ export async function criarCupom(input: {
   maxUtilizacoes: number | null;
   maxUtilizacoesPorEmpresa: number;
 }): Promise<void> {
-  const { error } = await supabase.from("saas_cupons").insert({
-    codigo: input.codigo.trim().toUpperCase(),
-    descricao: input.descricao || null,
-    tipo_desconto: input.tipoDesconto,
-    valor: input.valor,
-    plano_codigo: input.planoCodigo,
-    periodicidade: input.periodicidade,
-    data_fim: input.dataFim,
-    max_utilizacoes: input.maxUtilizacoes,
-    max_utilizacoes_por_empresa: input.maxUtilizacoesPorEmpresa,
+  const { error } = await supabase.rpc("platform_criar_cupom", {
+    p_codigo: input.codigo.trim().toUpperCase(),
+    p_descricao: input.descricao || null,
+    p_tipo_desconto: input.tipoDesconto,
+    p_valor: input.valor,
+    p_plano_codigo: input.planoCodigo,
+    p_periodicidade: input.periodicidade,
+    p_data_fim: input.dataFim,
+    p_max_utilizacoes: input.maxUtilizacoes,
+    p_max_utilizacoes_por_empresa: input.maxUtilizacoesPorEmpresa,
   });
   if (error) throw error;
 }
 
 export async function atualizarCupomAtivo(cupomId: string, ativo: boolean): Promise<void> {
-  const { error } = await supabase.from("saas_cupons").update({ ativo }).eq("id", cupomId);
+  const { error } = await supabase.rpc("platform_atualizar_cupom_ativo", { p_cupom_id: cupomId, p_ativo: ativo });
   if (error) throw error;
 }
 

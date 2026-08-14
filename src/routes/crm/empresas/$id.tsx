@@ -773,7 +773,8 @@ function RepresentantesCard({ crmEmpresaId }: { crmEmpresaId: string }) {
               <DialogHeader>
                 <DialogTitle>Cadastrar Representante</DialogTitle>
                 <DialogDescription>
-                  Pessoa com poder pra assinar contratos em nome desta Conta.
+                  Pessoa com poder pra assinar contratos em nome desta Conta. Nome e CPF são impressos no contrato
+                  como identificação de quem assina em nome da empresa.
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
@@ -792,7 +793,7 @@ function RepresentantesCard({ crmEmpresaId }: { crmEmpresaId: string }) {
                     <Input id="rep_cpf" value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="rep_rg">RG</Label>
+                    <Label htmlFor="rep_rg">RG <span className="font-normal text-muted-foreground">(hoje não usado em nenhum documento)</span></Label>
                     <Input id="rep_rg" value={form.rg} onChange={(e) => setForm({ ...form, rg: e.target.value })} />
                   </div>
                 </div>

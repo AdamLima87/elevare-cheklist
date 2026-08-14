@@ -13,6 +13,7 @@ import {
   LogOut,
   Menu,
   Tag,
+  FileLock2,
 } from "lucide-react";
 import { Logo } from "@/components/elevare/Logo";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ const platformMenuItems = [
   { icon: Search, label: "Google Places", to: "/plataforma/consumo" },
   { icon: Plug, label: "Integrações", to: "/plataforma/integracoes" },
   { icon: ShieldAlert, label: "Auditoria", to: "/plataforma/logs" },
+  { icon: FileLock2, label: "Privacidade", to: "/plataforma/privacidade" },
   { icon: LifeBuoy, label: "Suporte", to: "/plataforma/suporte" },
   { icon: Settings, label: "Configurações", to: "/plataforma/configuracoes" },
 ];
