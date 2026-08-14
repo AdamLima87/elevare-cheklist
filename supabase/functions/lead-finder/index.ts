@@ -7,8 +7,7 @@
 // gravam nada no banco — são leitura/exibição temporária. Só `import`
 // persiste, e só o que o usuário confirmou no formulário (crm_importar_
 // lead_google já garante isso no lado do banco).
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.110.0";
 import { googlePlacesProvider } from "../_shared/company-search/google-places-provider.ts";
 import { decryptApiKey, encryptApiKey } from "../_shared/lead-credential-crypto.ts";
 import { checkLeadSearchRateLimit, logLeadSearchAttempt } from "../_shared/lead-search-rate-limit.ts";
@@ -53,7 +52,7 @@ async function resolveApiKey(
   return { apiKey: rdcheckKey, origem: "rdcheck" };
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });

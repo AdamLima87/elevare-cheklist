@@ -1,5 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.110.0";
 import { getAppUrl } from "../_shared/app-url.ts";
 import { verifyCaptcha } from "../_shared/captcha.ts";
 import { checkSignupRateLimit, getClientIp, logSignupAttempt } from "../_shared/rate-limit.ts";
@@ -118,7 +117,7 @@ function isUserAlreadyExistsError(message: string | undefined): boolean {
   return message.includes("already been registered") || message.includes("already registered");
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

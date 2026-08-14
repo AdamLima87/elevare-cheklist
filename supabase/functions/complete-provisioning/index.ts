@@ -1,5 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.110.0";
 import { provisionTrialTenant } from "../_shared/tenant-provisioning.ts";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 
@@ -7,7 +6,7 @@ import { buildCorsHeaders } from "../_shared/cors.ts";
 // clicou num magic link (prova de controle da conta) e chegou logado, mas
 // ainda sem profile/empresa. Nunca aceita um ownerId do corpo da
 // requisição: sempre resolve via o Bearer token verificado.
-serve(async (req) => {
+Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });

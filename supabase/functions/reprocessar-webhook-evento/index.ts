@@ -1,5 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.110.0";
 import { processarEventoAsaas, type AsaasWebhookBody } from "../_shared/asaas-event-processor.ts";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 
@@ -14,7 +13,7 @@ function jsonError(corsHeaders: Record<string, string>, message: string, status 
 // Plataforma → Cobranças. Roda exatamente a mesma lógica do webhook
 // (_shared/asaas-event-processor.ts) sobre o payload já armazenado, sem
 // depender do Asaas reenviar nada.
-serve(async (req) => {
+Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });

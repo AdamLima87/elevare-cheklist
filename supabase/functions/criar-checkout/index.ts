@@ -1,5 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.110.0";
 import { getAppUrl } from "../_shared/app-url.ts";
 import { billingProvider, CHECKOUT_MINUTES_TO_EXPIRE } from "../_shared/billing-provider.ts";
 import { buildCorsHeaders } from "../_shared/cors.ts";
@@ -24,7 +23,7 @@ function aplicarDesconto(valorBase: number, tipoDesconto: string, valor: number)
 // Endpoint AUTENTICADO — chamado por /pagamento/pendente. Resolve tudo
 // (dono, plano, preço) a partir do token verificado e do banco; o corpo
 // da requisição não carrega nada que decida preço, plano ou identidade.
-serve(async (req) => {
+Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });

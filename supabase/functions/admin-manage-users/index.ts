@@ -1,5 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.110.0"
 import { provisionAdminTenant } from "../_shared/tenant-provisioning.ts"
 import { buildCorsHeaders } from "../_shared/cors.ts"
 
@@ -78,7 +77,7 @@ async function enqueueTemporaryPasswordEmail(
   }
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req)
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })

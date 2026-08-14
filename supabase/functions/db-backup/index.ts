@@ -1,5 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.110.0";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 
 // Backup lógico diário, 100% dentro do Supabase (sem servico externo):
@@ -16,7 +15,7 @@ const BUCKET = "db-backups";
 const PAGE_SIZE = 1000;
 
 
-function jsonError(message: string, status = 400) {
+function jsonError(corsHeaders: Record<string, string>, message: string, status = 400) {
   return new Response(JSON.stringify({ error: message }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
     status,
@@ -81,7 +80,7 @@ async function limparBackupsAntigos(admin: ReturnType<typeof createClient>) {
   return { removidos: delError ? 0 : antigos.length, erro: delError?.message ?? null };
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -95,14 +94,14 @@ serve(async (req) => {
   const authHeader = req.headers.get("Authorization") ?? "";
   const expectedServiceRoleAuth = `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""}`;
   if (!Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || authHeader !== expectedServiceRoleAuth) {
-    return jsonError("Acesso restrito ao processo de backup interno.", 403);
+    return jsonError(corsHeaders, "Acesso restrito ao processo de backup interno.", 403);
   }
   try {
     const admin = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
 
     const { data: tabelasRows, error: tabelasError } = await admin.rpc("listar_tabelas_backup");
     if (tabelasError || !tabelasRows) {
-      return jsonError(`Falha ao listar tabelas: ${tabelasError?.message ?? "sem dados"}`, 500);
+      return jsonError(corsHeaders, `Falha ao listar tabelas: ${tabelasError?.message ?? "sem dados"}`, 500);
     }
     // O RPC retorna TABLE(tabela text) — via PostgREST isso chega como
     // array de objetos ({ tabela: "..." }), não array de strings.
@@ -129,7 +128,7 @@ serve(async (req) => {
       contentType: "application/gzip",
       upsert: true,
     });
-    if (uploadError) return jsonError(`Falha ao subir backup: ${uploadError.message}`, 500);
+    if (uploadError) return jsonError(corsHeaders, `Falha ao subir backup: ${uploadError.message}`, 500);
 
     const limpeza = await limparBackupsAntigos(admin);
 
@@ -147,6 +146,6 @@ serve(async (req) => {
   } catch (err) {
     console.error("Erro inesperado em db-backup", err);
     const message = err instanceof Error ? err.message : String(err);
-    return jsonError(`Não foi possível concluir o backup: ${message}`, 500);
+    return jsonError(corsHeaders, `Não foi possível concluir o backup: ${message}`, 500);
   }
 });
