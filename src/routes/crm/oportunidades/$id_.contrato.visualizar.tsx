@@ -23,6 +23,18 @@ import { useGerarLinkDocumento } from "@/hooks/useCrmDocumentosLinks";
 import { gerarPdfContrato } from "@/lib/pdf-contrato";
 import { enviarEmailComercial } from "@/lib/enviar-email-comercial";
 
+// Achado de auditoria: upload sem validação de tipo/tamanho e nome de
+// objeto construído a partir de arquivo.name (não confiável). Allowlist
+// fixa de MIME types + limite de tamanho no client, e a extensão do
+// objeto no Storage vem do MIME validado (nunca do nome enviado pelo
+// usuário), eliminando qualquer risco de caractere estranho na chave.
+const TIPOS_ARQUIVO_ASSINADO_PERMITIDOS: Record<string, string> = {
+  "application/pdf": "pdf",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+};
+const TAMANHO_MAXIMO_ARQUIVO_ASSINADO = 10 * 1024 * 1024; // 10MB
+
 export const Route = createFileRoute("/crm/oportunidades/$id_/contrato/visualizar")({
   validateSearch: (search: Record<string, unknown>) => ({ contratoId: String(search.contratoId ?? "") }),
   head: () => ({ meta: [{ title: "Contrato · CRM Comercial · RDCheck" }] }),
@@ -53,6 +65,22 @@ function ContratoVisualizarPage() {
   const [linkGerado, setLinkGerado] = useState<string | null>(null);
 
   const clienteNome = oportunidade?.crm_empresas?.nome_fantasia || oportunidade?.crm_empresas?.razao_social || "";
+
+  const handleArquivoSelecionado = (file: File | null) => {
+    if (!file) {
+      setArquivo(null);
+      return;
+    }
+    if (!TIPOS_ARQUIVO_ASSINADO_PERMITIDOS[file.type]) {
+      toast.error("Formato não suportado. Envie PDF, JPG ou PNG.");
+      return;
+    }
+    if (file.size > TAMANHO_MAXIMO_ARQUIVO_ASSINADO) {
+      toast.error("Arquivo muito grande. Tamanho máximo: 10MB.");
+      return;
+    }
+    setArquivo(file);
+  };
 
   const handleBaixarPdf = async () => {
     if (!contrato?.dados) return;
@@ -111,8 +139,10 @@ function ContratoVisualizarPage() {
     try {
       let arquivoPath: string | null = null;
       if (arquivo && contrato) {
-        arquivoPath = `${contrato.empresa_id}/contratos/${contrato.id}/assinados/${Date.now()}_${arquivo.name}`;
-        const { error: uploadError } = await supabase.storage.from("crm-comercial-anexos").upload(arquivoPath, arquivo);
+        const extensao = TIPOS_ARQUIVO_ASSINADO_PERMITIDOS[arquivo.type];
+        if (!extensao) throw new Error("Formato não suportado. Envie PDF, JPG ou PNG.");
+        arquivoPath = `${contrato.empresa_id}/contratos/${contrato.id}/assinados/${crypto.randomUUID()}.${extensao}`;
+        const { error: uploadError } = await supabase.storage.from("crm-comercial-anexos").upload(arquivoPath, arquivo, { contentType: arquivo.type });
         if (uploadError) throw uploadError;
       }
       await marcarAssinado.mutateAsync({ contratoId, oportunidadeId: id, arquivoPath, justificativa: justificativa || null });
@@ -209,7 +239,13 @@ function ContratoVisualizarPage() {
                 <div className="space-y-3">
                   <div>
                     <Label>Arquivo assinado (opcional se houver justificativa)</Label>
-                    <input type="file" onChange={(e) => setArquivo(e.target.files?.[0] ?? null)} className="text-sm" />
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                      onChange={(e) => handleArquivoSelecionado(e.target.files?.[0] ?? null)}
+                      className="text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">PDF, JPG ou PNG, até 10MB.</p>
                   </div>
                   <div>
                     <Label>Justificativa (opcional se houver arquivo)</Label>

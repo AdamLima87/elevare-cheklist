@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildCorsHeaders } from "../_shared/cors.ts";
 
 // Backup lógico diário, 100% dentro do Supabase (sem servico externo):
 // pg_cron (ver migration 20260812130000_db_backup_infra.sql) chama esta
@@ -14,10 +15,6 @@ const RETENTION_DAYS = 7;
 const BUCKET = "db-backups";
 const PAGE_SIZE = 1000;
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 function jsonError(message: string, status = 400) {
   return new Response(JSON.stringify({ error: message }), {
@@ -85,14 +82,21 @@ async function limparBackupsAntigos(admin: ReturnType<typeof createClient>) {
 }
 
 serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  // Autenticação: o próprio verificador de JWT da Supabase já rejeita a
-  // chamada antes de chegar aqui se o Authorization não for um JWT válido
-  // (o cron chama com o service role key, guardado em Vault — nunca em
-  // texto puro na migration). Sem validação extra necessária.
+  // Achado de auditoria: o verificador de JWT da plataforma só garante um
+  // JWT válido (qualquer usuário autenticado passa), não que o chamador é
+  // especificamente o cron. Checagem explícita: só aceita se o Authorization
+  // bater exatamente com a service_role key — qualquer usuário comum,
+  // mesmo autenticado, é rejeitado antes de disparar um backup completo.
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const expectedServiceRoleAuth = `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""}`;
+  if (!Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || authHeader !== expectedServiceRoleAuth) {
+    return jsonError("Acesso restrito ao processo de backup interno.", 403);
+  }
   try {
     const admin = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
 

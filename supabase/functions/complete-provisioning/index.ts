@@ -1,17 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { provisionTrialTenant } from "../_shared/tenant-provisioning.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { buildCorsHeaders } from "../_shared/cors.ts";
 
 // Endpoint AUTENTICADO — chamado por /concluir-cadastro, quando um usuário
 // clicou num magic link (prova de controle da conta) e chegou logado, mas
 // ainda sem profile/empresa. Nunca aceita um ownerId do corpo da
 // requisição: sempre resolve via o Bearer token verificado.
 serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

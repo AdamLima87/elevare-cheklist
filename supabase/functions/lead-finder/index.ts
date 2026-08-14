@@ -12,21 +12,17 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { googlePlacesProvider } from "../_shared/company-search/google-places-provider.ts";
 import { decryptApiKey, encryptApiKey } from "../_shared/lead-credential-crypto.ts";
 import { checkLeadSearchRateLimit, logLeadSearchAttempt } from "../_shared/lead-search-rate-limit.ts";
+import { buildCorsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-function jsonResponse(body: unknown, status = 200) {
+function jsonResponse(corsHeaders: Record<string, string>, body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
     status,
   });
 }
 
-function errorResponse(message: string, status = 400) {
-  return jsonResponse({ error: message }, status);
+function errorResponse(corsHeaders: Record<string, string>, message: string, status = 400) {
+  return jsonResponse(corsHeaders, { error: message }, status);
 }
 
 interface CredentialRow {
@@ -58,6 +54,7 @@ async function resolveApiKey(
 }
 
 serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -66,21 +63,21 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return errorResponse("Não autenticado.", 401);
+    if (!authHeader) return errorResponse(corsHeaders, "Não autenticado.", 401);
 
     const token = authHeader.replace("Bearer ", "");
     const {
       data: { user },
       error: userError,
     } = await admin.auth.getUser(token);
-    if (userError || !user) return errorResponse("Não autenticado.", 401);
+    if (userError || !user) return errorResponse(corsHeaders, "Não autenticado.", 401);
 
     const { data: profile, error: profileError } = await admin
       .from("profiles")
       .select("perfil, empresa_id")
       .eq("id", user.id)
       .single();
-    if (profileError || !profile?.empresa_id) return errorResponse("Usuário sem empresa associada.", 403);
+    if (profileError || !profile?.empresa_id) return errorResponse(corsHeaders, "Usuário sem empresa associada.", 403);
 
     const empresaId = profile.empresa_id as string;
     const perfil = profile.perfil as string;
@@ -91,20 +88,20 @@ serve(async (req) => {
     try {
       body = await req.json();
     } catch {
-      return errorResponse("Corpo da requisição inválido.");
+      return errorResponse(corsHeaders, "Corpo da requisição inválido.");
     }
     const { action } = body;
 
     // --- Busca e importação (admin/consultor/super_admin) ---
     if (action === "search") {
-      if (!podeBuscarImportar) return errorResponse("Sem permissão.", 403);
+      if (!podeBuscarImportar) return errorResponse(corsHeaders, "Sem permissão.", 403);
       const { textQuery, pageToken } = body;
       if (typeof textQuery !== "string" || !textQuery.trim()) {
-        return errorResponse("Informe o que buscar (ex: restaurantes em Campinas).");
+        return errorResponse(corsHeaders, "Informe o que buscar (ex: restaurantes em Campinas).");
       }
 
       const rate = await checkLeadSearchRateLimit(admin, empresaId);
-      if (!rate.allowed) return errorResponse("Muitas buscas em pouco tempo. Aguarde um minuto e tente de novo.", 429);
+      if (!rate.allowed) return errorResponse(corsHeaders, "Muitas buscas em pouco tempo. Aguarde um minuto e tente de novo.", 429);
       await logLeadSearchAttempt(admin, empresaId);
 
       const { apiKey } = await resolveApiKey(admin, empresaId);
@@ -123,28 +120,28 @@ serve(async (req) => {
         .in("google_place_id", placeIds);
       const jaExistentes = new Set((existentes ?? []).map((e: any) => e.google_place_id));
 
-      return jsonResponse({
+      return jsonResponse(corsHeaders, {
         resultados: result.resultados.map((r) => ({ ...r, jaExisteNoCrm: jaExistentes.has(r.placeId) })),
         proximaPagina: result.proximaPagina,
       });
     }
 
     if (action === "get_details") {
-      if (!podeBuscarImportar) return errorResponse("Sem permissão.", 403);
+      if (!podeBuscarImportar) return errorResponse(corsHeaders, "Sem permissão.", 403);
       const { placeId } = body;
-      if (typeof placeId !== "string" || !placeId) return errorResponse("place_id é obrigatório.");
+      if (typeof placeId !== "string" || !placeId) return errorResponse(corsHeaders, "place_id é obrigatório.");
 
       const rate = await checkLeadSearchRateLimit(admin, empresaId);
-      if (!rate.allowed) return errorResponse("Muitas buscas em pouco tempo. Aguarde um minuto e tente de novo.", 429);
+      if (!rate.allowed) return errorResponse(corsHeaders, "Muitas buscas em pouco tempo. Aguarde um minuto e tente de novo.", 429);
       await logLeadSearchAttempt(admin, empresaId);
 
       const { apiKey } = await resolveApiKey(admin, empresaId);
       const details = await googlePlacesProvider.getPlaceDetails(placeId, apiKey);
-      return jsonResponse({ detalhes: details });
+      return jsonResponse(corsHeaders, { detalhes: details });
     }
 
     if (action === "import") {
-      if (!podeBuscarImportar) return errorResponse("Sem permissão.", 403);
+      if (!podeBuscarImportar) return errorResponse(corsHeaders, "Sem permissão.", 403);
       const {
         placeId,
         razaoSocial,
@@ -180,9 +177,9 @@ serve(async (req) => {
         p_responsavel_id: responsavelId,
       });
 
-      if (error) return errorResponse(error.message, 400);
+      if (error) return errorResponse(corsHeaders, error.message, 400);
       const row = Array.isArray(data) ? data[0] : data;
-      return jsonResponse({
+      return jsonResponse(corsHeaders, {
         crmEmpresaId: row?.crm_empresa_id,
         crmOportunidadeId: row?.crm_oportunidade_id,
         jaExistia: row?.ja_existia ?? false,
@@ -190,7 +187,7 @@ serve(async (req) => {
     }
 
     if (action === "get_usage") {
-      if (!podeBuscarImportar) return errorResponse("Sem permissão.", 403);
+      if (!podeBuscarImportar) return errorResponse(corsHeaders, "Sem permissão.", 403);
 
       const userClient = createClient(
         Deno.env.get("SUPABASE_URL") ?? "",
@@ -198,7 +195,7 @@ serve(async (req) => {
         { global: { headers: { Authorization: authHeader } } },
       );
       const { data, error } = await userClient.rpc("crm_leads_resolver_limite");
-      if (error) return errorResponse(error.message, 400);
+      if (error) return errorResponse(corsHeaders, error.message, 400);
       const limite = Array.isArray(data) ? data[0] : data;
 
       const { data: credencial } = await admin
@@ -207,7 +204,7 @@ serve(async (req) => {
         .eq("empresa_id", empresaId)
         .maybeSingle();
 
-      return jsonResponse({
+      return jsonResponse(corsHeaders, {
         limite,
         credencial: credencial ?? { status: "nao_configurado", ultimo_teste_em: null },
       });
@@ -215,10 +212,10 @@ serve(async (req) => {
 
     // --- Configuração da chave BYO (só admin/super_admin) ---
     if (action === "save_credential") {
-      if (!podeConfigurarIntegracao) return errorResponse("Sem permissão.", 403);
+      if (!podeConfigurarIntegracao) return errorResponse(corsHeaders, "Sem permissão.", 403);
       const { apiKey } = body;
       if (typeof apiKey !== "string" || apiKey.trim().length < 10) {
-        return errorResponse("Chave inválida.");
+        return errorResponse(corsHeaders, "Chave inválida.");
       }
 
       const masterKey = Deno.env.get("CRM_LEADS_ENC_KEY") ?? "";
@@ -232,20 +229,20 @@ serve(async (req) => {
         ultimo_teste_em: null,
         criado_por: user.id,
       });
-      if (error) return errorResponse(error.message, 400);
+      if (error) return errorResponse(corsHeaders, error.message, 400);
 
-      return jsonResponse({ success: true });
+      return jsonResponse(corsHeaders, { success: true });
     }
 
     if (action === "test_credential") {
-      if (!podeConfigurarIntegracao) return errorResponse("Sem permissão.", 403);
+      if (!podeConfigurarIntegracao) return errorResponse(corsHeaders, "Sem permissão.", 403);
 
       const { data: cred } = await admin
         .from("crm_leads_credenciais")
         .select("api_key_ciphertext, api_key_iv")
         .eq("empresa_id", empresaId)
         .maybeSingle<CredentialRow>();
-      if (!cred) return errorResponse("Nenhuma chave configurada.", 404);
+      if (!cred) return errorResponse(corsHeaders, "Nenhuma chave configurada.", 404);
 
       const masterKey = Deno.env.get("CRM_LEADS_ENC_KEY") ?? "";
       const apiKey = await decryptApiKey(cred.api_key_ciphertext, cred.api_key_iv, masterKey);
@@ -262,19 +259,19 @@ serve(async (req) => {
         .update({ status: novoStatus, ultimo_teste_em: new Date().toISOString() })
         .eq("empresa_id", empresaId);
 
-      return jsonResponse({ status: novoStatus });
+      return jsonResponse(corsHeaders, { status: novoStatus });
     }
 
     if (action === "remove_credential") {
-      if (!podeConfigurarIntegracao) return errorResponse("Sem permissão.", 403);
+      if (!podeConfigurarIntegracao) return errorResponse(corsHeaders, "Sem permissão.", 403);
       const { error } = await admin.from("crm_leads_credenciais").delete().eq("empresa_id", empresaId);
-      if (error) return errorResponse(error.message, 400);
-      return jsonResponse({ success: true });
+      if (error) return errorResponse(corsHeaders, error.message, 400);
+      return jsonResponse(corsHeaders, { success: true });
     }
 
-    return errorResponse("Ação inválida.");
+    return errorResponse(corsHeaders, "Ação inválida.");
   } catch (err) {
     console.error("Erro inesperado no lead-finder", err);
-    return errorResponse(err instanceof Error ? err.message : "Erro inesperado.", 500);
+    return errorResponse(corsHeaders, err instanceof Error ? err.message : "Erro inesperado.", 500);
   }
 });

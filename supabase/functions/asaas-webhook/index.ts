@@ -23,6 +23,20 @@ async function sha256Hex(text: string): Promise<string> {
     .join("");
 }
 
+// Achado de auditoria: comparar o token recebido com `!==` vaza timing
+// (retorna mais cedo no primeiro byte diferente), teoricamente permitindo
+// adivinhar o token caractere a caractere. Compara os hashes SHA-256 dos
+// dois valores byte a byte sempre percorrendo o array inteiro — hash tem
+// tamanho fixo, então nem o comprimento do token original vaza.
+async function tokensEquivalentes(a: string, b: string): Promise<boolean> {
+  const [hashA, hashB] = await Promise.all([sha256Hex(a), sha256Hex(b)]);
+  let diff = 0;
+  for (let i = 0; i < hashA.length; i++) {
+    diff |= hashA.charCodeAt(i) ^ hashB.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -32,7 +46,7 @@ serve(async (req) => {
 
   const expectedToken = Deno.env.get("ASAAS_WEBHOOK_TOKEN");
   const receivedToken = req.headers.get("asaas-access-token");
-  if (!expectedToken || receivedToken !== expectedToken) {
+  if (!expectedToken || !receivedToken || !(await tokensEquivalentes(receivedToken, expectedToken))) {
     return new Response(JSON.stringify({ error: "Token inválido." }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 401,
